@@ -176,6 +176,29 @@ Proof with auto.
   split; fourier.
 Qed.
 
+Definition invariant_overestimation
+  (ls: prod Location (abstraction.SquareInterval Interval Interval)): Prop
+  := squares_overlap (invariant_squares (fst ls))
+    (abstraction.square interval_bounds interval_bounds (snd ls)).
+
+Definition invariant_overestimator: decideable_overestimator
+  (abstraction.abstract_invariant interval_bounds interval_bounds invariant).
+Proof with auto.
+  apply (Build_decideable_overestimator
+    (abstraction.abstract_invariant
+     interval_bounds interval_bounds invariant) invariant_overestimation).
+    unfold invariant_overestimation.
+    intros.
+    apply squares_overlap_dec.
+  intros.
+  unfold invariant_overestimation.
+  unfold abstraction.abstract_invariant in H.
+  destruct H.
+  destruct H.
+  apply squares_share_point with x...
+  apply invariant_squares_correct...
+Defined.
+
 Definition abstract_system:
   {s : abstract.System &
   {f : concrete.State concrete_system -> abstract.State s
@@ -188,6 +211,6 @@ Definition abstract_system:
     intervals intervals_complete
     Xflow Yflow Xflow_inv Yflow_inv Xflows Yflows
     Xflow_inv_correct Yflow_inv_correct Xmono Ymono
-    initial invariant invariant_initial guard reset
-    invariant_squares invariant_squares_correct
+    initial invariant_initial guard reset
+    invariant_overestimator
     absInterval absInterval respectsInit squares_cover_invariants.

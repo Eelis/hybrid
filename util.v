@@ -19,6 +19,12 @@ Next Obligation. right. reflexivity. Defined.
 
 Definition decision (P: Prop): Set := { P } + { ~ P }.
 
+Record decideable_overestimator (A: Type) (Ideal: A -> Prop) :=
+  { doe_pred: A -> Prop
+  ; doe_dec: forall a, decision (doe_pred a)
+  ; doe_correct: forall a, Ideal a -> doe_pred a
+  }.
+
 Definition pair_eq_dec (X Y: Set)
   (X_eq_dec: forall x x': X, {x=x'}+{x<>x'})
   (Y_eq_dec: forall y y': Y, {y=y'}+{y<>y'})

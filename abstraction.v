@@ -97,17 +97,18 @@ Section contents.
     (guard: Location * Point -> Location -> Prop)
     (reset: Location -> Location -> Point -> Point).
 
-  Variables
-    (concrete_invariant_squares: Location -> Square)
-    (concrete_invariant_squares_correct: forall (l: Location) p,
-      concrete_invariant (l, p) ->
-      in_square p (concrete_invariant_squares l)).
+  Definition abstract_invariant (ls: prod Location SquareInterval): Prop :=
+    exists p,
+      in_square p (square (snd ls)) /\ concrete_invariant (fst ls, p).
+
+  Variable concrete_invariant_decider:
+     decideable_overestimator abstract_invariant.
 
   Definition condition (l: Location) (s s': SquareInterval): Prop :=
     square_flow_conditions.practical_decideable (xflow_inv l) (yflow_inv l)
       (xmono l) (ymono l) (square s) (square s')
-    /\ squares_overlap (concrete_invariant_squares l) (square s)
-    /\ squares_overlap (concrete_invariant_squares l) (square s').
+    /\ doe_pred concrete_invariant_decider (l, s)
+    /\ doe_pred concrete_invariant_decider (l, s').
      (* Note how we only check the invariant at s and s', not at
       points in between. *)
 
@@ -116,9 +117,10 @@ Section contents.
   Definition condition_dec l s s': decision (condition l s s').
   Proof with auto.
     intros.
-    apply and_dec...
-    apply (square_flow_conditions.decide_practical (xflows l) (yflows l) (xflow_inv l) (yflow_inv l)
-      (xflow_correct l) (yflow_correct l) (xmono l) (ymono l) (square s) (square s')).
+    apply and_dec.
+      apply (square_flow_conditions.decide_practical (xflows l) (yflows l) (xflow_inv l) (yflow_inv l)
+        (xflow_correct l) (yflow_correct l) (xmono l) (ymono l) (square s) (square s')).
+    apply and_dec; apply doe_dec.
   Qed.
 
   Definition canTrans (l: Location) (s s': SquareInterval): bool :=
@@ -244,12 +246,18 @@ Section contents.
       assert (concrete_invariant (l, (x, y))).
         rewrite <- (concrete.flow_zero
           (concrete.product_flows (xflows l) (yflows l)) (x, y))...
-      apply squares_share_point with (x, y)...
+      apply doe_correct.
+      unfold abstract_invariant.
+      exists (x, y).
+      split...
       apply (@squares_cover_invariants l x y)...
-    assert (concrete_invariant (l, (xflow l x t, yflow l y t))).
+    apply doe_correct.
+    exists (xflow l x t, yflow l y t).
+    split.
+      simpl snd.
+      apply (@squares_cover_invariants l (xflow l x t) (yflow l y t))...
       apply H0...
-    apply squares_share_point with (xflow l x t, yflow l y t)...
-    apply (@squares_cover_invariants l (xflow l x t) (yflow l y t))...
+    apply H0...
   Qed.
 
   Theorem respect: abstract.Respects abstract_system absFunc.
