@@ -30,6 +30,22 @@ Definition invariant (s: State): Prop :=
   | Down => (1 <= fst (snd s) <= 3 /\ 1 <= snd (snd s) <= 3)%R
   end.
 
+Definition invariant_squares (l: Location): Square.
+Proof with fourier.
+  intro l. destruct l.
+    apply (@MkSquare 0 0 2 2)...
+  apply (@MkSquare 1 1 3 3)...
+Defined.
+
+Lemma invariant_squares_correct (l : Location) (p : Point):
+  invariant (l, p) -> in_square p (invariant_squares l).
+Proof.
+  intros. destruct p.
+  destruct l;
+   destruct H; destruct H; destruct H0;
+   split; split; assumption.
+Qed.
+
 Lemma invariant_initial s: initial s -> invariant s.
 Proof.
   destruct s. unfold initial, invariant.
@@ -173,4 +189,5 @@ Definition abstract_system:
     Xflow Yflow Xflow_inv Yflow_inv Xflows Yflows
     Xflow_inv_correct Yflow_inv_correct Xmono Ymono
     initial invariant invariant_initial guard reset
+    invariant_squares invariant_squares_correct
     absInterval absInterval respectsInit squares_cover_invariants.

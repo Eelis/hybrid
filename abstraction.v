@@ -89,18 +89,6 @@ Section contents.
     (yflow_correct: forall l y y', yflow l y (yflow_inv l y y') = y')
     (xmono: forall l, mono (xflow l)) (ymono: forall l, mono (yflow l)).
 
-  Definition canTrans (l: Location) (s s': SquareInterval): bool :=
-    unsumbool (square_flow_conditions.decide_practical
-      (xflows l) (yflows l) (xflow_inv l) (yflow_inv l)
-      (xflow_correct l) (yflow_correct l) (xmono l) (ymono l) (square s) (square s')).
-      (* todo: check invariants *)
-
-  Definition contTrans (s: State): list State :=
-    map (pair (fst s)) (filter (canTrans (fst s) (snd s)) squareIntervals).
-
-  Definition discreteTrans (s: State): list State := states.
-    (* todo *)
-
   Variables
     (concrete_initial: Location * Point -> Prop)
     (concrete_invariant: Location * Point -> Prop)
@@ -108,6 +96,39 @@ Section contents.
       concrete_initial p -> concrete_invariant p)
     (guard: Location * Point -> Location -> Prop)
     (reset: Location -> Location -> Point -> Point).
+
+  Variables
+    (concrete_invariant_squares: Location -> Square)
+    (concrete_invariant_squares_correct: forall (l: Location) p,
+      concrete_invariant (l, p) ->
+      in_square p (concrete_invariant_squares l)).
+
+  Definition condition (l: Location) (s s': SquareInterval): Prop :=
+    square_flow_conditions.practical_decideable (xflow_inv l) (yflow_inv l)
+      (xmono l) (ymono l) (square s) (square s')
+    /\ squares_overlap (concrete_invariant_squares l) (square s)
+    /\ squares_overlap (concrete_invariant_squares l) (square s').
+     (* Note how we only check the invariant at s and s', not at
+      points in between. *)
+
+  Hint Resolve squares_overlap_dec.
+
+  Definition condition_dec l s s': decision (condition l s s').
+  Proof with auto.
+    intros.
+    apply and_dec...
+    apply (square_flow_conditions.decide_practical (xflows l) (yflows l) (xflow_inv l) (yflow_inv l)
+      (xflow_correct l) (yflow_correct l) (xmono l) (ymono l) (square s) (square s')).
+  Qed.
+
+  Definition canTrans (l: Location) (s s': SquareInterval): bool :=
+    unsumbool (condition_dec l s s').
+
+  Definition contTrans (s: State): list State :=
+    map (pair (fst s)) (filter (canTrans (fst s) (snd s)) squareIntervals).
+
+  Definition discreteTrans (s: State): list State := states.
+    (* todo *)
 
   Let concrete_system: concrete.System :=
     @concrete.Build_System Point Location concrete_initial
@@ -188,37 +209,47 @@ Section contents.
     split.
       apply squareIntervals_complete.
     unfold canTrans.
-    destruct (square_flow_conditions.decide_practical (xflows l) (yflows l)
-       (xflow_inv l) (yflow_inv l) (xflow_correct l) (yflow_correct l)
-       (xmono l) (ymono l) (square (absXinterval r, absYinterval r0))
-       (square (absXinterval (xflow l r t), absYinterval (yflow l r0 t))))...
+    destruct (condition_dec l (absXinterval r, absYinterval r0)
+     (absXinterval (xflow l r t), absYinterval (yflow l r0 t)))...
     elimtype False.
     apply n.
     clear n.
-    apply square_flow_conditions.ideal_implies_practical_decideable.
-            exact (xflows l).
-          exact (yflows l).
-        exact (xflow_correct l).
-      exact (yflow_correct l).
-    unfold square_flow_conditions.ideal.
-    exists (r, r0).
+    unfold condition.
     split.
-      simpl.
-      apply (@squares_cover_invariants l r r0).
-      set (H0 0).
-      clearbody c.
-      rewrite (concrete.flow_zero (concrete.product_flows (xflows l) (yflows l))) in c.
-      apply c.
+      apply square_flow_conditions.ideal_implies_practical_decideable.
+              exact (xflows l).
+            exact (yflows l).
+          exact (xflow_correct l).
+        exact (yflow_correct l).
+      unfold square_flow_conditions.ideal.
+      exists (r, r0).
+      split.
+        simpl.
+        apply (@squares_cover_invariants l r r0).
+        set (H0 0).
+        clearbody c.
+        rewrite (concrete.flow_zero (concrete.product_flows (xflows l) (yflows l))) in c.
+        apply c.
+        split...
+      exists t.
       split...
-    exists t.
-    split...
-    unfold f.
-    simpl xflow.
-    simpl yflow.
-    simpl.
-    apply squares_cover_invariants with l.
-    apply (H0 t).
-    split...
+      unfold f.
+      simpl xflow.
+      simpl yflow.
+      simpl.
+      apply squares_cover_invariants with l.
+      apply (H0 t)...
+    rename r into x. rename r0 into y.
+    split.
+      assert (concrete_invariant (l, (x, y))).
+        rewrite <- (concrete.flow_zero
+          (concrete.product_flows (xflows l) (yflows l)) (x, y))...
+      apply squares_share_point with (x, y)...
+      apply (@squares_cover_invariants l x y)...
+    assert (concrete_invariant (l, (xflow l x t, yflow l y t))).
+      apply H0...
+    apply squares_share_point with (xflow l x t, yflow l y t)...
+    apply (@squares_cover_invariants l (xflow l x t) (yflow l y t))...
   Qed.
 
   Theorem respect: abstract.Respects abstract_system absFunc.

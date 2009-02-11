@@ -1,4 +1,5 @@
 Require Import Coq.Reals.Reals.
+Require Import Fourier.
 Set Implicit Arguments.
 Open Local Scope R_scope.
 
@@ -16,19 +17,25 @@ Qed.
 Program Definition immediately: Duration := 0.
 Next Obligation. right. reflexivity. Defined.
 
+Definition decision (P: Prop): Set := { P } + { ~ P }.
+
 Definition pair_eq_dec (X Y: Set)
   (X_eq_dec: forall x x': X, {x=x'}+{x<>x'})
   (Y_eq_dec: forall y y': Y, {y=y'}+{y<>y'})
-    (p: prod X Y) (p': prod X Y): {p=p'}+{p<>p'}.
+    (p: prod X Y) (p': prod X Y): decision (p=p').
 Proof with auto.
-  destruct p. destruct p'.
+  destruct p. destruct p'. unfold decision.
   destruct (X_eq_dec x x0); destruct (Y_eq_dec y y0);
     subst; try auto; right; intro; inversion H...
 Defined.
 
-Definition and_dec (P Q: Prop) (Pdec: {P}+{~P}) (Qdec: {Q}+{~Q}):
-  {P/\Q}+{~(P/\Q)}.
-Proof. tauto. Qed.
+Hint Unfold decision.
+
+Definition and_dec (P Q: Prop) (Pdec: decision P) (Qdec: decision Q):
+  decision (P/\Q).
+Proof. unfold decision. tauto. Qed.
+
+Hint Resolve and_dec.
 
 Lemma inc_weak (g: Time -> R):
   (forall t t', t < t' -> g t < g t') ->
@@ -54,9 +61,9 @@ Section geometry.
     let (x, y, x', y', _, _) := s in x <= fst p <= x' /\ y <= snd p <= y'.
 
   Definition in_square_dec (p: Point) (s: Square):
-    { in_square p s } + { ~ in_square p s }.
+    decision (in_square p s).
   Proof.
-    destruct p. destruct s.
+    destruct p. destruct s. unfold decision.
     unfold in_square. simpl.
     destruct (Rle_dec x r); [idtac | right; firstorder].
     destruct (Rle_dec r x'); [idtac | right; firstorder].
@@ -64,5 +71,43 @@ Section geometry.
     destruct (Rle_dec r0 y'); [idtac | right; firstorder].
     left. firstorder.
   Qed.
+
+  Definition ranges_overlap (a b: prod R R): Prop :=
+    fst a <= snd b /\ fst b <= snd a.
+
+Hint Resolve Rle_dec.
+
+  Definition ranges_overlap_dec (a b: prod R R):
+    decision (ranges_overlap a b).
+  Proof. unfold ranges_overlap. auto. Defined.
+
+  Hint Resolve ranges_overlap_dec.
+
+  Definition squares_overlap (a b: Square): Prop :=
+    let (ax, ay, ax', ay', _, _) := a in
+    let (bx, by, bx', by', _, _) := b in
+      ranges_overlap (ax, ax') (bx, bx') /\
+      ranges_overlap (ay, ay') (by, by').
+
+  Definition squares_overlap_dec (a b: Square):
+    decision (squares_overlap a b).
+  Proof.
+    destruct a. destruct b. unfold squares_overlap. auto.
+  Defined.
+
+  Lemma squares_share_point a b p: in_square p a -> in_square p b ->
+    squares_overlap a b.
+      (* todo: this also holds in reverse *)
+  Proof with auto.
+    unfold in_square, squares_overlap, ranges_overlap.
+    destruct a. destruct b. destruct p.
+    simpl.
+    intros.
+    destruct H. destruct H. destruct H1.
+    destruct H0. destruct H0. destruct H4.
+    split; split; fourier.
+  Qed.
+
+  Hint Resolve squares_overlap_dec.
 
 End geometry.
