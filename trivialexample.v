@@ -132,14 +132,19 @@ Proof with auto with real.
   destruct (Rle_dec 0 1)...
 Qed.
 
-Lemma squares_cover_invariants l x y: concrete.invariant concrete_system (l, (x, y)) ->
-  in_square (x, y) (abstraction.square
-    interval_bounds interval_bounds (absInterval x, absInterval y)).
+Lemma regions_cover_invariants l p: concrete.invariant concrete_system (l, p) ->
+  abstraction.in_region interval_bounds interval_bounds p
+    (abstraction.absInterval absInterval absInterval p).
 Proof with auto.
-  destruct l; simpl.
-    unfold invariant. simpl.
-    unfold absInterval.
-    intros.
+  intros.
+  destruct p. rename r into x. rename r0 into y.
+  unfold abstraction.absInterval, abstraction.in_region.
+  simpl.
+  simpl in H.
+  unfold invariant in H. simpl in H.
+  unfold absInterval.
+  simpl.
+  destruct l.
     destruct H. destruct H. destruct H0.
     split.
       destruct (Rle_dec x 1); simpl.
@@ -155,9 +160,6 @@ Proof with auto.
       split; fourier.
     set (Rnot_le_lt _ _ n0).
     split; fourier.
-  unfold invariant. simpl.
-  unfold absInterval.
-  intros.
   destruct H. destruct H. destruct H0.
   split.
     destruct (Rle_dec x 1); simpl.
@@ -199,59 +201,85 @@ Proof with auto.
   apply invariant_squares_correct...
 Defined.
 
-Definition map_square (s: Square) (fx: R -> R) (fy: R -> R)
-  (fxi: increasing fx) (fyi: increasing fy): Square.
-  intros.
-  destruct s.
-  apply (MkSquare (fxi _ _ xp) (fyi _ _ yp)).
-Defined.
-
 Lemma increasing_id: increasing id.
 Proof. unfold increasing. auto. Qed.
 
-Definition disc_overestimation (ss:
-  (Location * abstraction.SquareInterval Interval Interval) *
-  (Location * abstraction.SquareInterval Interval Interval)): Prop :=
-    let (source, target) := ss in
-    let (l, s) := source in
-    let (l', s') := target in
-       squares_overlap
-         (map_square (abstraction.square interval_bounds interval_bounds s)
-           increasing_id increasing_id)
-         (abstraction.square interval_bounds interval_bounds s').
- (* todo: check guard, factorize *)
+Definition component_reset (l l': Location): R -> R := id.
 
-Definition disc_overestimator: decideable_overestimator
-  (abstraction.discrete_transition_condition interval_bounds interval_bounds invariant guard reset).
+Lemma crinc l l': increasing (component_reset l l').
+  intros.
+  apply increasing_id.
+Qed.
+
+Definition guard_overestimator:
+  decideable_overestimator
+  (abstraction.abstract_guard interval_bounds interval_bounds guard).
+Proof with auto.
+  apply Build_decideable_overestimator with (fun _ => True)...
+Defined.
+
+Definition disc_overestimator:
+  decideable_overestimator
+    (abstraction.discrete_transition_condition
+     concrete_system (abstraction.in_region interval_bounds interval_bounds)).
+Proof with auto.
+  apply abstraction.make_disc_decider with component_reset component_reset.
+          exact invariant_overestimator.
+        exact crinc.
+      exact crinc.
+    destruct p.
+    reflexivity.
+  exact guard_overestimator.
+Qed.
+
+Lemma initial_overestimator: decideable_overestimator
+  (abstraction.initial_condition concrete_system
+     (abstraction.in_region interval_bounds interval_bounds)).
 Proof with auto.
   apply (Build_decideable_overestimator
-   (abstraction.discrete_transition_condition interval_bounds interval_bounds invariant guard reset)
-     disc_overestimation).
-    unfold disc_overestimation.
-    destruct a. destruct p. destruct p0.
-    apply squares_overlap_dec.
-  unfold abstraction.discrete_transition_condition.
+    (abstraction.initial_condition concrete_system
+     (abstraction.in_region interval_bounds interval_bounds)) (fun s => s = (Up, (I01, I01)))).
+    intros.
+    apply abstraction.State_eq_dec.
+      apply Location_eq_dec.
+    apply abstraction.SquareInterval_eq_dec; apply Interval_eq_dec.
   intros.
-  destruct H. destruct H.
-  unfold disc_overestimation.
-  destruct a. destruct p. destruct p0.
-  simpl fst in H0. simpl snd in H0.
-  destruct H0. destruct H1.
-  apply squares_share_point with (reset l l0 x)...
+  destruct H. destruct H. simpl in H0. unfold initial in H0.
+  destruct a.
+  simpl in H0.
+  inversion H0.
+  subst. clear H0.
+  simpl in H.
+  unfold abstraction.in_region in H.
+  destruct s.
+  simpl in H. destruct H. destruct H. destruct H0.
+  destruct i; destruct i0; simpl in *; try auto; elimtype False; fourier.
 Qed.
 
 Definition abstract_system:
   {s : abstract.System &
   {f : concrete.State concrete_system -> abstract.State s
-     | abstract.Respects s f} }
-
-  := abstraction.result Location_eq_dec
-    Interval_eq_dec Interval_eq_dec abstract_initial
+     | abstract.Respects s f} }.
+Proof with auto.
+  apply (@abstraction.result concrete_system
+    Location_eq_dec
+    (abstraction.SquareInterval Interval Interval)
+    (abstraction.SquareInterval_eq_dec Interval_eq_dec Interval_eq_dec)
+    (abstraction.in_region interval_bounds interval_bounds)
+    (abstraction.absInterval absInterval absInterval)
     locations locations_complete
-    intervals intervals_complete
-    intervals intervals_complete
-    Xflow Yflow Xflow_inv Yflow_inv Xflows Yflows
-    Xflow_inv_correct Yflow_inv_correct Xmono Ymono
-    initial invariant_initial
-    invariant_overestimator disc_overestimator
-    absInterval absInterval respectsInit squares_cover_invariants.
+    (abstraction.squareIntervals intervals intervals)
+    (abstraction.squareIntervals_complete _ intervals_complete _ intervals_complete)).
+        apply abstraction.cont_decider with Xflow_inv Yflow_inv.
+                exact Xflow_inv_correct.
+              exact Yflow_inv_correct.
+            exact Xmono.
+          exact Ymono.
+        exact invariant_overestimator.
+      apply disc_overestimator.
+    exact initial_overestimator.
+  intros.
+  apply regions_cover_invariants with l...
+Qed.
+
+Print Assumptions abstract_system.

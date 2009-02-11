@@ -60,6 +60,13 @@ Section geometry.
 
   Definition Point: Set := (R * R)%type.
 
+  Definition in_range (ab: prod R R) (r: R): Prop :=
+    fst ab <= r <= snd ab.
+
+  Definition in_range_dec (ab: prod R R) (r: R):
+    decision (in_range ab r).
+  Proof. unfold in_range. intros. apply and_dec; apply Rle_dec. Defined.
+
   Inductive Square: Set :=
     MkSquare (x y x' y': R) (xp: x <= x') (yp: y <= y').
 
@@ -115,5 +122,27 @@ Hint Resolve Rle_dec.
   Qed.
 
   Hint Resolve squares_overlap_dec.
+
+  Section mapping.
+
+    Variables (fx: R -> R) (fy: R -> R)
+      (fxi: increasing fx) (fyi: increasing fy).
+
+    Definition map_square (s: Square): Square.
+      intros.
+      destruct s.
+      exact (MkSquare (fxi xp) (fyi yp)).
+    Defined.
+
+    Definition in_map_square p s: in_square p s ->
+      in_square (fx (fst p), fy (snd p)) (map_square s).
+    Proof with auto with real.
+      intros.
+      destruct s.
+      simpl. simpl in H.
+      destruct H. destruct H. destruct H0...
+    Qed.
+
+  End mapping.
 
 End geometry.
