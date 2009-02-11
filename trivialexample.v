@@ -185,8 +185,8 @@ Definition invariant_overestimator: decideable_overestimator
   (abstraction.abstract_invariant interval_bounds interval_bounds invariant).
 Proof with auto.
   apply (Build_decideable_overestimator
-    (abstraction.abstract_invariant
-     interval_bounds interval_bounds invariant) invariant_overestimation).
+    (abstraction.abstract_invariant interval_bounds interval_bounds invariant)
+     invariant_overestimation).
     unfold invariant_overestimation.
     intros.
     apply squares_overlap_dec.
@@ -198,6 +198,47 @@ Proof with auto.
   apply squares_share_point with x...
   apply invariant_squares_correct...
 Defined.
+
+Definition map_square (s: Square) (fx: R -> R) (fy: R -> R)
+  (fxi: increasing fx) (fyi: increasing fy): Square.
+  intros.
+  destruct s.
+  apply (MkSquare (fxi _ _ xp) (fyi _ _ yp)).
+Defined.
+
+Lemma increasing_id: increasing id.
+Proof. unfold increasing. auto. Qed.
+
+Definition disc_overestimation (ss:
+  (Location * abstraction.SquareInterval Interval Interval) *
+  (Location * abstraction.SquareInterval Interval Interval)): Prop :=
+    let (source, target) := ss in
+    let (l, s) := source in
+    let (l', s') := target in
+       squares_overlap
+         (map_square (abstraction.square interval_bounds interval_bounds s)
+           increasing_id increasing_id)
+         (abstraction.square interval_bounds interval_bounds s').
+ (* todo: check guard, factorize *)
+
+Definition disc_overestimator: decideable_overestimator
+  (abstraction.discrete_transition_condition interval_bounds interval_bounds invariant guard reset).
+Proof with auto.
+  apply (Build_decideable_overestimator
+   (abstraction.discrete_transition_condition interval_bounds interval_bounds invariant guard reset)
+     disc_overestimation).
+    unfold disc_overestimation.
+    destruct a. destruct p. destruct p0.
+    apply squares_overlap_dec.
+  unfold abstraction.discrete_transition_condition.
+  intros.
+  destruct H. destruct H.
+  unfold disc_overestimation.
+  destruct a. destruct p. destruct p0.
+  simpl fst in H0. simpl snd in H0.
+  destruct H0. destruct H1.
+  apply squares_share_point with (reset l l0 x)...
+Qed.
 
 Definition abstract_system:
   {s : abstract.System &
@@ -211,6 +252,6 @@ Definition abstract_system:
     intervals intervals_complete
     Xflow Yflow Xflow_inv Yflow_inv Xflows Yflows
     Xflow_inv_correct Yflow_inv_correct Xmono Ymono
-    initial invariant_initial guard reset
-    invariant_overestimator
+    initial invariant_initial
+    invariant_overestimator disc_overestimator
     absInterval absInterval respectsInit squares_cover_invariants.

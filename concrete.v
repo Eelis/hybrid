@@ -65,8 +65,8 @@ Section contents.
 
   Definition disc_trans (s s': State) : Prop :=
     guard system s (fst s') /\
-     reset system (fst s) (fst s') (snd s) = (snd s') /\ invariant s'.
-      (* eelis: the paper additionally requires that the invariant holds at s.. *)
+     reset system (fst s) (fst s') (snd s) = (snd s') /\
+      invariant s /\ invariant s'.
 
   Definition trans (s s': State): Prop := disc_trans s s' \/ cont_trans s s'.
 

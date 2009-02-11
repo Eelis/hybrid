@@ -94,27 +94,46 @@ Section contents.
     (concrete_invariant: Location * Point -> Prop)
     (concrete_invariant_initial: forall p: Location * Point,
       concrete_initial p -> concrete_invariant p)
-    (guard: Location * Point -> Location -> Prop)
+    (concrete_guard: Location * Point -> Location -> Prop)
     (reset: Location -> Location -> Point -> Point).
+
+  Definition abstract_guard (ls: prod (prod Location SquareInterval) Location): Prop
+    := exists p, in_square p (square (snd (fst ls))) /\
+	concrete_guard (fst (fst ls), p) (snd ls).
 
   Definition abstract_invariant (ls: prod Location SquareInterval): Prop :=
     exists p,
       in_square p (square (snd ls)) /\ concrete_invariant (fst ls, p).
 
-  Variable concrete_invariant_decider:
-     decideable_overestimator abstract_invariant.
+  Variables
+    (invariant_decider: decideable_overestimator abstract_invariant)
+    (guard_decider: decideable_overestimator abstract_guard).
 
-  Definition condition (l: Location) (s s': SquareInterval): Prop :=
-    square_flow_conditions.practical_decideable (xflow_inv l) (yflow_inv l)
+  Definition continuous_transition_condition
+    (l: Location) (s s': SquareInterval): Prop :=
+     square_flow_conditions.practical_decideable (xflow_inv l) (yflow_inv l)
       (xmono l) (ymono l) (square s) (square s')
-    /\ doe_pred concrete_invariant_decider (l, s)
-    /\ doe_pred concrete_invariant_decider (l, s').
+    /\ doe_pred invariant_decider (l, s)
+    /\ doe_pred invariant_decider (l, s').
      (* Note how we only check the invariant at s and s', not at
       points in between. *)
 
+  Definition discrete_transition_condition (s: prod State State): Prop
+    := exists p: Point,
+      in_square (reset (fst (fst s)) (fst (snd s)) p) (square (snd (snd s)))
+      /\ in_square p (square (snd (fst s)))
+      /\ concrete_guard (fst (fst s), p) (fst (snd s))
+      /\ concrete_invariant
+          (fst (snd s), reset (fst (fst s)) (fst (snd s)) p).
+        (* ugh, this horrible fst/snd fest is what we get for using pairs
+         so much.. *)
+
+  Variable disc_decider: decideable_overestimator discrete_transition_condition.
+
   Hint Resolve squares_overlap_dec.
 
-  Definition condition_dec l s s': decision (condition l s s').
+  Definition condition_dec l s s':
+    decision (continuous_transition_condition l s s').
   Proof with auto.
     intros.
     apply and_dec.
@@ -123,20 +142,23 @@ Section contents.
     apply and_dec; apply doe_dec.
   Qed.
 
-  Definition canTrans (l: Location) (s s': SquareInterval): bool :=
+  Definition canContTrans (l: Location) (s s': SquareInterval): bool :=
     unsumbool (condition_dec l s s').
 
-  Definition contTrans (s: State): list State :=
-    map (pair (fst s)) (filter (canTrans (fst s) (snd s)) squareIntervals).
+  Definition canDiscTrans (s s': State): bool :=
+    unsumbool (doe_dec disc_decider (s, s')).
 
-  Definition discreteTrans (s: State): list State := states.
-    (* todo *)
+  Definition contTrans (s: State): list State :=
+    map (pair (fst s)) (filter (canContTrans (fst s) (snd s)) squareIntervals).
+  Definition discreteTrans (s: State): list State :=
+    filter (canDiscTrans s) states.
+      (* a more efficient implementation would grow the graph *)
 
   Let concrete_system: concrete.System :=
     @concrete.Build_System Point Location concrete_initial
       concrete_invariant concrete_invariant_initial
       (fun l => concrete.product_flow (xflow l) (yflow l))
-      (fun l => concrete.product_flows (xflows l) (yflows l)) guard reset.
+      (fun l => concrete.product_flows (xflows l) (yflows l)) concrete_guard reset.
 
   Definition abstract_system: abstract.System :=
     abstract.Build_System State_eq_dec (fun s => initial (fst s) (fst (snd s)) (snd (snd s))) contTrans discreteTrans.
@@ -170,19 +192,51 @@ Section contents.
     assumption.
   Qed.
 
+  Hypothesis squares_cover_invariants: forall l x y,
+    concrete.invariant concrete_system (l, (x, y)) ->
+    in_square (x, y) (square (absXinterval x, absYinterval y)).
+
   Lemma respectsDisc (s1 s2: concrete.State concrete_system):
     concrete.disc_trans s1 s2 ->
     In (absFunc s2) (abstract.disc_trans abstract_system (absFunc s1)).
   Proof with auto.
     intros.
     unfold abstract.disc_trans, abstract_system, discreteTrans.
-    apply states_complete.
-  Qed. (* currently trivial because discrete transition matrix is complete.
-  should become more interesting when we become more picky *)
-
-  Hypothesis squares_cover_invariants: forall l x y,
-    concrete.invariant concrete_system (l, (x, y)) ->
-    in_square (x, y) (square (absXinterval x, absYinterval y)).
+    destruct (filter_In (canDiscTrans (absFunc s1)) (absFunc s2) states).
+    apply H1.
+    split.
+      apply states_complete.
+    unfold canDiscTrans.
+    destruct (doe_dec disc_decider (absFunc s1, absFunc s2))...
+    elimtype False.
+    apply n.
+    clear n H0 H1.
+    apply doe_correct.
+    unfold discrete_transition_condition.
+    simpl fst.
+    destruct H.
+    destruct H0.
+    destruct H1.
+    exists (snd s1).
+    simpl snd.
+    repeat rewrite fst_absFunc.
+    simpl in H0.
+    simpl concrete.Location. simpl concrete.Point.
+    rewrite H0.
+    split.
+      destruct s2.
+      destruct p.
+      simpl snd.
+      apply squares_cover_invariants with l...
+    destruct s1.
+    simpl fst in H0. simpl snd in H0.
+    split.
+      destruct p.
+      simpl snd.
+      apply squares_cover_invariants with l...
+    simpl snd. simpl fst.
+    destruct s2...
+  Qed.
 
   Lemma respectsCont s1 s2: (concrete.cont_trans s1 s2) ->
     In (absFunc s2) (abstract.cont_trans abstract_system (absFunc s1)).
@@ -203,14 +257,14 @@ Section contents.
     destruct p.
     simpl fst. simpl snd.
     destruct (filter_In
-      (canTrans l (absXinterval r, absYinterval r0))
+      (canContTrans l (absXinterval r, absYinterval r0))
       (absXinterval (xflow l r t),
       absYinterval (yflow l r0 t)) squareIntervals).
     clear H.
     apply H1. clear H1.
     split.
       apply squareIntervals_complete.
-    unfold canTrans.
+    unfold canContTrans.
     destruct (condition_dec l (absXinterval r, absYinterval r0)
      (absXinterval (xflow l r t), absYinterval (yflow l r0 t)))...
     elimtype False.
