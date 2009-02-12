@@ -7,6 +7,7 @@ Require Import monotonic_flow.
 Require concrete.
 Require abstract.
 Require abstraction.
+Require square_abstraction.
 Set Implicit Arguments.
 
 Inductive Location: Set := Up | Down.
@@ -113,32 +114,13 @@ Definition absInterval (r: R): Interval :=
   if Rle_dec r 1 then I01 else
   if Rle_dec r 2 then I12 else I23.
 
-Definition abstract_initial (l: Location) (x y: Interval): bool :=
-  andb (unsumbool (Location_eq_dec l Up))
-  (andb
-    (unsumbool (Interval_eq_dec x I01))
-    (unsumbool (Interval_eq_dec y I01))).
-
-Lemma respectsInit (l: Location) (x y: R):
-  initial (l, (x, y)) ->
-  abstract_initial l (absInterval x) (absInterval y) = true.
-Proof with auto with real.
-  unfold initial.
-  unfold abstract_initial.
-  intros.
-  inversion_clear H.
-  simpl.
-  unfold absInterval.
-  destruct (Rle_dec 0 1)...
-Qed.
-
 Lemma regions_cover_invariants l p: concrete.invariant concrete_system (l, p) ->
-  abstraction.in_region interval_bounds interval_bounds p
-    (abstraction.absInterval absInterval absInterval p).
+  square_abstraction.in_region interval_bounds interval_bounds p
+    (square_abstraction.absInterval absInterval absInterval p).
 Proof with auto.
   intros.
   destruct p. rename r into x. rename r0 into y.
-  unfold abstraction.absInterval, abstraction.in_region.
+  unfold square_abstraction.absInterval, square_abstraction.in_region.
   simpl.
   simpl in H.
   unfold invariant in H. simpl in H.
@@ -179,22 +161,22 @@ Proof with auto.
 Qed.
 
 Definition invariant_overestimation
-  (ls: prod Location (abstraction.SquareInterval Interval Interval)): Prop
+  (ls: prod Location (square_abstraction.SquareInterval Interval Interval)): Prop
   := squares_overlap (invariant_squares (fst ls))
-    (abstraction.square interval_bounds interval_bounds (snd ls)).
+    (square_abstraction.square interval_bounds interval_bounds (snd ls)).
 
 Definition invariant_overestimator: decideable_overestimator
-  (abstraction.abstract_invariant interval_bounds interval_bounds invariant).
+  (square_abstraction.abstract_invariant interval_bounds interval_bounds invariant).
 Proof with auto.
   apply (Build_decideable_overestimator
-    (abstraction.abstract_invariant interval_bounds interval_bounds invariant)
+    (square_abstraction.abstract_invariant interval_bounds interval_bounds invariant)
      invariant_overestimation).
     unfold invariant_overestimation.
     intros.
     apply squares_overlap_dec.
   intros.
   unfold invariant_overestimation.
-  unfold abstraction.abstract_invariant in H.
+  unfold square_abstraction.abstract_invariant in H.
   destruct H.
   destruct H.
   apply squares_share_point with x...
@@ -213,7 +195,7 @@ Qed.
 
 Definition guard_overestimator:
   decideable_overestimator
-  (abstraction.abstract_guard interval_bounds interval_bounds guard).
+  (square_abstraction.abstract_guard interval_bounds interval_bounds guard).
 Proof with auto.
   apply Build_decideable_overestimator with (fun _ => True)...
 Defined.
@@ -221,9 +203,9 @@ Defined.
 Definition disc_overestimator:
   decideable_overestimator
     (abstraction.discrete_transition_condition
-     concrete_system (abstraction.in_region interval_bounds interval_bounds)).
+     concrete_system (square_abstraction.in_region interval_bounds interval_bounds)).
 Proof with auto.
-  apply abstraction.make_disc_decider with component_reset component_reset.
+  apply square_abstraction.make_disc_decider with component_reset component_reset.
           exact invariant_overestimator.
         exact crinc.
       exact crinc.
@@ -234,15 +216,15 @@ Qed.
 
 Lemma initial_overestimator: decideable_overestimator
   (abstraction.initial_condition concrete_system
-     (abstraction.in_region interval_bounds interval_bounds)).
+     (square_abstraction.in_region interval_bounds interval_bounds)).
 Proof with auto.
   apply (Build_decideable_overestimator
     (abstraction.initial_condition concrete_system
-     (abstraction.in_region interval_bounds interval_bounds)) (fun s => s = (Up, (I01, I01)))).
+     (square_abstraction.in_region interval_bounds interval_bounds)) (fun s => s = (Up, (I01, I01)))).
     intros.
     apply abstraction.State_eq_dec.
       apply Location_eq_dec.
-    apply abstraction.SquareInterval_eq_dec; apply Interval_eq_dec.
+    apply square_abstraction.SquareInterval_eq_dec; apply Interval_eq_dec.
   intros.
   destruct H. destruct H. simpl in H0. unfold initial in H0.
   destruct a.
@@ -250,7 +232,7 @@ Proof with auto.
   inversion H0.
   subst. clear H0.
   simpl in H.
-  unfold abstraction.in_region in H.
+  unfold square_abstraction.in_region in H.
   destruct s.
   simpl in H. destruct H. destruct H. destruct H0.
   destruct i; destruct i0; simpl in *; try auto; elimtype False; fourier.
@@ -263,14 +245,14 @@ Definition abstract_system:
 Proof with auto.
   apply (@abstraction.result concrete_system
     Location_eq_dec
-    (abstraction.SquareInterval Interval Interval)
-    (abstraction.SquareInterval_eq_dec Interval_eq_dec Interval_eq_dec)
-    (abstraction.in_region interval_bounds interval_bounds)
-    (abstraction.absInterval absInterval absInterval)
+    (square_abstraction.SquareInterval Interval Interval)
+    (square_abstraction.SquareInterval_eq_dec Interval_eq_dec Interval_eq_dec)
+    (square_abstraction.in_region interval_bounds interval_bounds)
+    (square_abstraction.absInterval absInterval absInterval)
     locations locations_complete
-    (abstraction.squareIntervals intervals intervals)
-    (abstraction.squareIntervals_complete _ intervals_complete _ intervals_complete)).
-        apply abstraction.cont_decider with Xflow_inv Yflow_inv.
+    (square_abstraction.squareIntervals intervals intervals)
+    (square_abstraction.squareIntervals_complete _ intervals_complete _ intervals_complete)).
+        apply square_abstraction.cont_decider with Xflow_inv Yflow_inv.
                 exact Xflow_inv_correct.
               exact Yflow_inv_correct.
             exact Xmono.
