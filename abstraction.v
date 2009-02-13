@@ -2,6 +2,7 @@ Require Import List.
 Require Import util.
 Require concrete.
 Require abstract.
+Require respect.
 Set Implicit Arguments.
 
 Section contents.
@@ -225,13 +226,13 @@ Section contents.
 
   (* Et voila: *)
 
-  Theorem respect: abstract.Respects abstract_system absFunc.
-  Proof abstract.Build_Respects abstract_system absFunc respectsInit respectsDisc respectsCont.
+  Theorem respect: respect.Respects abstract_system absFunc.
+  Proof respect.Build_Respects abstract_system absFunc respectsInit respectsDisc respectsCont.
 
   Lemma result:
     { abstract_system: abstract.System &
     { f: concrete.State concrete_system -> abstract.State abstract_system
-    | abstract.Respects abstract_system f } }.
+    | respect.Respects abstract_system f } }.
   Proof.
     exists abstract_system.
     exists absFunc.

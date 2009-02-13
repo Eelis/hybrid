@@ -1,4 +1,5 @@
 Require Import util.
+Require Import geometry.
 Require Import Fourier.
 Require Import reachability.
 Set Implicit Arguments.

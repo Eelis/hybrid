@@ -1,9 +1,9 @@
-
 Require abstraction.
 Require square_flow_conditions.
 Require Import monotonic_flow.
 Require Import Reals.
 Require Import util.
+Require Import geometry.
 Require Import List.
 Set Implicit Arguments.
 Open Local Scope R_scope.

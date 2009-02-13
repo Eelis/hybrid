@@ -1,6 +1,7 @@
 Require Import Coq.Reals.Reals.
 Require Import Fourier.
 Require Import util.
+Require Import geometry.
 Require Import monotonic_flow.
 Set Implicit Arguments.
 Open Local Scope R_scope.

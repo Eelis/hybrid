@@ -3,9 +3,11 @@ Require Export Coq.Relations.Relations.
 Require Import List.
 Require Import Fourier.
 Require Import util.
+Require Import geometry.
 Require Import monotonic_flow.
 Require concrete.
 Require abstract.
+Require respect.
 Require abstraction.
 Require square_abstraction.
 Set Implicit Arguments.
@@ -241,7 +243,7 @@ Qed.
 Definition abstract_system:
   {s : abstract.System &
   {f : concrete.State concrete_system -> abstract.State s
-     | abstract.Respects s f} }.
+     | respect.Respects s f} }.
 Proof with auto.
   apply (@abstraction.result concrete_system
     Location_eq_dec
