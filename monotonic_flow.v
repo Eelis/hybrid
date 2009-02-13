@@ -15,6 +15,32 @@ Section function_properties.
   Definition strongly_decreasing: Prop :=
     forall x x', x < x' -> f x' < f x.
 
+  Lemma strongly_increasing_rev: strongly_increasing -> forall x x', f x < f x' -> x < x'.
+  Proof with auto with real.
+    unfold strongly_increasing.
+    intros.
+    destruct (Rlt_le_dec x x')...
+    destruct (Rle_lt_or_eq_dec x' x r).
+      elimtype False...
+      apply (Rlt_asym _ _  H0)...
+    subst.
+    elimtype False.
+    apply (Rlt_irrefl _ H0).
+  Qed.
+
+  Lemma strongly_decreasing_rev: strongly_decreasing -> forall x x', f x < f x' -> x' < x.
+  Proof with auto with real.
+    unfold strongly_decreasing.
+    intros.
+    destruct (Rlt_le_dec x x').
+      elimtype False...
+      apply (Rlt_asym _ _  H0)...
+    destruct (Rle_lt_or_eq_dec x' x r)...
+    subst.
+    elimtype False.
+    apply (Rlt_irrefl _ H0).
+  Qed.
+
   Definition monotonic: Set := { strongly_increasing } + { strongly_decreasing }.
 
   Lemma mono_eq: monotonic -> forall x x', f x = f x' <-> x = x'.
@@ -126,25 +152,9 @@ Section single_inverses.
   Lemma f_lt x t t': mlt (f x t) (f x t') -> t < t'.
   Proof with auto with real.
     unfold mlt.
-    destruct fmono.
-      intros.
-      destruct (Rle_lt_dec t t').
-        destruct r...
-        subst.
-        elimtype False.
-        apply Rlt_irrefl with (f x t')...
-      elimtype False.
-      apply (Rlt_asym (f x t') (f x t))...
-      apply s...
-    intros.
-    destruct (Rle_lt_dec t t').
-      destruct r...
-      subst.
-      elimtype False.
-      apply Rlt_irrefl with (f x t')...
-    elimtype False.
-    apply (Rlt_asym (f x t) (f x t'))...
-    apply s...
+    destruct fmono; intros.
+      apply strongly_increasing_rev with (f x)...
+    apply strongly_decreasing_rev with (f x)...
   Qed.
 
   Lemma f_le x t t': mle (f x t) (f x t') -> t <= t'.
