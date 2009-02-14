@@ -33,12 +33,15 @@ Definition invariant (s: State): Prop :=
   | Down => (1 <= fst (snd s) <= 3 /\ 1 <= snd (snd s) <= 3)%R
   end.
 
-Definition invariant_squares (l: Location): Square.
-Proof with fourier.
-  intro l. destruct l.
-    apply (@MkSquare 0 0 2 2)...
-  apply (@MkSquare 1 1 3 3)...
-Defined.
+Program Definition invariant_squares (l: Location): Square :=
+  match l with
+  | Up => ((0, 2), (0, 2))
+  | Down => ((1, 3), (1, 3))
+  end.
+
+Solve Obligations using simpl; auto with real.
+Next Obligation. fourier. Qed.
+Next Obligation. fourier. Qed.
 
 Lemma invariant_squares_correct (l : Location) (p : Point):
   invariant (l, p) -> in_square p (invariant_squares l).
@@ -135,9 +138,10 @@ Proof with auto.
 	split...
       destruct (Rle_dec x 2); simpl.
 	set (Rnot_le_lt _ _ n).
-	split; fourier.
+        unfold in_range, range_left, range_right. simpl. split; fourier.
       set (Rnot_le_lt _ _ n0).
       split; fourier.
+    unfold in_range, range_left, range_right. simpl.
     destruct (Rle_dec y 1); simpl...
     set (Rnot_le_lt _ _ n).
     destruct (Rle_dec y 2); simpl.
@@ -145,19 +149,16 @@ Proof with auto.
     set (Rnot_le_lt _ _ n0).
     split; fourier.
   destruct H. destruct H. destruct H0.
+  unfold in_square, in_range, range_left, range_right. simpl.
   split.
-    destruct (Rle_dec x 1); simpl.
-      split...
-      fourier.
+    destruct (Rle_dec x 1); simpl. split... fourier.
     set (Rnot_le_lt _ _ n).
     destruct (Rle_dec x 2); simpl...
     set (Rnot_le_lt _ _ n0).
     split; fourier.
-  destruct (Rle_dec y 1); simpl.
-    split; fourier.
+  destruct (Rle_dec y 1); simpl. split; fourier.
   set (Rnot_le_lt _ _ n).
-  destruct (Rle_dec y 2); simpl.
-    split; fourier.
+  destruct (Rle_dec y 2); simpl. split; fourier.
   set (Rnot_le_lt _ _ n0).
   split; fourier.
 Qed.
@@ -237,6 +238,7 @@ Proof with auto.
   unfold square_abstraction.in_region in H.
   destruct s.
   simpl in H. destruct H. destruct H. destruct H0.
+  unfold range_left, range_right in *.
   destruct i; destruct i0; simpl in *; try auto; elimtype False; fourier.
 Qed.
 

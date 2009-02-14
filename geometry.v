@@ -18,60 +18,46 @@ Qed.
 Program Definition immediately: Duration := 0.
 Next Obligation. right. reflexivity. Defined.
 
-Lemma inc_weak (g: Time -> R):
-  (forall t t', t < t' -> g t < g t') ->
-  (forall t t', t <= t' -> g t <= g t').
-Proof with auto with real. intros. destruct H0... right... Qed.
-
   Definition Point: Set := (R * R)%type.
 
-  Definition in_range (ab: prod R R) (r: R): Prop :=
-    fst ab <= r <= snd ab.
+  Definition Range: Set := { r: R * R | fst r <= snd r }.
 
-  Definition in_range_dec (ab: prod R R) (r: R):
-    decision (in_range ab r).
+  Definition range_left (r: Range): R := fst (proj1_sig r).
+  Definition range_right (r: Range): R := snd (proj1_sig r).
+
+  Definition in_range (r: Range) (x: R): Prop :=
+    range_left r <= x <= range_right r.
+
+  Definition in_range_dec (r: Range) (x: R):
+    decision (in_range r x).
   Proof. unfold in_range. intros. apply and_dec; apply Rle_dec. Defined.
 
-  Inductive Square: Set :=
-    MkSquare (x y x' y': R) (xp: x <= x') (yp: y <= y').
+  Definition Square: Set := prod Range Range.
 
   Definition in_square (p: Point) (s: Square): Prop :=
-    let (x, y, x', y', _, _) := s in x <= fst p <= x' /\ y <= snd p <= y'.
+    in_range (fst s) (fst p) /\ in_range (snd s) (snd p).
 
   Definition in_square_dec (p: Point) (s: Square):
     decision (in_square p s).
-  Proof.
-    destruct p. destruct s. unfold decision.
-    unfold in_square. simpl.
-    destruct (Rle_dec x r); [idtac | right; firstorder].
-    destruct (Rle_dec r x'); [idtac | right; firstorder].
-    destruct (Rle_dec y r0); [idtac | right; firstorder].
-    destruct (Rle_dec r0 y'); [idtac | right; firstorder].
-    left. firstorder.
-  Qed.
+  Proof. intros. apply and_dec; apply in_range_dec. Qed.
 
-  Definition ranges_overlap (a b: prod R R): Prop :=
-    fst a <= snd b /\ fst b <= snd a.
+  Definition ranges_overlap (a b: Range): Prop :=
+    range_left a <= range_right b /\ range_left b <= range_right a.
 
 Hint Resolve Rle_dec.
 
-  Definition ranges_overlap_dec (a b: prod R R):
+  Definition ranges_overlap_dec (a b: Range):
     decision (ranges_overlap a b).
   Proof. unfold ranges_overlap. auto. Defined.
 
   Hint Resolve ranges_overlap_dec.
 
   Definition squares_overlap (a b: Square): Prop :=
-    let (ax, ay, ax', ay', _, _) := a in
-    let (bx, by, bx', by', _, _) := b in
-      ranges_overlap (ax, ax') (bx, bx') /\
-      ranges_overlap (ay, ay') (by, by').
+    ranges_overlap (fst a) (fst b) /\ ranges_overlap (snd a) (snd b).
 
   Definition squares_overlap_dec (a b: Square):
     decision (squares_overlap a b).
-  Proof.
-    destruct a. destruct b. unfold squares_overlap. auto.
-  Defined.
+  Proof. intros. apply and_dec; apply ranges_overlap_dec. Qed.
 
   Lemma squares_share_point a b p: in_square p a -> in_square p b ->
     squares_overlap a b.
@@ -88,24 +74,33 @@ Hint Resolve Rle_dec.
 
   Hint Resolve squares_overlap_dec.
 
+  Program Definition map_range (f: R -> R) (fi: increasing f) (r: Range): Range
+    := (f (fst r), f (snd r)).
+  Next Obligation. destruct r. simpl. apply fi. assumption. Defined.
+
+  Definition in_map_range p r (f: R -> R) (i: increasing f): in_range r p ->
+    in_range (map_range i r) (f p).
+  Proof with auto with real.
+    unfold in_range, range_left, range_right.
+    destruct r. simpl. intros. destruct H...
+  Qed.
+
   Section mapping.
 
     Variables (fx: R -> R) (fy: R -> R)
       (fxi: increasing fx) (fyi: increasing fy).
 
-    Definition map_square (s: Square): Square.
-      intros.
-      destruct s.
-      exact (MkSquare (fxi xp) (fyi yp)).
-    Defined.
+    Definition map_square (s: Square): Square :=
+      (map_range fxi (fst s), map_range fyi (snd s)).
 
     Definition in_map_square p s: in_square p s ->
       in_square (fx (fst p), fy (snd p)) (map_square s).
     Proof with auto with real.
+      unfold in_square.
       intros.
-      destruct s.
-      simpl. simpl in H.
-      destruct H. destruct H. destruct H0...
+      destruct H. destruct s.
+      simpl in *.
+      split; apply in_map_range...
     Qed.
 
   End mapping.

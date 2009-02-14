@@ -45,13 +45,11 @@ Section contents.
   Variable initial: Location -> Xinterval -> Yinterval -> bool.
 
   Variables
-    (Xinterval_bounds: forall i: Xinterval, { ab: R * R | fst ab <= snd ab })
-    (Yinterval_bounds: forall i: Yinterval, { ab: R * R | fst ab <= snd ab }).
+    (Xinterval_bounds: forall i: Xinterval, Range)
+    (Yinterval_bounds: forall i: Yinterval, Range).
 
   Definition square (s: SquareInterval): Square :=
-    MkSquare
-      (proj2_sig (Xinterval_bounds (fst s)))
-      (proj2_sig (Yinterval_bounds (snd s))).
+    (Xinterval_bounds (fst s), Yinterval_bounds (snd s)).
 
   Definition in_region (p: Point) (s: SquareInterval): Prop :=
     in_square p (square s).

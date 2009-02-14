@@ -3,7 +3,7 @@ Set Implicit Arguments.
 Section contents.
 
   Variables
-    (State: Set) (init: State)
+    (State: Type) (init: State)
     (trans: State -> State -> Prop).
 
   Inductive reachable_from: State -> Prop :=

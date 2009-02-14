@@ -16,6 +16,22 @@ Section function_properties.
   Definition strongly_decreasing: Prop :=
     forall x x', x < x' -> f x' < f x.
 
+  Lemma mildly_increasing:
+    strongly_increasing -> forall x x', x <= x' -> f x <= f x'.
+  Proof with auto with real.
+    intros.
+    destruct H0...
+    subst...
+  Qed.
+
+  Lemma mildly_decreasing:
+    strongly_decreasing -> forall x x', x <= x' -> f x' <= f x.
+  Proof with auto with real.
+    intros.
+    destruct H0...
+    subst...
+  Qed.
+
   Lemma strongly_increasing_rev: strongly_increasing -> forall x x', f x < f x' -> x < x'.
   Proof with auto with real.
     unfold strongly_increasing.

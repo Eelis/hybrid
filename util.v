@@ -36,3 +36,13 @@ Definition conj_fst (A B: Prop) (P: A /\ B): A :=
     match P with conj r _ => r end.
   Definition conj_snd (A B: Prop) (P: A /\ B): B :=
     match P with conj _ r => r end.
+
+Lemma Rmax_le x y z: x <= z -> y <= z -> Rmax x y <= z.
+Proof with auto.
+  intros. unfold Rmax. destruct (Rle_dec x y)...
+Qed.
+
+Lemma Rmin_le x y z: z <= x -> z <= y -> z <= Rmin x y.
+Proof with auto.
+  intros. unfold Rmin. destruct (Rle_dec x y)...
+Qed.

@@ -6,6 +6,149 @@ Require Import monotonic_flow.
 Set Implicit Arguments.
 Open Local Scope R_scope.
 
+Module one_axis.
+Section contents.
+
+  Variables
+     (f: R -> Time -> R)
+     (ff: concrete.flows f)
+     (finv: R -> R -> Time)
+     (finv_correct: forall x x', f x (finv x x') = x')
+     (fm: mono f)  (a b: Range).
+
+  Let x: Range -> R := if fm then range_left else range_right.
+  Let x': Range -> R := if fm then range_right else range_left.
+
+  Definition in_r (r: Range) ux: Prop := mle fm (x r) ux /\ mle fm ux (x' r).
+
+  Definition in_range_alt r p: in_range p r <-> in_r p r.
+    unfold in_range, in_r, x, x'.
+    destruct p. unfold range_left, range_right.
+    simpl.
+    destruct fm; tauto.
+  Qed.
+
+  Lemma inv_test_guarantees_flow (t: R):
+    finv (x' a) (x b) <= t <= finv (x a) (x' b) ->
+    exists xu : R, in_r a xu /\ in_r b (f xu t).
+  Proof with auto with real.
+      (* this proof is way longer than the one below, but this one
+       is more constructive in that it instantiates the exists with
+       Rmin/Rmax instead of doing case distinction on a </=/> decision. *)
+    intros.
+    destruct H.
+    exists ((if fm then Rmax else Rmin) (f (x b) (-t)) (x a)).
+    split.
+      split.
+        destruct fm; simpl.
+          apply RmaxLess2.
+        unfold x.
+        apply Rmin_r.
+      destruct fm; simpl.
+        apply Rmax_le...
+          rewrite (inv_inv fm ff finv finv_correct) in H.
+          assert (-t <= finv (x b) (x' a)) by fourier.
+          rewrite <- (finv_correct (x b) (x' a)).
+          apply mildly_increasing...
+        destruct a...
+      apply Rmin_le...
+        rewrite (inv_inv fm ff finv finv_correct) in H.
+        assert (-t <= finv (x b) (x' a)) by fourier.
+        rewrite <- (finv_correct (x b) (x' a)).
+        apply mildly_decreasing...
+      destruct a...
+    split.
+      destruct fm; simpl.
+        apply Rle_trans with (f (f (x b) (-t)) t).
+          rewrite <- concrete.flow_additive...
+          rewrite Rplus_opp_l.
+          rewrite concrete.flow_zero...
+        apply (f_le_left fm ff finv finv_correct (f (x b) (-t))
+          (Rmax (f (x b) (- t)) (x a)) t).
+        apply RmaxLess1.
+      apply Rle_trans with (f (f (x b) (-t)) t).
+        apply (f_le_left fm ff finv finv_correct
+          (Rmin (f (x b) (- t)) (x a)) (f (x b) (-t)) t).
+        apply Rmin_l.
+      clear H H0.
+      rewrite <- (concrete.flow_additive ff).
+      rewrite Rplus_opp_l.
+      rewrite (concrete.flow_zero ff)...
+    replace (x' b) with (f (f (x' b) (-t)) t).
+      destruct fm; simpl.
+        apply (f_le_left fm ff finv finv_correct
+          (Rmax (f (x b) (-t)) (x a)) (f (x' b) (-t)) t).
+        apply Rmax_le.
+          apply (f_le_left fm ff finv finv_correct (x b) (x' b) (-t)).
+          destruct b...
+        rewrite <- (finv_correct (x' b) (x a)).
+        apply mildly_increasing...
+        rewrite (inv_inv fm ff finv finv_correct).
+        fourier.
+      apply (f_le_left fm ff finv finv_correct
+        (f (x' b) (-t)) (Rmin (f (x b) (-t)) (x a)) t).
+      apply Rmin_le.
+        apply (f_le_left fm ff finv finv_correct (x' b) (x b) (-t)).
+        destruct b...
+      rewrite <- (finv_correct (x' b) (x a)).
+      apply mildly_decreasing...
+      rewrite (inv_inv fm ff finv finv_correct).
+      fourier.
+    rewrite <- (concrete.flow_additive ff).
+    rewrite Rplus_opp_l.
+    rewrite (concrete.flow_zero ff)...
+  Qed.
+
+  Let in_x_x s: in_r s (x s).
+  Proof.
+    unfold in_r. split. apply mle_refl.
+    destruct s. destruct fm; auto with real.
+  Qed.
+
+  Let in_x_x' s: in_r s (x' s).
+  Proof.
+    unfold in_r. split.
+    destruct s.
+      clear in_x_x.
+      destruct fm; auto with real.
+    apply mle_refl.
+  Qed.
+
+  Lemma inv_test_guarantees_flow' (t: R):
+    finv (x' a) (x b) <= t <= finv (x a) (x' b) ->
+    exists xu : R, in_r a xu /\ in_r b (f xu t).
+  Proof with auto with real.
+    intros.
+    destruct H.
+    destruct (Rle_lt_dec t (finv (x' a) (x' b))).
+      exists (x' a).
+      split...
+      split; [replace (x b) with (f (x' a) (finv (x' a) (x b)))
+        | replace (x' b) with (f (x' a) (finv (x' a) (x' b)))]; try apply mono_opp...
+    exists (f (x' b) (-t)).
+    unfold in_r. simpl.
+    split.
+      split.
+        replace (x a) with (f (x' b) (finv (x' b) (x a)))...
+        apply mono_opp.
+        rewrite (inv_inv fm ff finv finv_correct (x' b) (x a))...
+      replace (x' a) with (f (x' b) (finv (x' b) (x' a)))...
+      apply mono_opp.
+      rewrite (inv_inv fm ff finv finv_correct (x' b) (x' a))...
+    rewrite <- (concrete.flow_additive ff)...
+    replace (- t + t) with 0...
+    rewrite (concrete.flow_zero ff)...
+    destruct b. destruct x0.
+    clear in_x_x in_x_x'.
+    subst x x'.
+    clear H H0 r.
+    simpl in r0.
+    split; destruct fm; simpl...
+  Qed.
+
+End contents.
+End one_axis.
+
 Section contents.
 
   Variables
@@ -18,18 +161,19 @@ Section contents.
 
   Definition f (p: Point) (t: Time): Point := (fx (fst p) t, fy (snd p) t).
 
-  Let x  (s: Square): R := let (r, _, r', _, _, _) := s in if fxm then r  else r'.
-  Let x' (s: Square): R := let (r, _, r', _, _, _) := s in if fxm then r' else r.
-  Let y  (s: Square): R := let (_, r, _, r', _, _) := s in if fym then r  else r'.
-  Let y' (s: Square): R := let (_, r, _, r', _, _) := s in if fym then r' else r.
+  Let x  (s: Square): R := (if fxm then range_left  else range_right) (fst s).
+  Let x' (s: Square): R := (if fxm then range_right else range_left ) (fst s).
+  Let y  (s: Square): R := (if fym then range_left  else range_right) (snd s).
+  Let y' (s: Square): R := (if fym then range_right else range_left ) (snd s).
 
   Let in_x (s: Square) ux: Prop := mle fxm (x s) ux /\ mle fxm ux (x' s).
   Let in_y (s: Square) uy: Prop := mle fym (y s) uy /\ mle fym uy (y' s).
 
   Let mle_x_x' s: mle fxm (x s) (x' s).
-  Proof. subst x x'. destruct s. destruct fxm; auto. Qed.
+  Proof. subst x x'. intros. destruct s. destruct r. destruct fxm; auto. Qed.
+
   Let mle_y_y' s: mle fym (y s) (y' s).
-  Proof. subst y y'. destruct s. destruct fym; auto. Qed.
+  Proof. subst y y'. intros. destruct s. destruct r0. destruct fym; auto. Qed.
 
   Hint Immediate mle_x_x' mle_y_y'.
 
@@ -39,7 +183,9 @@ Section contents.
 
   Definition in_square_alt s p: in_square p s <-> in_s s p.
     unfold in_square, in_s, in_x, in_y.
-    destruct s. destruct p. simpl.
+    destruct s. destruct p. destruct r. destruct r0.
+    subst x x' y y'.
+    simpl. unfold in_range.
     destruct fxm; destruct fym; tauto.
   Qed.
 
@@ -161,53 +307,9 @@ Section contents.
         destruct (Rle_dec (finvx (x a) (x' b)) (finvy (y a) (y' b)))...
       apply Rmin_r.
     assert (exists xu, in_x a xu /\ in_x b (fx xu t)).
-      intros.
-      destruct H1. destruct H2.
-      destruct (Rle_lt_dec t (finvx (x' a) (x' b))).
-        exists (x' a).
-        split...
-        subst in_x.
-        simpl.
-        split; [replace (x b) with (fx (x' a) (finvx (x' a) (x b)))
-          | replace (x' b) with (fx (x' a) (finvx (x' a) (x' b)))]; auto;
-            apply mono_opp...
-      exists (fx (x' b) (-t)).
-      subst in_x. simpl.
-      split.
-        split.
-          replace (x a) with (fx (x' b) (finvx (x' b) (x a)))...
-          apply mono_opp.
-          rewrite (inv_inv fxm fxf finvx finvx_correct (x' b) (x a))...
-        replace (x' a) with (fx (x' b) (finvx (x' b) (x' a)))...
-        apply mono_opp.
-        rewrite (inv_inv fxm fxf finvx finvx_correct (x' b) (x' a))...
-      rewrite <- (concrete.flow_additive fxf)...
-      replace (- t + t) with 0...
-      rewrite (concrete.flow_zero fxf)...
+      apply (one_axis.inv_test_guarantees_flow fxf finvx finvx_correct fxm)...
     assert (exists yu, in_y a yu /\ in_y b (fy yu t)).
-      intros.
-      destruct H1. destruct H2.
-      destruct (Rle_lt_dec t (finvy (y' a) (y' b))).
-        exists (y' a).
-        split...
-        subst in_y.
-        simpl.
-        split; [replace (y b) with (fy (y' a) (finvy (y' a) (y b)))
-          | replace (y' b) with (fy (y' a) (finvy (y' a) (y' b)))]; auto;
-            apply mono_opp...
-      exists (fy (y' b) (-t)).
-      subst in_y.
-      split.
-        split.
-          replace (y a) with (fy (y' b) (finvy (y' b) (y a)))...
-          apply mono_opp.
-          rewrite (inv_inv fym fyf finvy finvy_correct (y' b) (y a))...
-        replace (y' a) with (fy (y' b) (finvy (y' b) (y' a)))...
-        apply mono_opp.
-        rewrite (inv_inv fym fyf finvy finvy_correct (y' b) (y' a))...
-      rewrite <- (concrete.flow_additive fyf)...
-      replace (- t + t) with 0...
-      rewrite (concrete.flow_zero fyf)...
+      apply (one_axis.inv_test_guarantees_flow fyf finvy finvy_correct fym)...
     destruct H3.
     destruct H4.
     rename x0 into xu. rename x1 into yu.
@@ -253,53 +355,9 @@ Section contents.
         destruct (Rle_dec (finvx (x a) (x' b)) (finvy (y a) (y' b)))...
       apply Rmin_r.
     assert (exists xu, in_x a xu /\ in_x b (fx xu t)).
-      intros.
-      destruct H3. destruct H4.
-      destruct (Rle_lt_dec t (finvx (x' a) (x' b))).
-        exists (x' a).
-        split...
-        subst in_x.
-        simpl.
-        split; [replace (x b) with (fx (x' a) (finvx (x' a) (x b)))
-          | replace (x' b) with (fx (x' a) (finvx (x' a) (x' b)))]; auto;
-            apply mono_opp...
-      exists (fx (x' b) (-t)).
-      subst in_x.
-      split.
-        split.
-          replace (x a) with (fx (x' b) (finvx (x' b) (x a)))...
-          apply mono_opp.
-          rewrite (inv_inv fxm fxf finvx finvx_correct (x' b) (x a))...
-        replace (x' a) with (fx (x' b) (finvx (x' b) (x' a)))...
-        apply mono_opp.
-        rewrite (inv_inv fxm fxf finvx finvx_correct (x' b) (x' a))...
-      rewrite <- (concrete.flow_additive fxf)...
-      replace (- t + t) with 0...
-      rewrite (concrete.flow_zero fxf)...
+      apply (one_axis.inv_test_guarantees_flow fxf finvx finvx_correct fxm)...
     assert (exists yu, in_y a yu /\ in_y b (fy yu t)).
-      intros.
-      destruct H3. destruct H4.
-      destruct (Rle_lt_dec t (finvy (y' a) (y' b))).
-        exists (y' a).
-        split...
-        subst in_y.
-        simpl.
-        split; [replace (y b) with (fy (y' a) (finvy (y' a) (y b)))
-          | replace (y' b) with (fy (y' a) (finvy (y' a) (y' b)))]; auto;
-            apply mono_opp...
-      exists (fy (y' b) (-t)).
-      subst in_y.
-      split.
-        split.
-          replace (y a) with (fy (y' b) (finvy (y' b) (y a)))...
-          apply mono_opp.
-          rewrite (inv_inv fym fyf finvy finvy_correct (y' b) (y a))...
-        replace (y' a) with (fy (y' b) (finvy (y' b) (y' a)))...
-        apply mono_opp.
-        rewrite (inv_inv fym fyf finvy finvy_correct (y' b) (y' a))...
-      rewrite <- (concrete.flow_additive fyf)...
-      replace (- t + t) with 0...
-      rewrite (concrete.flow_zero fyf)...
+      apply (one_axis.inv_test_guarantees_flow fyf finvy finvy_correct fym)...
     destruct H5. destruct H6.
     unfold ideal.
     rename x0 into xu. rename x1 into yu.
