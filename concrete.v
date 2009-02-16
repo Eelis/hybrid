@@ -1,58 +1,36 @@
 Require Import util.
-Require Import geometry.
 Require Import Fourier.
 Require Import reachability.
+Require Export flow.
+Require Import List.
 Set Implicit Arguments.
 Open Local Scope R_scope.
 
+Record System: Type :=
+  { Point: Set
+
+  ; Location: Set
+  ; Location_eq_dec: forall l l': Location, decision (l = l')
+  ; locations: list Location
+  ; locations_exhaustive: forall l, In l locations
+
+  ; initial: (Location * Point)%type -> Prop
+  ; invariant: (Location * Point)%type -> Prop
+  ; invariant_initial: forall p, initial p -> invariant p
+
+  ; flow: Location -> Flow Point
+
+  ; guard : (Location * Point)%type -> Location -> Prop (* When true discrete step is allowed *)
+  ; reset: Location -> Location -> Point -> Point (* reset maps *)
+  (* this separation of guard and reset seems to cause a problem:
+  the paper allows having different transitions from a given (l, x) to
+  some (l', x'), because you can have different transitions. we only allow one! *)
+  }.
+
+Implicit Arguments initial [s].
+Implicit Arguments invariant [s].
+
 Section contents.
-
-  Record flows (X: Set) (f: X -> Time -> X): Prop :=
-    { flow_zero: forall x, f x 0 = x
-    ; flow_additive: forall x t t', f x (t + t') = f (f x t) t'
-    }.
-    (* eelis: hm, the one in the paper also takes an input. ours doesn't.
-     not needed for thermostat though *)
-
-  Definition product_flow
-    (X Y: Set) (fx: X -> Time -> X) (fy: Y -> Time -> Y)
-    (xy: prod X Y) (t: Time): prod X Y := (fx (fst xy) t, fy (snd xy) t).
-
-  Lemma product_flows (X Y: Set) (fx: X -> Time -> X) (fy: Y -> Time -> Y):
-    flows fx -> flows fy -> flows (product_flow fx fy).
-  Proof.
-    intros.
-    apply Build_flows.
-      destruct x. unfold product_flow. simpl.
-      rewrite (flow_zero H). rewrite (flow_zero H0). reflexivity.
-    intros. destruct x. unfold product_flow. simpl.
-    rewrite (flow_additive H). rewrite (flow_additive H0). reflexivity.
-  Qed.
-
-  Record System: Type :=
-    { Point: Set  (* Continuous States *)
-    ; Location: Set (* Locations, the Discrete States *)
-     (* This state is finite, but since finiteness is tricky let's wait with a concrete definition *)
-      (* eelis: since finiteness of locations seems to be a fundamental property of hybrid systems, it seems to me it really ought to be part of the definition, no? *)
-
-    ; initial: (Location * Point)%type -> Prop
-
-    ; invariant: (Location * Point)%type -> Prop
-
-    ; invariant_initial: forall p, initial p -> invariant p
-
-    ; flow: Location -> Point -> Time -> Point
-    ; flow_flows: forall l, flows (flow l)
-
-    ; guard : (Location * Point)%type -> Location -> Prop (* When true discrete step is allowed *)
-    ; reset: Location -> Location -> Point -> Point (* reset maps *)
-    (* eelis: this separation of guard and reset seems to cause a problem:
-    the paper allows having different transitions from a given (l, x) to
-    some (l', x'), because you can have different transitions. we only allow one! *)
-    }.
-
-  Implicit Arguments initial [s].
-  Implicit Arguments invariant [s].
 
   Variable system: System.
 
@@ -84,10 +62,10 @@ Section contents.
     split.
       intros.
       replace t with 0.
-        rewrite (flow_zero (flow_flows system l))...
+        rewrite flow_zero...
       destruct H0.
       apply Rle_antisym...
-    apply (flow_zero (flow_flows system l)).
+    apply flow_zero.
   Qed.
 
   Lemma cont_trans_trans s s' s'':
@@ -107,7 +85,7 @@ Section contents.
       simpl in *.
       assert (forall t, 0 <= t <= x0 -> invariant (l1, flow system l1 p (x + t))).
         intros.
-        rewrite (flow_additive (flow_flows system l1))...
+        rewrite flow_additive...
       clear H0.
       set (Rge_le _ _ r).
       set (Rge_le _ _ r0).
@@ -117,7 +95,7 @@ Section contents.
       rewrite Rplus_minus in i.
       apply i.
       split; fourier.
-    rewrite <- (flow_additive (flow_flows system l1))...
+    rewrite <- flow_additive...
   Qed.
 
   Lemma cont_trans_preserves_location s s':

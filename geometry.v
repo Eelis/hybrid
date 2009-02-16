@@ -4,20 +4,6 @@ Require Import util.
 Set Implicit Arguments.
 Open Local Scope R_scope.
 
-Definition Time := R.
-Definition Duration: Set := { r: R | r >= 0 }.
-
-Program Definition duration_plus (d d': Duration): Duration := d + d'.
-Next Obligation.
-  destruct d. destruct d'. simpl.
-  replace 0 with (0+0).
-    apply Rplus_ge_compat; auto.
-  field.
-Qed.
-
-Program Definition immediately: Duration := 0.
-Next Obligation. right. reflexivity. Defined.
-
   Definition Point: Set := (R * R)%type.
 
   Definition Range: Set := { r: R * R | fst r <= snd r }.

@@ -8,7 +8,7 @@ none :: (a -> Bool) -> [a] -> Bool
 none p = all (not . p)
 
 hide :: [String]
-hide = words ""
+hide = words "util c_util"
 
 main :: IO ()
 main = interact $ \s ->

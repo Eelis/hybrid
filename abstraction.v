@@ -56,7 +56,7 @@ Section contents.
 
   Definition initial_condition (l: State): Prop :=
     exists p, in_region p (snd l) /\
-    concrete.initial concrete_system (fst l, p).
+    concrete.initial (fst l, p).
 
   Definition continuous_transition_condition
     (l: prod Location (prod Region Region)): Prop :=
@@ -97,12 +97,13 @@ Section contents.
   (* .. and the abstract system itself: *)
 
   Definition abstract_system: abstract.System :=
-    abstract.Build_System State_eq_dec initial contTrans discreteTrans.
+    abstract.Build_System State_eq_dec states states_complete initial contTrans discreteTrans.
 
   (* Next, we will show that this abstract system respects the concrete
    system by the following abstraction function: *)
 
-  Definition absFunc (s: concrete.State concrete_system): State :=
+  Definition absFunc (s: concrete.State concrete_system):
+     abstract.State abstract_system :=
     match s with
     | pair l p => pair l (select_region p)
     end.
@@ -111,13 +112,11 @@ Section contents.
   Proof. destruct s. reflexivity. Qed.
 
   Hypothesis regions_cover_invariants: forall l p,
-    concrete.invariant concrete_system (l, p) ->
-    in_region p (select_region p).
+    concrete.invariant (l, p) -> in_region p (select_region p).
 
   Lemma respectsInit
     (s: concrete.Location concrete_system * concrete.Point concrete_system):
-    concrete.initial concrete_system s ->
-    abstract.initial abstract_system (absFunc s) = true.
+    concrete.initial s -> abstract.initial (absFunc s) = true.
   Proof with auto.
     intros.
     destruct s.
@@ -137,7 +136,7 @@ Section contents.
 
   Lemma respectsDisc (s1 s2: concrete.State concrete_system):
     concrete.disc_trans s1 s2 ->
-    In (absFunc s2) (abstract.disc_trans abstract_system (absFunc s1)).
+    In (absFunc s2) (abstract.disc_trans (absFunc s1)).
   Proof with auto.
     intros.
     unfold abstract.disc_trans, abstract_system, discreteTrans.
@@ -146,7 +145,8 @@ Section contents.
     split.
       apply states_complete.
     unfold canDiscTrans.
-    destruct (doe_dec disc_decider (absFunc s1, absFunc s2))...
+    destruct (@doe_dec (prod State State) discrete_transition_condition disc_decider
+        (@pair State State (absFunc s1) (absFunc s2)))...
     elimtype False.
     apply n.
     clear n H0 H1.
@@ -178,7 +178,7 @@ Section contents.
   Qed.
 
   Lemma respectsCont s1 s2: (concrete.cont_trans s1 s2) ->
-    In (absFunc s2) (abstract.cont_trans abstract_system (absFunc s1)).
+    In (absFunc s2) (abstract.cont_trans (absFunc s1)).
   Proof with auto with real.
     intros.
     unfold abstract_system.
@@ -199,13 +199,11 @@ Section contents.
     split.
       apply regions_complete.
     unfold canContTrans.
-    set (@doe_dec (prod Location (prod Region Region))
+    destruct (@doe_dec (prod Location (prod Region Region))
         continuous_transition_condition cont_decider
         (@pair Location (prod Region Region) l
            (@pair Region Region (select_region p)
-              (select_region (concrete.flow concrete_system l p (proj1_sig x)))))).
-    simpl.
-    destruct d...
+              (select_region (concrete.flow concrete_system l p (proj1_sig x))))))...
     elimtype False. apply n. clear n.
     apply doe_correct.
     unfold continuous_transition_condition.
@@ -213,7 +211,7 @@ Section contents.
     exists p. exists (concrete.flow concrete_system l p (proj1_sig x)).
     split.
       apply regions_cover_invariants with l.
-      rewrite <- (concrete.flow_zero (concrete.flow_flows concrete_system l)) with p.
+      rewrite <- (flow.flow_zero (concrete.flow concrete_system l)) with p.
       destruct x...
     split.
       apply regions_cover_invariants with l.

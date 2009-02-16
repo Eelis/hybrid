@@ -59,17 +59,22 @@ Proof.
   simpl. split; auto with real.
 Qed.
 
-Definition Xflow (l: Location) (x: R) (t: Time): R :=
+Definition Xflow_fun (l: Location) (x: R) (t: Time): R :=
   match l with Up => x + t | Down => x - t end.
-Definition Yflow (l: Location) (y: R) (t: Time): R :=
+Definition Yflow_fun (l: Location) (y: R) (t: Time): R :=
   match l with Up => y + t | Down => y - t end.
 
-Lemma Xflows l: concrete.flows (Xflow l).
-  intros. apply concrete.Build_flows; destruct l; simpl; intros; field.
-Qed.
-Lemma Yflows l: concrete.flows (Yflow l).
-  intros. apply concrete.Build_flows; destruct l; simpl; intros; field.
-Qed.
+Lemma Xflow (l: Location): Flow R.
+  intro.
+  apply (Build_Flow (Xflow_fun l));
+    unfold Xflow_fun; destruct l; intros; field.
+Defined.
+
+Lemma Yflow (l: Location): Flow R.
+  intro.
+  apply (Build_Flow (Yflow_fun l));
+    unfold Yflow_fun; destruct l; intros; field.
+Defined.
 
 Lemma Xmono l: mono (Xflow l).
 Proof. destruct l; [left | right]; compute; intros; fourier. Qed.
@@ -94,10 +99,10 @@ Definition guard (s: State) (l: Location): Prop :=
   end.
 
 Definition reset (l l': Location) (p: Point): Point := p.
-
+(*
 Definition concrete_system: concrete.System :=
-  concrete.Build_System _ _ invariant_initial _
-  (fun l => concrete.product_flows (Xflows l) (Yflows l)) guard reset.
+  concrete.Build_System _ _ locations_complete invariant_initial _
+  (fun l => product_flow (Xflow l) (Yflow l)) guard reset.
 
 Inductive Interval: Set := I01 | I12 | I23.
 
@@ -269,3 +274,4 @@ Proof with auto.
 Qed.
 
 Print Assumptions abstract_system.
+*)

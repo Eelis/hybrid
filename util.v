@@ -46,3 +46,6 @@ Lemma Rmin_le x y z: z <= x -> z <= y -> z <= Rmin x y.
 Proof with auto.
   intros. unfold Rmin. destruct (Rle_dec x y)...
 Qed.
+
+Definition opt_to_bool A (o: option A): bool :=
+  match o with Some _ => true | None => false end.

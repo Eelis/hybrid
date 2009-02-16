@@ -5,6 +5,7 @@ Require Import Reals.
 Require Import util.
 Require Import geometry.
 Require Import List.
+Require Import flow.
 Set Implicit Arguments.
 Open Local Scope R_scope.
 
@@ -55,10 +56,8 @@ Section contents.
     in_square p (square s).
 
   Variables
-    (xflow yflow: Location -> R -> Time -> R)
+    (xflow yflow: Location -> Flow R)
     (xflow_inv yflow_inv: Location -> R -> R -> Time)
-    (xflows: forall l, concrete.flows (xflow l))
-    (yflows: forall l, concrete.flows (yflow l))
     (xflow_correct: forall l x x', xflow l x (xflow_inv l x x') = x')
     (yflow_correct: forall l y y', yflow l y (yflow_inv l y y') = y')
     (xmono: forall l, mono (xflow l)) (ymono: forall l, mono (yflow l)).
@@ -92,10 +91,11 @@ Section contents.
       points in between. *)
 
   Let concrete_system: concrete.System :=
-    @concrete.Build_System Point Location concrete_initial
+    @concrete.Build_System Point Location Location_eq_dec
+      locations locations_complete concrete_initial
       concrete_invariant concrete_invariant_initial
-      (fun l => concrete.product_flow (xflow l) (yflow l))
-      (fun l => concrete.product_flows (xflows l) (yflows l)) concrete_guard reset.
+      (fun l => product_flow (xflow l) (yflow l))
+       concrete_guard reset.
 
   Variables
     (xreset yreset: Location -> Location -> R -> R)
@@ -175,7 +175,7 @@ Section contents.
       intros.
       unfold continuous_transition_condition'.
       apply and_dec.
-        apply (square_flow_conditions.decide_practical (xflows (fst a)) (yflows (fst a)) (xflow_inv (fst a)) (yflow_inv (fst a))
+        apply (square_flow_conditions.decide_practical (xflow_inv (fst a)) (yflow_inv (fst a))
           (xflow_correct (fst a)) (yflow_correct (fst a)) (xmono (fst a)) (ymono (fst a)) (square (fst (snd a))) (square (snd (snd a)))).
       apply and_dec; apply doe_dec.
     intros.
@@ -187,8 +187,6 @@ Section contents.
     split.
       destruct a. simpl fst. simpl snd.
       apply square_flow_conditions.ideal_implies_practical_decideable.
-              exact (xflows l).
-            exact (yflows l).
           exact (xflow_correct l).
         exact (yflow_correct l).
       unfold square_flow_conditions.ideal.
@@ -204,14 +202,15 @@ Section contents.
       simpl fst. simpl snd.
       exists x.
       split...
-      rewrite <- (concrete.flow_zero (concrete.flow_flows concrete_system (fst a))) with x.
+      rewrite <- (flow_zero (concrete.flow concrete_system (fst a))) with x.
       apply H2. destruct x1...
     apply doe_correct.
     destruct a. simpl in *.
     unfold abstract_invariant.
     simpl fst. simpl snd.
-    exists (concrete.product_flow (xflow l) (yflow l) x (proj1_sig x1)).
+    exists (product_flow (xflow l) (yflow l) x (proj1_sig x1)).
     split...
+    simpl.
     apply H2. destruct x1...
   Qed.
 

@@ -1,6 +1,7 @@
 Require Import Coq.Reals.Reals.
 Require Import Fourier.
 Require Import util.
+Require Import flow.
 Require Import geometry.
 Require Import monotonic_flow.
 Set Implicit Arguments.
@@ -10,8 +11,7 @@ Module one_axis.
 Section contents.
 
   Variables
-     (f: R -> Time -> R)
-     (ff: concrete.flows f)
+     (f: Flow R)
      (finv: R -> R -> Time)
      (finv_correct: forall x x', f x (finv x x') = x')
      (fm: mono f)  (a b: Range).
@@ -46,13 +46,13 @@ Section contents.
         apply Rmin_r.
       destruct fm; simpl.
         apply Rmax_le...
-          rewrite (inv_inv fm ff finv finv_correct) in H.
+          rewrite (inv_inv fm finv finv_correct) in H.
           assert (-t <= finv (x b) (x' a)) by fourier.
           rewrite <- (finv_correct (x b) (x' a)).
           apply mildly_increasing...
         destruct a...
       apply Rmin_le...
-        rewrite (inv_inv fm ff finv finv_correct) in H.
+        rewrite (inv_inv fm finv finv_correct) in H.
         assert (-t <= finv (x b) (x' a)) by fourier.
         rewrite <- (finv_correct (x b) (x' a)).
         apply mildly_decreasing...
@@ -60,43 +60,43 @@ Section contents.
     split.
       destruct fm; simpl.
         apply Rle_trans with (f (f (x b) (-t)) t).
-          rewrite <- concrete.flow_additive...
+          rewrite <- flow_additive...
           rewrite Rplus_opp_l.
-          rewrite concrete.flow_zero...
-        apply (f_le_left fm ff finv finv_correct (f (x b) (-t))
+          rewrite flow_zero...
+        apply (f_le_left fm finv finv_correct (f (x b) (-t))
           (Rmax (f (x b) (- t)) (x a)) t).
         apply RmaxLess1.
       apply Rle_trans with (f (f (x b) (-t)) t).
-        apply (f_le_left fm ff finv finv_correct
+        apply (f_le_left fm finv finv_correct
           (Rmin (f (x b) (- t)) (x a)) (f (x b) (-t)) t).
         apply Rmin_l.
       clear H H0.
-      rewrite <- (concrete.flow_additive ff).
+      rewrite <- flow_additive.
       rewrite Rplus_opp_l.
-      rewrite (concrete.flow_zero ff)...
+      rewrite flow_zero...
     replace (x' b) with (f (f (x' b) (-t)) t).
       destruct fm; simpl.
-        apply (f_le_left fm ff finv finv_correct
+        apply (f_le_left fm finv finv_correct
           (Rmax (f (x b) (-t)) (x a)) (f (x' b) (-t)) t).
         apply Rmax_le.
-          apply (f_le_left fm ff finv finv_correct (x b) (x' b) (-t)).
+          apply (f_le_left fm finv finv_correct (x b) (x' b) (-t)).
           destruct b...
         rewrite <- (finv_correct (x' b) (x a)).
         apply mildly_increasing...
-        rewrite (inv_inv fm ff finv finv_correct).
+        rewrite (inv_inv fm finv finv_correct).
         fourier.
-      apply (f_le_left fm ff finv finv_correct
+      apply (f_le_left fm finv finv_correct
         (f (x' b) (-t)) (Rmin (f (x b) (-t)) (x a)) t).
       apply Rmin_le.
-        apply (f_le_left fm ff finv finv_correct (x' b) (x b) (-t)).
+        apply (f_le_left fm finv finv_correct (x' b) (x b) (-t)).
         destruct b...
       rewrite <- (finv_correct (x' b) (x a)).
       apply mildly_decreasing...
-      rewrite (inv_inv fm ff finv finv_correct).
+      rewrite (inv_inv fm finv finv_correct).
       fourier.
-    rewrite <- (concrete.flow_additive ff).
+    rewrite <- flow_additive.
     rewrite Rplus_opp_l.
-    rewrite (concrete.flow_zero ff)...
+    rewrite flow_zero...
   Qed.
 
   Let in_x_x s: in_r s (x s).
@@ -131,13 +131,13 @@ Section contents.
       split.
         replace (x a) with (f (x' b) (finv (x' b) (x a)))...
         apply mono_opp.
-        rewrite (inv_inv fm ff finv finv_correct (x' b) (x a))...
+        rewrite (inv_inv fm finv finv_correct (x' b) (x a))...
       replace (x' a) with (f (x' b) (finv (x' b) (x' a)))...
       apply mono_opp.
-      rewrite (inv_inv fm ff finv finv_correct (x' b) (x' a))...
-    rewrite <- (concrete.flow_additive ff)...
+      rewrite (inv_inv fm finv finv_correct (x' b) (x' a))...
+    rewrite <- flow_additive...
     replace (- t + t) with 0...
-    rewrite (concrete.flow_zero ff)...
+    rewrite flow_zero...
     destruct b. destruct x0.
     clear in_x_x in_x_x'.
     subst x x'.
@@ -152,8 +152,7 @@ End one_axis.
 Section contents.
 
   Variables
-     (fx fy: R -> Time -> R)
-     (fxf: concrete.flows fx) (fyf: concrete.flows fy)
+     (fx fy: Flow R)
      (finvx finvy: R -> R -> Time)
      (finvx_correct: forall x x', fx x (finvx x x') = x')
      (finvy_correct: forall y y', fy y (finvy y y') = y')
@@ -230,31 +229,31 @@ Section contents.
     rename x1 into t. destruct x0. rename r into ux. rename r0 into uy.
     destruct H. destruct H1. destruct H0. destruct H2.
     simpl in *.
-    set (conj_snd (inv_nonneg fxm fxf finvx finvx_correct _ _) H).
-    set (conj_snd (inv_nonneg fxm fxf finvx finvx_correct _ _) H0).
-    set (conj_snd (inv_nonneg fym fyf finvy finvy_correct _ _) H1).
-    set (conj_snd (inv_nonneg fym fyf finvy finvy_correct _ _) H2).
-    set (conj_snd (inv_nonneg fxm fxf finvx finvx_correct _ _) H3).
-    set (conj_snd (inv_nonneg fym fyf finvy finvy_correct _ _) H4).
-    set (conj_snd (inv_nonneg fxm fxf finvx finvx_correct _ _) H5).
-    set (conj_snd (inv_nonneg fym fyf finvy finvy_correct _ _) H6).
+    set (conj_snd (inv_nonneg fxm finvx finvx_correct _ _) H).
+    set (conj_snd (inv_nonneg fxm finvx finvx_correct _ _) H0).
+    set (conj_snd (inv_nonneg fym finvy finvy_correct _ _) H1).
+    set (conj_snd (inv_nonneg fym finvy finvy_correct _ _) H2).
+    set (conj_snd (inv_nonneg fxm finvx finvx_correct _ _) H3).
+    set (conj_snd (inv_nonneg fym finvy finvy_correct _ _) H4).
+    set (conj_snd (inv_nonneg fxm finvx finvx_correct _ _) H5).
+    set (conj_snd (inv_nonneg fym finvy finvy_correct _ _) H6).
     clearbody r r0 r1 r2 r3 r4 r5 r6.
     split; apply Rle_trans with t.
           rewrite <- (inv_correct' fxm finvx finvx_correct ux t).
-          rewrite (inv_plus fxm fxf finvx finvx_correct ux (x' a) (fx ux t)).
-          rewrite (inv_plus fxm fxf finvx finvx_correct (x' a) (x b) (fx ux t)).
+          rewrite (inv_plus fxm finvx finvx_correct ux (x' a) (fx ux t)).
+          rewrite (inv_plus fxm finvx finvx_correct (x' a) (x b) (fx ux t)).
           fourier.
         rewrite <- (inv_correct' fym finvy finvy_correct uy t).
-        rewrite (inv_plus fym fyf finvy finvy_correct (y a) uy (y' b)).
-        rewrite (inv_plus fym fyf finvy finvy_correct uy (fy uy t) (y' b)).
+        rewrite (inv_plus fym finvy finvy_correct (y a) uy (y' b)).
+        rewrite (inv_plus fym finvy finvy_correct uy (fy uy t) (y' b)).
         fourier.
       rewrite <- (inv_correct' fym finvy finvy_correct uy t).
-      rewrite (inv_plus fym fyf finvy finvy_correct uy (y' a) (fy uy t)).
-      rewrite (inv_plus fym fyf finvy finvy_correct (y' a) (y b) (fy uy t)).
+      rewrite (inv_plus fym finvy finvy_correct uy (y' a) (fy uy t)).
+      rewrite (inv_plus fym finvy finvy_correct (y' a) (y b) (fy uy t)).
       fourier.
     rewrite <- (inv_correct' fxm finvx finvx_correct ux t).
-    rewrite (inv_plus fxm fxf finvx finvx_correct (x a) ux (x' b)).
-    rewrite (inv_plus fxm fxf finvx finvx_correct ux (fx ux t) (x' b)).
+    rewrite (inv_plus fxm finvx finvx_correct (x a) ux (x' b)).
+    rewrite (inv_plus fxm finvx finvx_correct ux (fx ux t) (x' b)).
     fourier.
   Qed.
 
@@ -273,7 +272,7 @@ Section contents.
     apply Rle_trans with (finvx (x' a) (x' b)).
       apply (inv_le fxm finvx finvx_correct).
       destruct fxm; apply mle_x_x'.
-    apply (inv_le_left fxm fxf finvx finvx_correct).
+    apply (inv_le_left fxm finvx finvx_correct).
     destruct fxm; apply mle_x_x'.
   Qed.
 
@@ -283,7 +282,7 @@ Section contents.
     apply Rle_trans with (finvy (y' a) (y' b)).
       apply (inv_le fym finvy finvy_correct).
       destruct fym; apply mle_y_y'.
-    apply (inv_le_left fym fyf finvy finvy_correct).
+    apply (inv_le_left fym finvy finvy_correct).
     destruct fym; apply mle_y_y'.
   Qed.
 
@@ -307,9 +306,9 @@ Section contents.
         destruct (Rle_dec (finvx (x a) (x' b)) (finvy (y a) (y' b)))...
       apply Rmin_r.
     assert (exists xu, in_x a xu /\ in_x b (fx xu t)).
-      apply (one_axis.inv_test_guarantees_flow fxf finvx finvx_correct fxm)...
+      apply (one_axis.inv_test_guarantees_flow finvx finvx_correct fxm)...
     assert (exists yu, in_y a yu /\ in_y b (fy yu t)).
-      apply (one_axis.inv_test_guarantees_flow fyf finvy finvy_correct fym)...
+      apply (one_axis.inv_test_guarantees_flow finvy finvy_correct fym)...
     destruct H3.
     destruct H4.
     rename x0 into xu. rename x1 into yu.
@@ -355,9 +354,9 @@ Section contents.
         destruct (Rle_dec (finvx (x a) (x' b)) (finvy (y a) (y' b)))...
       apply Rmin_r.
     assert (exists xu, in_x a xu /\ in_x b (fx xu t)).
-      apply (one_axis.inv_test_guarantees_flow fxf finvx finvx_correct fxm)...
+      apply (one_axis.inv_test_guarantees_flow finvx finvx_correct fxm)...
     assert (exists yu, in_y a yu /\ in_y b (fy yu t)).
-      apply (one_axis.inv_test_guarantees_flow fyf finvy finvy_correct fym)...
+      apply (one_axis.inv_test_guarantees_flow finvy finvy_correct fym)...
     destruct H5. destruct H6.
     unfold ideal.
     rename x0 into xu. rename x1 into yu.
@@ -376,10 +375,10 @@ Section contents.
       unfold Rmin.
       destruct H3. destruct H4.
       destruct (Rle_dec (finvx (x a) (x' b)) (finvy (y a) (y' b))).
-        destruct (inv_nonneg fxm fxf finvx finvx_correct (x a) (x' b)).
+        destruct (inv_nonneg fxm finvx finvx_correct (x a) (x' b)).
         apply H16.
         apply mle_trans with (x' a)...
-      destruct (inv_nonneg fym fyf finvy finvy_correct (y a) (y' b)).
+      destruct (inv_nonneg fym finvy finvy_correct (y a) (y' b)).
       apply H16.
       apply mle_trans with (y' a)...
     destruct (in_square_alt b (f (xu, yu) t)).
