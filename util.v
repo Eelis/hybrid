@@ -11,6 +11,28 @@ Record decideable_overestimator (A: Type) (Ideal: A -> Prop) :=
   ; doe_correct: forall a, Ideal a -> doe_pred a
   }.
 
+Definition opt_neg_conj (A B: Prop):
+  option (~ A) -> option (~ B) -> option (~ (A /\ B)).
+Proof.
+  intros.
+  destruct H.
+    apply Some. intro. destruct H. auto.
+  destruct H0.
+    apply Some. intro. destruct H. auto.
+  exact None.
+Defined.
+
+Lemma opt_neg_impl (P Q: Prop): option (~ Q) -> (P -> Q) -> option (~ P).
+  intros.
+  destruct H.
+    apply Some.
+    intro.
+    apply n.
+    apply H0.
+    exact H.
+  exact None.
+Defined.
+
 Definition pair_eq_dec (X Y: Set)
   (X_eq_dec: forall x x': X, {x=x'}+{x<>x'})
   (Y_eq_dec: forall y y': Y, {y=y'}+{y<>y'})
