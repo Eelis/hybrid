@@ -68,7 +68,7 @@ Proof with auto.
 Qed.
 
 Lemma inject_Q_le x y: (x <= y)%Q -> 'x <= 'y.
-Admitted.
+Proof. intros. apply (CRle_Qle x y). assumption. Qed.
 
 Lemma CRnonNeg_nonPos x: CRnonNeg x -> CRnonPos (-x).
   unfold CRnonNeg.
@@ -108,11 +108,6 @@ Qed.
 Lemma QposAsQ_Qpos_plus x y: QposAsQ (Qpos_plus x y) = (QposAsQ x + QposAsQ y)%Q.
   reflexivity.
 Qed.
-
-Lemma CRmult_1_l x: '1 * x == x.
-Admitted.
-  (* todo: also generalize to arbitrary ring. and how can this possibly
-   not be available already? *)
 
 Lemma CRle_le_eq x y: x <= y -> y <= x -> x == y.
 Proof with auto.
@@ -181,7 +176,12 @@ Defined.
 
 Lemma t1_rev (x y z: CR): x < y -> z+x < z+y.
 Proof.
-Admitted.
+  intros.
+  apply (CRlt_wd (Radd_comm CR_ring_theory x z) (Radd_comm CR_ring_theory y z)).
+    (* todo: why won't setoid rewrites work here? *)
+  apply t1.
+  assumption.
+Qed.
 
 Lemma t4 (q: Qpos): '0 <= 'q.
 Proof.
@@ -191,8 +191,23 @@ Proof.
   apply Qpos_nonneg.
 Defined.
 
+Lemma Qadd_both_sides x y: (x == y -> forall z, x+z == y+z)%Q.
+Proof. intros. rewrite H. reflexivity. Qed.
+
 Lemma Qbla (x y: Q): (-(x * y) == -x * y)%Q.
-Admitted.
+  intros.
+  symmetry.
+  rewrite <- (Qplus_0_l (-(x * y))).
+  rewrite <- (Qplus_0_l (-x * y)).
+  rewrite <- (Qplus_opp_r (x * y)) at 1.
+  rewrite <- Qplus_assoc.
+  rewrite (Qplus_comm (-(x*y))).
+  rewrite Qplus_assoc.
+  apply Qadd_both_sides.
+  rewrite <- Qmult_plus_distr_l.
+  rewrite Qplus_opp_r.
+  apply Qmult_0_l.
+Qed.
 
 Lemma Qpositive_ne_0 (x: positive): ~(x == 0)%Q.
 Admitted.
@@ -272,6 +287,17 @@ Proof.
   intros.
   set (@Ropp_opp _ _ _ _ _ _ _ _ t3 CR_ring_eq_ext CR_ring_theory).
   rewrite m.
+  rewrite (Radd_comm CR_ring_theory).
+  assumption.
+Defined.
+
+Lemma CRlt_opp_compat x y: x < y -> -y < -x.
+  unfold CRlt.
+  unfold CRpos.
+  intros.
+  destruct H.
+  exists x0.
+  rewrite (@Ropp_opp _ _ _ _ _ _ _ _ t3 CR_ring_eq_ext CR_ring_theory).
   rewrite (Radd_comm CR_ring_theory).
   assumption.
 Defined.

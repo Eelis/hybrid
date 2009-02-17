@@ -131,25 +131,47 @@ Proof with auto.
    simpl bsm; unfold Yflow; destruct l; admit.
 Defined.
 
+Lemma CRlt_trans x y z: x < y -> y < z -> x < z.
+  exact (so_trans (ax_less_strorder _ _  _ _ _ (cof_proof CRasCOrdField))).
+Defined.
+
 Lemma xflow_mono l: mono (xf l).
 Proof with auto.
   unfold mono.
   destruct l; [left | left | right | right]; intros; intro; intros; simpl.
         apply t1_rev...
-      admit.
-    admit.
-  admit.
-Defined. (* all these admits are boring arithmetic *)
+      apply (CRlt_wd (Radd_assoc CR_ring_theory x0 x1 x1)
+        (Radd_assoc CR_ring_theory x0 x' x')).
+      apply t1_rev.
+      apply CRlt_trans with (x' + x1).
+        apply t1...
+      apply t1_rev...
+    apply t1_rev.
+    apply CRlt_opp_compat...
+  apply (CRlt_wd (Radd_assoc CR_ring_theory x0 (-x') (-x'))
+    (Radd_assoc CR_ring_theory x0 (-x1) (-x1))).
+  apply t1_rev.
+  apply CRlt_trans with (-x' - x1); [apply t1_rev | apply t1]; apply CRlt_opp_compat...
+Defined.
 
 Lemma yflow_mono l: mono (yf l).
 Proof with auto.
   unfold mono.
   destruct l; [left | right | right | left]; intros; intro; intros; simpl.
-        admit.
-      admit.
-    admit.
+        apply (CRlt_wd (Radd_assoc CR_ring_theory x0 x1 x1)
+          (Radd_assoc CR_ring_theory x0 x' x')).
+        apply t1_rev.
+        apply CRlt_trans with (x' + x1).
+          apply t1...
+        apply t1_rev...
+      apply t1_rev.
+      apply CRlt_opp_compat...
+    apply (CRlt_wd (Radd_assoc CR_ring_theory x0 (-x') (-x'))
+      (Radd_assoc CR_ring_theory x0 (-x1) (-x1))).
+    apply t1_rev.
+    apply CRlt_trans with (-x' - x1); [apply t1_rev | apply t1]; apply CRlt_opp_compat...
   apply t1_rev...
-Defined. (* all these admits are boring arithmetic *)
+Defined.
 
 Definition x_flow_inv (l: Location) (x x': CR): Time :=
   match l with
@@ -179,7 +201,7 @@ Proof.
       rewrite <- (Rdistr_l CR_ring_theory).
       rewrite CRplus_Qplus.
       rewrite Qhalves_add_to_1.
-      rewrite CRmult_1_l.
+      rewrite (Rmul_1_l CR_ring_theory).
       symmetry. apply t11.
     rewrite (@Ropp_add _ _ _ _ _ _ _ _ t3 CR_ring_eq_ext CR_ring_theory ).
     rewrite (@Ropp_opp _ _ _ _ _ _ _ _ t3 CR_ring_eq_ext CR_ring_theory).
