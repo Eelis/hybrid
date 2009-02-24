@@ -34,16 +34,18 @@ Section reachability.
   Definition reachable := reachability.reachable tr.
   Definition path := reachability.path tr.
 
-  Variable origin: Vertex g.
+  Variable start: list (Vertex g).
+
+  Let reachable v := exists s, In s start /\ reachable s v.
 
   Program Fixpoint unreachables_worker (unvisited: list (Vertex g))
     (tovisit: { l | NoDup l /\ incl l unvisited 
       /\ (forall v, ~ In v unvisited -> forall w, In w unvisited -> tr v w -> In w l)
-      /\ (forall v, ~ In v unvisited -> reachable origin v)
-      /\ (forall v, In v l -> reachable origin v)}) {measure length unvisited}:
+      /\ (forall v, ~ In v unvisited -> reachable v)
+      /\ (forall v, In v l -> reachable v)}) {measure length unvisited}:
     { l | incl l (subtr ved unvisited tovisit)
       /\ (forall v, ~ In v l -> forall w, tr v w -> ~ In w l)
-      /\ (forall v, ~ In v l -> reachable origin v) } :=
+      /\ (forall v, ~ In v l -> reachable v) } :=
     match tovisit with
     | nil => unvisited
     | h :: t => unreachables_worker (remove ved h unvisited)
@@ -97,10 +99,13 @@ Section reachability.
       destruct (ved h v); [idtac | discriminate].
       firstorder.
     destruct (in_app_or _ _ _ H). apply H3...
-    destruct (intersection_In _ _ _ _ H6). clear H6.
+    destruct (intersection_In _ _ _ _ H6). clear H H6.
     destruct (snd (In_remove ved (subtr ved (edges h) t) v h) H8).
-    apply reachability.reachable_next with h. apply H3...
-    destruct (In_subtr _ _ _ _ H6)...
+    destruct (H3 h (in_eq _ _)). destruct H9.
+    exists x. split...
+    apply reachability.reachable_next with h...
+    unfold tr.
+    destruct (In_subtr _ _ _ _ H)...
   Qed.
 
   Next Obligation. Proof with auto.
@@ -110,7 +115,7 @@ Section reachability.
     set (exist (fun l =>
       NoDup l /\ incl l (remove ved h unvisited) /\
       (forall v0, ~ In v0 (remove ved h unvisited) -> forall w, In w (remove ved h unvisited) -> tr v0 w -> In w l) /\
-      (forall v0, ~ In v0 (remove ved h unvisited) -> reachable origin v0) /\ (forall v0, In v0 l -> reachable origin v0))
+      (forall v0, ~ In v0 (remove ved h unvisited) -> reachable v0) /\ (forall v0, In v0 l -> reachable v0))
        (t ++ intersection ved unvisited (remove ved h (subtr ved (edges h) t)))
        (unreachables_worker_obligation_3 unreachables_worker (exist _ tovisit H) Heq_tovisit)).
           (* todo: the above is _awful_ *)
@@ -128,14 +133,18 @@ Section reachability.
     split... apply subtr_In...
   Qed.
 
-  Program Definition unreachables: { l: list (Vertex g) | forall w, ~ In w l <-> reachable origin w }
-    := @unreachables_worker (vertices g) [origin].
+  Hypothesis NoDup_start: NoDup start.
+
+  Program Definition unreachables: { l: list (Vertex g) | forall w, ~ In w l <-> reachable w }
+    := @unreachables_worker (vertices g) start.
 
   Next Obligation. Proof with auto.
     split...
-    split. repeat intro... split... split. intros. elimtype False...
-    intros. inversion_clear H. subst. apply reachability.reachable_refl.
-    elimtype False...
+    split. repeat intro...
+    split. intros. elimtype False...
+    split. intros. elimtype False...
+    intros. exists v. split...
+    apply reachability.reachable_refl.
   Qed.
 
   Obligation Tactic := idtac.
@@ -143,21 +152,23 @@ Section reachability.
   Next Obligation. Proof with auto.
     destruct (unreachables_worker (exist (fun l => NoDup l /\ incl l (vertices g) /\
        (forall v, ~ In v (vertices g) -> forall w0, In w0 (vertices g) -> tr v w0 -> In w0 l) /\
-       (forall v, ~ In v (vertices g) -> reachable origin v) /\
-       (forall v, In v l -> reachable origin v)) [origin] unreachables_obligation_1)).
+       (forall v, ~ In v (vertices g) -> reachable v) /\
+       (forall v, In v l -> reachable v)) start unreachables_obligation_1)).
     simpl in *.
     destruct a. destruct H0.
     intro.
     split; intro. apply H1...
     intro.
-    destruct (reachability.reachable_flip_inv (fun j => In j x) (fun j => In_dec ved j x) H2)...
-      intro. apply (remove_In _ _ _ (H _ H4)).
-    destruct H4. destruct H4. destruct H5.
-    apply (H0 _ H4 _ H6)...
+    destruct H2. destruct H2.
+    destruct (reachability.reachable_flip_inv (fun j => In j x) (fun j => In_dec ved j x) H4)...
+      intro.
+      apply (snd (In_subtr ved (vertices g) start _ (H _ H5)) H2).
+    destruct H5. destruct H5. destruct H6.
+    apply (H0 _ H5 _ H7)...
   Qed.
 
   Program Definition reachables:
-    { l: list (Vertex g) | forall w, In w l <-> reachable origin w }
+    { l: list (Vertex g) | forall w, In w l <-> reachable w }
     := subtr ved (vertices g) unreachables.
 
   Next Obligation.
@@ -173,7 +184,7 @@ Section reachability.
     apply (i w). assumption.
   Qed.
 
-  Definition reachable_dec (v: Vertex g): decision (reachable origin v) :=
+  Definition reachable_dec (v: Vertex g): decision (reachable v) :=
     let (x, i) := unreachables in
       match In_dec ved v x with
       | left i0 => right (fun H => snd (i v) H i0)

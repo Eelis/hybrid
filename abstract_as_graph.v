@@ -67,6 +67,26 @@ Section using_duplication.
     apply c_abstract.NoDup_disc_trans.
   Qed.
 
+  Lemma NoDup_vertices: NoDup vertices.
+  Proof with auto.
+    unfold vertices.
+    apply NoDup_app.
+      apply NoDup_map.
+        intros. inversion H1...
+        apply c_abstract.NoDup_states.
+        apply c_abstract.NoDup_regions.
+      apply NoDup_map.
+      intros. inversion H1...
+      apply c_abstract.NoDup_states.
+      apply c_abstract.NoDup_regions.
+    intros. intro.
+    destruct (fst (in_map_iff _ _ x) H).
+    destruct (fst (in_map_iff _ _ x) H0).
+    destruct H1. destruct H2.
+    destruct x.
+    inversion H1. inversion H2. subst. discriminate.
+  Qed.
+
   Definition g: digraph.DiGraph :=
     digraph.Build eq_dec vertices vertices_exhaustive next NoDup_next.
 (*
@@ -121,29 +141,29 @@ Section using_duplication.
     option (~ c_abstract.reachable _ s).
   Proof with auto.
     intro s.
-    assert (forall v: digraph.Vertex g, decision
-      (opt_to_bool (c_abstract.initial _ (fst (snd v)) (snd (snd v))) = false ->
-      ~ digraph.reachable v (Cont, s) /\ ~ digraph.reachable v (Disc, s))).
-      intro.
-      destruct (c_abstract.initial _ (fst (snd v)) (snd (snd v))).
-        left. intro. discriminate.
-      simpl.
-      destruct (digraph.reachables _ v).
-      destruct (In_dec (digraph.Vertex_eq_dec g) (Cont, s) x).
-        right. intro. destruct (H (refl_equal _)).
-        apply H0. apply (i (Cont, s))...
-      destruct (In_dec (digraph.Vertex_eq_dec g) (Disc, s) x).
-        right. intro. destruct (H (refl_equal _)).
-        apply H1. apply (i (Disc, s))...
-      left. intros.
-      split; intro.
-        apply n. apply (i (Cont, s))...
-      apply n0. apply (i (Disc, s))...
-    destruct (list_dec _ H vertices).
-      apply Some.
-      apply respect_inv.
-      intros. apply a... apply vertices_exhaustive.
-    exact None.
+    set (start := filter (fun v => negb (opt_to_bool (c_abstract.initial _ (fst (snd v)) (snd (snd v))))) vertices).
+    destruct (@digraph.reachables g start).
+      apply NoDup_filter.
+      apply NoDup_vertices.
+    destruct (In_dec (digraph.Vertex_eq_dec g) (Cont, s) x). exact None.
+    destruct (In_dec (digraph.Vertex_eq_dec g) (Disc, s) x). exact None.
+    apply Some.
+    apply respect_inv.
+    intros.
+    assert (In v start).
+      apply (snd (filter_In (fun v => negb (opt_to_bool
+        (c_abstract.initial chs (fst (snd v)) (snd (snd v))))) v vertices)).
+      split...
+        apply vertices_exhaustive.
+      unfold c_abstract.State in H.
+      rewrite H...
+    split; intro.
+      apply n.
+      apply (snd (i (Cont, s))).
+      exists v...
+    apply n0.
+    apply (snd (i (Disc, s))).
+    exists v...
   Defined.
 
   Lemma semidecide_reachable2 (u: c_abstract.State _ (c_abstract.Region ahs)):
