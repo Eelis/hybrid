@@ -128,10 +128,17 @@ Section using_duplication.
       destruct (c_abstract.initial _ (fst (snd v)) (snd (snd v))).
         left. intro. discriminate.
       simpl.
-      destruct (digraph.reachable_dec _ v (Cont, s)).
-        right. intro. destruct (H (refl_equal _))...
-      destruct (digraph.reachable_dec _ v (Disc, s))...
-      right. intro. destruct (H (refl_equal _))...
+      destruct (digraph.reachables _ v).
+      destruct (In_dec (digraph.Vertex_eq_dec g) (Cont, s) x).
+        right. intro. destruct (H (refl_equal _)).
+        apply H0. apply (i (Cont, s))...
+      destruct (In_dec (digraph.Vertex_eq_dec g) (Disc, s) x).
+        right. intro. destruct (H (refl_equal _)).
+        apply H1. apply (i (Disc, s))...
+      left. intros.
+      split; intro.
+        apply n. apply (i (Cont, s))...
+      apply n0. apply (i (Disc, s))...
     destruct (list_dec _ H vertices).
       apply Some.
       apply respect_inv.
@@ -143,10 +150,10 @@ Section using_duplication.
     option (forall s, c_abstract.abs ahs s = u -> ~ c_concrete.reachable s).
   Proof with auto.
     intros.
-    destruct (semidecide_reachable u).
-      apply Some. repeat intro.
-      subst. apply n. apply c_abstract.reachable_concrete_abstract...
-    exact None.
+    refine (option_map _ (semidecide_reachable u)).
+    repeat intro.
+    apply H.
+    subst. apply c_abstract.reachable_concrete_abstract...
   Defined.
 
 End using_duplication.
