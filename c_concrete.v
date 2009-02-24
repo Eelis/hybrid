@@ -17,6 +17,7 @@ Record System: Type :=
   ; Location_eq_dec: forall l l': Location, decision (l = l')
   ; locations: list Location
   ; locations_exhaustive: forall l, In l locations
+  ; NoDup_locations: NoDup locations
 
   ; initial: (Location * Point) -> Prop
   ; invariant: (Location * Point) -> Prop
@@ -42,11 +43,14 @@ Section transitions_and_reachability.
 
   Definition State: Type := (Location system * Point system)%type.
 
-  Definition cont_trans (s s': State) : Prop :=
-    fst s = fst s' /\ exists d:Duration,
+  Definition cont_trans' l (p p': Point system) : Prop :=
+    exists d:Duration,
       (forall t, '0 <= t -> t <= proj1_sig d ->
-        invariant (fst s, flow system (fst s) (snd s) t))
-      /\ cs_eq (flow system (fst s') (snd s) (proj1_sig d)) (snd s').
+        invariant (l, flow system l p t))
+      /\ flow system l p (proj1_sig d) [=] p'.
+
+  Definition cont_trans (s s': State) : Prop :=
+    fst s = fst s' /\ cont_trans' (fst s) (snd s) (snd s').
 
   Definition disc_trans (s s': State) : Prop :=
     guard system s (fst s') /\
@@ -141,11 +145,11 @@ Section transitions_and_reachability.
   latter. i don't see any of this in our definition *)
 
   Definition reachable (s: State): Prop :=
-    exists i: State, initial i /\ reachable_from i trans s.
+    exists i: State, initial i /\ reachable trans i s.
 
-  Definition alternating_reachable (s: State): Prop :=
+  Definition reachable_alternating (s: State): Prop :=
     exists i: State, initial i /\
-      reachable_alternating i disc_trans cont_trans s.
+      reachable_alternating (fun b => if b then disc_trans else cont_trans) i s.
 
   Lemma reachable_invariant s: reachable s -> invariant s.
   Proof with auto with real.
@@ -155,43 +159,47 @@ Section transitions_and_reachability.
       apply invariant_initial...
     destruct H1.
       destruct H1. destruct H2. destruct H3...
-    destruct s. destruct s'.
+    destruct b. destruct c.
     destruct H1. destruct H2. destruct H2.
     simpl in *. subst.
     rewrite curry_inv.
     rewrite <- H3.
     apply H2.
-      destruct x0...
+      destruct x...
       simpl.
-      apply (CRnonNeg_le_zero x0)...
+      apply (CRnonNeg_le_zero x)...
     apply CRle_refl.
   Qed.
 
-  Lemma reachable_alternating s: reachable s -> alternating_reachable s.
+  Lemma alternating_reachable s: reachable s -> reachable_alternating s.
   Proof with auto.
-    unfold reachable, alternating_reachable.
+    unfold reachable, reachable_alternating.
     intros.
-    destruct H.
-    exists x.
-    destruct H.
-    split...
+    destruct H. destruct H.
+    exists x. split...
     induction H0.
-      apply reachable_alternating_A.
-      apply reachable_alternating_a_init.
-    destruct IHreachable_from.
-      destruct H1.
-        apply reachable_alternating_A.
-        apply reachable_alternating_a_next with s s...
-        apply cont_trans_refl.
-        apply reachable_invariant.
-        exists x...
-      apply reachable_alternating_B with s...
+      exists true.
+      apply end_with_refl.
+    destruct IHreachable...
     destruct H1.
-      apply reachable_alternating_A.
-      rename x into init.
-      apply reachable_alternating_a_next with s s'0...
-    apply reachable_alternating_B with s...
-    apply cont_trans_trans with s'0...
+      exists true.
+      apply end_with_next with b...
+      simpl.
+      destruct x...
+      apply end_with_next with b...
+      apply cont_trans_refl.
+      apply reachable_invariant.
+      unfold reachable.
+      exists a...
+    exists false.
+    destruct x.
+      apply end_with_next with b...
+    inversion_clear H2.
+      apply end_with_next with b...
+      apply end_with_refl.
+    simpl in H3.
+    apply end_with_next with y...
+    apply cont_trans_trans with b...
   Qed.
 
 End transitions_and_reachability.

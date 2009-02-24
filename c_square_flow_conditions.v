@@ -185,22 +185,22 @@ Section contents.
     unfold naive_ideal, naive_decideable.
     intros.
     destruct H. destruct H. destruct H0.
-    set (conj_fst (in_square_alt a x0) H).
+    set (fst (in_square_alt a x0) H).
       clearbody i. clear H. rename i into H.
-    set (conj_fst (in_square_alt b (f x0 x1)) H0).
+    set (fst (in_square_alt b (f x0 x1)) H0).
       clearbody i. clear H0. rename i into H0.
     destruct H. destruct H0.
     rename x1 into t. destruct x0. rename c into ux. rename c0 into uy.
     destruct H. destruct H1. destruct H0. destruct H2.
     simpl in *.
-    set (conj_snd (inv_nonneg fxm finvx finvx_correct _ _) H).
-    set (conj_snd (inv_nonneg fxm finvx finvx_correct _ _) H0).
-    set (conj_snd (inv_nonneg fym finvy finvy_correct _ _) H1).
-    set (conj_snd (inv_nonneg fym finvy finvy_correct _ _) H2).
-    set (conj_snd (inv_nonneg fxm finvx finvx_correct _ _) H3).
-    set (conj_snd (inv_nonneg fym finvy finvy_correct _ _) H4).
-    set (conj_snd (inv_nonneg fxm finvx finvx_correct _ _) H5).
-    set (conj_snd (inv_nonneg fym finvy finvy_correct _ _) H6).
+    set (snd (inv_nonneg fxm finvx finvx_correct _ _) H).
+    set (snd (inv_nonneg fxm finvx finvx_correct _ _) H0).
+    set (snd (inv_nonneg fym finvy finvy_correct _ _) H1).
+    set (snd (inv_nonneg fym finvy finvy_correct _ _) H2).
+    set (snd (inv_nonneg fxm finvx finvx_correct _ _) H3).
+    set (snd (inv_nonneg fym finvy finvy_correct _ _) H4).
+    set (snd (inv_nonneg fxm finvx finvx_correct _ _) H5).
+    set (snd (inv_nonneg fym finvy finvy_correct _ _) H6).
     clearbody c c0 c1 c2 c3 c4 c5 c6.
     split; apply CRle_trans with t.
           rewrite <- (inv_correct' fxm finvx finvx_correct ux t).
@@ -390,8 +390,8 @@ Section contents.
     split.
       apply ideal_implies_naive_decideable...
     destruct H. destruct H. destruct H0. destruct H0.
-    set (conj_fst (in_square_alt a x0) H). clearbody i. clear H. rename i into H.
-    set (conj_fst (in_square_alt b (f x0 x1)) H1). clearbody i. clear H1. rename i into H1.
+    set (fst (in_square_alt a x0) H). clearbody i. clear H. rename i into H.
+    set (fst (in_square_alt b (f x0 x1)) H1). clearbody i. clear H1. rename i into H1.
     destruct x0. rename x1 into t. rename c into ux. rename c0 into uy.
     destruct H. destruct H1. simpl in *.
     destruct H. destruct H2. destruct H1. destruct H3.

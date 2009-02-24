@@ -108,7 +108,7 @@ Section contents.
   latter. i don't see any of this in our definition *)
 
   Definition reachable (s: State): Prop :=
-    exists i: State, initial i /\ reachable_from i trans s.
+    exists i: State, initial i /\ reachable_from trans i s.
 
   Definition alternating_reachable (s: State): Prop :=
     exists i: State, initial i /\

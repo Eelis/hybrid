@@ -70,6 +70,24 @@ Qed.
 Lemma inject_Q_le x y: (x <= y)%Q -> 'x <= 'y.
 Proof. intros. apply (CRle_Qle x y). assumption. Qed.
 
+Lemma CRlt_trans x y z: x < y -> y < z -> x < z.
+  exact (so_trans (ax_less_strorder _ _  _ _ _ (cof_proof CRasCOrdField))).
+Defined.
+
+Lemma positive_CRpos (q: positive): CRpos ('q).
+Admitted.
+(*
+  unfold CRpos.
+  SearchAbout [positive Qpos].
+  intro. exists q. apply CRle_refl.
+Defined.
+*)
+
+Lemma Qpos_CRpos (q: Qpos): CRpos ('q).
+  unfold CRpos.
+  intro. exists q. apply CRle_refl.
+Defined.
+
 Lemma CRnonNeg_nonPos x: CRnonNeg x -> CRnonPos (-x).
   unfold CRnonNeg.
   unfold CRnonPos.
@@ -104,6 +122,13 @@ Lemma diff_opp x y: x - y == -(y - x).
   rewrite m0.
   apply (Radd_comm CR_ring_theory).
 Qed.
+
+Lemma Qmult_inv (x: Q) (y: positive): (x == y -> x * (1 # y) == 1)%Q.
+Proof with auto.
+  intros.
+  rewrite H.
+  clear H.
+Admitted.
 
 Lemma QposAsQ_Qpos_plus x y: QposAsQ (Qpos_plus x y) = (QposAsQ x + QposAsQ y)%Q.
   reflexivity.
@@ -181,7 +206,7 @@ Proof.
     (* todo: why won't setoid rewrites work here? *)
   apply t1.
   assumption.
-Qed.
+Defined.
 
 Lemma t4 (q: Qpos): '0 <= 'q.
 Proof.
@@ -251,6 +276,15 @@ Lemma t11 x y: y == x + (y - x).
   apply (Radd_0_l CR_ring_theory).
 Qed.
 
+Lemma CRmult_0_l x: '0 * x == '0.
+Proof @Rmul_0_l _ _ _ _ _ _ _ _ t3 CR_ring_eq_ext CR_ring_theory.
+
+Lemma CRmult_comm x y: x * y == y * x.
+Proof Rmul_comm CR_ring_theory.
+
+Lemma CRmult_0_r x: x * '0 == '0.
+Proof. intros. rewrite CRmult_comm. apply CRmult_0_l. Defined.
+
 Lemma t9 (x y x' y': CR): x <= x' -> y <= y' -> x+y <= x'+y'.
 Proof with auto.
   unfold CRle.
@@ -302,6 +336,61 @@ Lemma CRlt_opp_compat x y: x < y -> -y < -x.
   assumption.
 Defined.
 
+Lemma CRopp_mult_l x y: -(x * y) == -x * y.
+Proof Ropp_mul_l t3 CR_ring_eq_ext CR_ring_theory.
+
+Lemma CRmult_lt_0 x y: '0 < x -> '0 < y -> '0 < x * y.
+Proof ax_mult_resp_pos _ _ _ _ _ (cof_proof CRasCOrdField).
+
+Lemma CRopp_0: -'0 == '0.
+  rewrite CRopp_Qopp.
+  reflexivity.
+Defined.
+
+Lemma CRpos_lt_0 x: '0 < x -> CRpos x.
+  unfold CRlt.
+  intros.
+  apply CRpos_wd with (x - '0).
+    rewrite CRopp_0.
+    apply CRadd_0_r.
+  assumption.
+Defined.
+
+Lemma CRpos_lt_0_rev x: CRpos x -> '0 < x.
+Proof with auto.
+  unfold CRlt.
+  intros.
+  apply CRpos_wd with x.
+    rewrite CRopp_0.
+    symmetry. apply CRadd_0_r.
+  assumption.
+Defined.
+
+Lemma CRpos_mult x y: CRpos x -> CRpos y -> CRpos (x * y).
+Proof.
+  intros.
+  apply CRpos_lt_0.
+  apply CRmult_lt_0; apply CRpos_lt_0_rev; assumption.
+Defined.
+
+Lemma CRmult_lt_pos_r x y: x < y -> forall z, CRpos z -> z * x < z * y.
+Proof.
+  intros.
+  unfold CRlt in *.
+  apply CRpos_wd with (z * y + z * -x).
+    rewrite (Rmul_comm CR_ring_theory z (-x)).
+    rewrite <- (CRopp_mult_l x z).
+    rewrite (Rmul_comm CR_ring_theory x z).
+    reflexivity.
+  apply CRpos_wd with (z * (y + - x)).
+    rewrite (Rmul_comm CR_ring_theory z).
+    rewrite (Rdistr_l CR_ring_theory).
+    rewrite (Rmul_comm CR_ring_theory y).
+    rewrite (Rmul_comm CR_ring_theory (-x)).
+    reflexivity.
+  apply CRpos_mult; assumption.
+Defined.
+
 Lemma t12 x y: -x <= y -> -y <= x.
 Proof.
   intros.
@@ -333,12 +422,16 @@ Definition weak_CRlt_decision (f: (CR -> CR -> Set) -> Set): Set :=
 Definition weak_CRle_decision (f: (CR -> CR -> Prop) -> Prop): Set :=
   option ({f CRle}+{f (fun x y => y <= x)}).
 
-Definition NonNegCR: Type := sigT CRnonNeg.
+Definition NonNegCR: Type := sig CRnonNeg.
 
-Definition NonNegCR_plus (n n': NonNegCR): NonNegCR :=
-  let (r, p) := n in let (r', p') := n' in existT _ (r + r') (t10 p p').
+Program Definition NonNegCR_plus (n n': NonNegCR): NonNegCR := n + n'.
 
-Definition NonNegCR_zero: NonNegCR := existT _ _ CRnonNeg_zero.
+Next Obligation.
+  destruct n. destruct n'.
+  simpl. apply t10; assumption.
+Qed.
+
+Definition NonNegCR_zero: NonNegCR := exist _ _ CRnonNeg_zero.
 
 Axiom CR_lt_eq_dec: forall (x y: CR), sum (x==y) (sum (x<y) (y<x)).
 (* hm, if we make this a {x<=y}+{y<=x} axiom, we can be sure it won't be used in
@@ -361,7 +454,7 @@ Section function_properties.
     forall x x', x < x' -> f x < f x'.
   Definition strongly_decreasing: CProp :=
     forall x x', x < x' -> f x' < f x.
-
+    
   Definition increasing: CProp :=
     forall x x', x <= x' -> f x <= f x'.
   Definition decreasing: CProp :=
@@ -520,3 +613,5 @@ Section BSM.
      available in other modules, where I frequently had to redefine it.. *)
 
 End BSM.
+
+Ltac CRle_constants := apply inject_Q_le; compute; discriminate.

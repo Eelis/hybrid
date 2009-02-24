@@ -1,6 +1,7 @@
 Require c_abstraction.
 Require c_square_flow_conditions.
 Require Import util.
+Require Import list_util.
 Require Import c_util.
 Require Import c_geometry.
 Require Import c_monotonic_flow.
@@ -27,7 +28,9 @@ Section contents.
   Variables
     (locations: list Location) (locations_complete: forall l, List.In l locations)
     (Xintervals: list Xinterval) (Xintervals_complete: forall i, List.In i Xintervals)
-    (Yintervals: list Yinterval) (Yintervals_complete: forall i, List.In i Yintervals).
+    (Yintervals: list Yinterval) (Yintervals_complete: forall i, List.In i Yintervals)
+    (NoDup_Xintervals: NoDup Xintervals)
+    (NoDup_Yintervals: NoDup Yintervals).
 
   Definition squareIntervals: list SquareInterval :=
     flat_map (fun i => map (pair i) Yintervals) Xintervals.
@@ -41,6 +44,18 @@ Section contents.
     exists x.
     split...
     apply in_map...
+  Qed.
+
+  Lemma NoDup_squareIntervals: NoDup squareIntervals.
+  Proof with auto.
+    unfold squareIntervals.
+    apply NoDup_flat_map; intros...
+      destruct (fst (in_map_iff (pair a) Yintervals x) H1).
+      destruct (fst (in_map_iff (pair b) Yintervals x) H2).
+      destruct H3. destruct H4.
+      subst. inversion H4...
+    apply NoDup_map...
+    intros. inversion H2...
   Qed.
 
   Variable initial: Location -> Xinterval -> Yinterval -> bool.
@@ -81,6 +96,25 @@ Section contents.
       c_geometry.in_square p (square (snd ls)) /\
       concrete_invariant (fst ls, p).
 
+  (* If one's invariants can be expressed as a single square for each
+   location, we can decide it for the abstract system by computing
+   overlap with regions: *)
+
+  Hypothesis invariant_squares: Location -> Square.
+  Hypothesis invariant_squares_correct: forall l p,
+    concrete_invariant (l, p) -> in_square p (invariant_squares l).
+
+  Definition invariant_dec (e: Qpos) u: option (~ abstract_invariant u).
+  Proof with auto.
+    intros.
+    apply opt_neg_impl with (squares_overlap (invariant_squares (fst u))
+    (square (snd u))).
+      intros. destruct H. destruct H.
+      apply squares_share_point with x...
+    apply weak_decision_to_opt_neg.
+    apply (squares_overlap_dec e).
+  Defined.
+
   Variable
     (invariant_decider: forall u, option (~ abstract_invariant u)).
 
@@ -107,9 +141,11 @@ Section contents.
   Hypothesis invariant_wd: forall l l', l = l' -> forall p p', p[=]p' ->
     (concrete_invariant (l, p) <-> concrete_invariant (l', p')).
 
+  Hypothesis NoDup_locations: NoDup locations.
+
   Let concrete_system: c_concrete.System :=
     @c_concrete.Build_System Point Location Location_eq_dec 
-      locations locations_complete concrete_initial
+      locations locations_complete NoDup_locations concrete_initial
       concrete_invariant concrete_invariant_initial invariant_wd
       (fun l: Location => product_flow (xflow l) (yflow l))
       concrete_guard reset.
@@ -120,18 +156,6 @@ Section contents.
     (yresetinc: forall l l', increasing (yreset l l'))
     (reset_components: forall p l l',
       reset l l' p = (xreset l l' (fst p), yreset l l' (snd p))).
-(*
-  Variables
-    (guard_squares: Location -> Location -> option Square)
-    (guard_squares_correct: forall l l' p,
-      concrete_guard l l' p -> squares_overlap (guard_squares l l') (abs p)).
-
-  Definition make_guard_decider: forall u, option (~ abstract_guard u).
-  Proof with auto.
-    intros.
-    destruct u. destruct p.
-    set (guard_squares l0 l).
-  *)  
 
   Variable guard_decider: forall u, option (~ abstract_guard u).
 
@@ -176,18 +200,18 @@ Section contents.
     unfold disc_overestimation.
     destruct p. destruct p0.
     destruct H1. destruct H2. destruct H3.
-    simpl fst in *. simpl snd in *.
+    simpl @fst in *. simpl @snd in *.
     split.
       unfold abstract_invariant.
-      simpl snd. simpl fst.
+      simpl @snd. simpl @fst.
       exists x...
     split.
       unfold abstract_invariant.
-      simpl fst. simpl snd.
+      simpl @fst. simpl @snd.
       exists x0...
     split.
       unfold abstract_guard.
-      simpl fst. simpl snd.
+      simpl @fst. simpl @snd.
       exists x...
     apply squares_share_point with (reset l l0 x).
       rewrite reset_components.
@@ -197,24 +221,18 @@ Section contents.
     destruct x0.
     inversion H2.
     unfold in_square.
-    simpl fst. simpl snd.
+    simpl @fst. simpl @snd.
     destruct H0.
     destruct H0. destruct H7.
-    simpl fst in *. simpl snd in *.
+    simpl @fst in *. simpl @snd in *.
     split.
       split; rewrite H5...
     split; rewrite H6...
   Qed.
 
-
   Definition disc_decider (e: Qpos) u:
-    option (~ c_abstraction.disc_trans_cond concrete_system in_region u).
-  Proof.
-    intros.
-    apply opt_neg_impl with (disc_overestimation u).
-      apply (disc_overestimation_dec e).
-    apply disc_overestimation_valid.
-  Defined.
+    option (~ c_abstraction.disc_trans_cond concrete_system in_region u)
+      := opt_neg_impl (@disc_overestimation_valid u) (disc_overestimation_dec e u).
 
   Lemma cont_overestimation_valid u:
     c_abstraction.cont_trans_cond concrete_system in_region u ->
@@ -225,7 +243,7 @@ Section contents.
     destruct u.
     destruct H. destruct H. destruct H.
     destruct H0. destruct H1. destruct H2.
-    destruct H2. simpl fst in *. simpl snd in *.
+    destruct H2. simpl @fst in *. simpl @snd in *.
     split.
       apply c_square_flow_conditions.ideal_implies_practical_decideable.
           intros.
@@ -245,7 +263,7 @@ Section contents.
       simpl bsm in H3.
       unfold in_square.
       destruct H0. destruct H0. destruct H4.
-      simpl fst. simpl snd.
+      simpl @fst. simpl @snd.
       destruct x0.
       inversion H3.
       split.
@@ -255,7 +273,7 @@ Section contents.
       unfold abstract_invariant.
       exists x.
       split...
-      simpl fst.
+      simpl @fst.
       apply (c_concrete.invariant_wd concrete_system (refl_equal l) x
        (c_concrete.flow concrete_system l x (' 0)))...
         symmetry.
@@ -267,7 +285,7 @@ Section contents.
     unfold abstract_invariant.
     exists x0.
     split...
-    simpl fst.
+    simpl @fst.
     apply (c_concrete.invariant_wd concrete_system (refl_equal l) _ x0 H3).
     apply H2.
       destruct x1...
@@ -275,13 +293,44 @@ Section contents.
     apply CRle_refl.
   Qed.
 
-  Lemma cont_decider (e: Qpos): forall u, option
-    (~ c_abstraction.cont_trans_cond concrete_system in_region u).
-  Proof.
-    intros.
-    apply opt_neg_impl with (continuous_transition_condition' u).
-      apply (kaas e).
-    apply cont_overestimation_valid.
+  Definition cont_decider (e: Qpos) u: option
+    (~ c_abstraction.cont_trans_cond concrete_system in_region u)
+      := opt_neg_impl (@cont_overestimation_valid u) (kaas e u).
+
+
+
+  (* If one's initial location can be expressed as a simple square
+   in a single location, we can decide it for the abstract system
+   by checking overlap with regions. *)
+
+  Variables (initial_location: Location) (initial_square: Square)
+    (initial_representative:
+      forall (p: c_concrete.State concrete_system),
+      c_concrete.initial p -> (fst p = initial_location /\
+       in_square (snd p) initial_square)).
+
+  Lemma initial_dec u: option
+    (~ c_abstraction.initial_condition concrete_system in_region u).
+  Proof with auto.
+    simpl.
+    unfold c_abstraction.initial_condition.
+    unfold c_concrete.initial.
+    unfold concrete_system.
+    destruct u.
+    simpl c_concrete.Point.
+    destruct (Location_eq_dec l initial_location).
+      subst.
+      destruct (squares_overlap_dec (1#100) initial_square (square s)).
+          exact None.
+        apply Some. intro. destruct H.
+        simpl @snd in H. simpl @fst in H. destruct H.
+        apply n.
+        apply squares_share_point with x...
+        apply (initial_representative H0).
+      exact None.
+    apply Some. intro. destruct H. destruct H.
+    apply n.
+    destruct (initial_representative H0)...
   Defined.
 
 End contents.
