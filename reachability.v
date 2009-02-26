@@ -60,3 +60,5 @@ Section definitions.
     exists b, end_with b s s'.
 
 End definitions.
+
+Hint Constructors reachable.
