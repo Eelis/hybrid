@@ -40,7 +40,7 @@ Lemma CRadd_0_r x: x + '0 == x.
   intros.
   rewrite (Radd_comm CR_ring_theory).
   apply (Radd_0_l CR_ring_theory).
-Defined. (* todo: generalize to arbitrary ring. *)
+Qed. (* todo: generalize to arbitrary ring. *)
 
 Lemma add_both_sides x y: x == y -> forall z, x+z == y+z.
 Proof. intros. rewrite H. reflexivity. Qed.
@@ -72,7 +72,7 @@ Proof. intros. apply (CRle_Qle x y). assumption. Qed.
 
 Lemma CRlt_trans x y z: x < y -> y < z -> x < z.
   exact (so_trans (ax_less_strorder _ _  _ _ _ (cof_proof CRasCOrdField))).
-Defined.
+Qed.
 
 Lemma positive_CRpos (q: positive): CRpos ('q).
 Admitted.
@@ -80,13 +80,13 @@ Admitted.
   unfold CRpos.
   SearchAbout [positive Qpos].
   intro. exists q. apply CRle_refl.
-Defined.
+Qed.
 *)
 
 Lemma Qpos_CRpos (q: Qpos): CRpos ('q).
   unfold CRpos.
   intro. exists q. apply CRle_refl.
-Defined.
+Qed.
 
 Lemma CRnonNeg_nonPos x: CRnonNeg x -> CRnonPos (-x).
   unfold CRnonNeg.
@@ -112,7 +112,7 @@ Proof. apply (CRnonNeg_le_zero ('0)). apply CRle_refl. Qed.
 Lemma t3: Setoid_Theory CR (@ms_eq _).
   unfold Setoid_Theory.
   apply (CSetoid_eq_Setoid (csg_crr CRasCField)).
-Defined.
+Qed.
 
 Lemma diff_opp x y: x - y == -(y - x).
   set (@Ropp_add _ _ _ _ _ _ _ _ t3 CR_ring_eq_ext CR_ring_theory ).
@@ -197,7 +197,7 @@ Proof.
   intros.
   apply c.
   assumption.
-Defined.
+Qed.
 
 Lemma t1_rev (x y z: CR): x < y -> z+x < z+y.
 Proof.
@@ -206,7 +206,7 @@ Proof.
     (* todo: why won't setoid rewrites work here? *)
   apply t1.
   assumption.
-Defined.
+Qed.
 
 Lemma t4 (q: Qpos): '0 <= 'q.
 Proof.
@@ -214,7 +214,7 @@ Proof.
   destruct (CRle_Qle 0 q).
   apply H0.
   apply Qpos_nonneg.
-Defined.
+Qed.
 
 Lemma Qadd_both_sides x y: (x == y -> forall z, x+z == y+z)%Q.
 Proof. intros. rewrite H. reflexivity. Qed.
@@ -283,7 +283,7 @@ Lemma CRmult_comm x y: x * y == y * x.
 Proof Rmul_comm CR_ring_theory.
 
 Lemma CRmult_0_r x: x * '0 == '0.
-Proof. intros. rewrite CRmult_comm. apply CRmult_0_l. Defined.
+Proof. intros. rewrite CRmult_comm. apply CRmult_0_l. Qed.
 
 Lemma t9 (x y x' y': CR): x <= x' -> y <= y' -> x+y <= x'+y'.
 Proof with auto.
@@ -323,7 +323,7 @@ Proof.
   rewrite m.
   rewrite (Radd_comm CR_ring_theory).
   assumption.
-Defined.
+Qed.
 
 Lemma CRlt_opp_compat x y: x < y -> -y < -x.
   unfold CRlt.
@@ -334,7 +334,7 @@ Lemma CRlt_opp_compat x y: x < y -> -y < -x.
   rewrite (@Ropp_opp _ _ _ _ _ _ _ _ t3 CR_ring_eq_ext CR_ring_theory).
   rewrite (Radd_comm CR_ring_theory).
   assumption.
-Defined.
+Qed.
 
 Lemma CRopp_mult_l x y: -(x * y) == -x * y.
 Proof Ropp_mul_l t3 CR_ring_eq_ext CR_ring_theory.
@@ -345,7 +345,7 @@ Proof ax_mult_resp_pos _ _ _ _ _ (cof_proof CRasCOrdField).
 Lemma CRopp_0: -'0 == '0.
   rewrite CRopp_Qopp.
   reflexivity.
-Defined.
+Qed.
 
 Lemma CRpos_lt_0 x: '0 < x -> CRpos x.
   unfold CRlt.
@@ -354,7 +354,7 @@ Lemma CRpos_lt_0 x: '0 < x -> CRpos x.
     rewrite CRopp_0.
     apply CRadd_0_r.
   assumption.
-Defined.
+Qed.
 
 Lemma CRpos_lt_0_rev x: CRpos x -> '0 < x.
 Proof with auto.
@@ -364,14 +364,14 @@ Proof with auto.
     rewrite CRopp_0.
     symmetry. apply CRadd_0_r.
   assumption.
-Defined.
+Qed.
 
 Lemma CRpos_mult x y: CRpos x -> CRpos y -> CRpos (x * y).
 Proof.
   intros.
   apply CRpos_lt_0.
   apply CRmult_lt_0; apply CRpos_lt_0_rev; assumption.
-Defined.
+Qed.
 
 Lemma CRmult_lt_pos_r x y: x < y -> forall z, CRpos z -> z * x < z * y.
 Proof.
@@ -389,7 +389,7 @@ Proof.
     rewrite (Rmul_comm CR_ring_theory (-x)).
     reflexivity.
   apply CRpos_mult; assumption.
-Defined.
+Qed.
 
 Lemma t12 x y: -x <= y -> -y <= x.
 Proof.
@@ -414,7 +414,7 @@ Proof.
   rewrite m0 in c.
   rewrite (Radd_comm CR_ring_theory y).
   assumption.
-Defined.
+Qed.
 
 Definition weak_CRlt_decision (f: (CR -> CR -> Set) -> Set): Set :=
   option (sum (f CRlt) (f (fun x y => y < x))).

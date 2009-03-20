@@ -36,6 +36,7 @@ Section product_flow.
   Definition product_flow: Flow (ProdCSetoid X Y).
   Proof with auto.
     apply (Build_Flow fm); destruct x; simpl.
+    destruct fm. simpl.
       split; apply flow_zero.
     split; apply flow_additive.
   Defined.

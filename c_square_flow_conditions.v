@@ -301,9 +301,9 @@ Section contents.
     destruct H3. destruct H4. destruct H3. destruct H4.
     destruct H5. destruct H6.
     split...
-      destruct (i a (xu, yu))...
+    destruct (i a (xu, yu)). destruct a. simpl in *...
     exists t...
-    destruct (i b (f (xu, yu) t))...
+    destruct (i b (f (xu, yu) t)). destruct b. simpl in *...
   Qed.
 
   Theorem naive_conditions_equivalent: naive_decideable <-> naive_ideal.
@@ -413,28 +413,29 @@ Section contents.
     destruct H. assumption.
   Qed.
 
-  Definition decide_naive (e: Qpos): weak_decision (naive_decideable).
-  Proof.
-    intros.
-    unfold naive_decideable.
-    apply weak_and_dec; apply (weak_le_dec e).
-  Defined.
+  Definition naive_dec eps (_ : unit) : bool :=
+    CRle_dec eps (finvx (x' a) (x b), finvy (y a) (y' b)) &&
+    CRle_dec eps (finvy (y' a) (y b), finvx (x a) (x' b)).
 
-  Definition decide_practical (e: Qpos): weak_decision (practical_decideable).
+  Lemma over_naive_dec eps : naive_dec eps >=> fun _ => naive_decideable.
   Proof.
-    intros.
-    unfold practical_decideable.
-    apply weak_and_dec.
-      apply (decide_naive e).
-    unfold mle.
-    apply weak_and_dec.
-      case fxm; intros.
-        apply (weak_le_dec e).
-      apply (weak_le_dec e).
-    case fym; intros.
-      apply (weak_le_dec e).
-    apply (weak_le_dec e).
-  Defined. (* this must not depend on any axioms! *)
+    intros eps q n_d [o1 o2]. unfold naive_dec in n_d.
+    band_discr; estim (over_CRle eps).
+  Qed.
+
+  Definition practical_dec eps (_ : unit) : bool :=
+    naive_dec eps () && 
+    (if fxm then CRle_dec eps (x a, x' b) else CRle_dec eps (x' b, x a)) &&
+    (if fym then CRle_dec eps (y a, y' b) else CRle_dec eps (y' b, y a)).
+
+  Lemma over_practical_dec eps : 
+    practical_dec eps >=> fun _ => practical_decideable.
+  Proof with auto.
+    intros eps q n_d [nd [o1 o2]]. unfold practical_dec in n_d.
+    band_discr. bool_solver.
+    apply (over_true () (over_naive_dec eps))...
+    generalize o1. case fxm; intros; estim (over_CRle eps).
+    generalize o2. case fym; intros; estim (over_CRle eps).
+  Qed.
 
 End contents.
-

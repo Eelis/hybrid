@@ -5,20 +5,22 @@ Require Export Program.
 Set Implicit Arguments.
 Open Local Scope R_scope.
 
+Ltac hyp := assumption.
+Ltac ref := reflexivity.
+Ltac destruct_and :=
+  match goal with
+  | H: _ /\ _ |- _ => destruct H; destruct_and
+  | _ => idtac
+  end.
+
 Definition decision (P: Prop): Set := { P } + { ~ P }.
-Definition weak_decider T (P: T -> Prop) :=
-  forall x, option (~ P x). (* todo: move *)
+
+Ltac dec_eq := unfold decision; decide equality.
 
 Implicit Arguments fst [[A] [B]].
 Implicit Arguments snd [[A] [B]].
 
 Notation " g \u2218 f " := (compose g f) (at level 40, left associativity).
-
-Record decideable_overestimator (A: Type) (Ideal: A -> Prop) :=
-  { doe_pred: A -> Prop
-  ; doe_dec: forall a, decision (doe_pred a)
-  ; doe_correct: forall a, Ideal a -> doe_pred a
-  }.
 
 Definition conj_pair {A B: Prop} (P: A /\ B): A * B :=
   match P with conj a b => (a, b) end.
@@ -37,7 +39,7 @@ Definition opt_neg_impl (P Q: Prop) (i: P -> Q):
   option (~ Q) -> option (~ P) :=
     option_map (fun x => x \u2218 i).
 
-Definition pair_eq_dec (X Y: Set)
+Definition pair_eq_dec (X Y: Type)
   (X_eq_dec: forall x x': X, {x=x'}+{x<>x'})
   (Y_eq_dec: forall y y': Y, {y=y'}+{y<>y'})
     (p: prod X Y) (p': prod X Y): decision (p=p').

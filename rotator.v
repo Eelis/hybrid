@@ -16,19 +16,19 @@ Open Local Scope CR_scope.
 Inductive Location: Set := Up | Right | Down | Left.
 
 Definition Location_eq_dec (l l': Location): decision (l=l').
-Proof. destruct l; destruct l'; auto; right; discriminate. Defined.
+Proof. dec_eq. Defined.
 
 Definition locations: list Location := Up :: Right :: Down :: Left :: nil.
 
 Lemma NoDup_locations: NoDup locations.
   apply decision_true with (NoDup_dec Location_eq_dec locations).
-  vm_compute. reflexivity.
+  vm_compute. ref.  
 Qed.
 
 Lemma locations_complete l: In l locations.
 Proof. destruct l; compute; tauto. Qed.
 
-Let State: Type := prod Location Point.
+Let State : Type := (Location * Point)%type.
 
 Definition point: State -> Point := snd.
 Definition loc: State -> Location := fst.
@@ -57,9 +57,9 @@ Lemma invariant_wd: forall l l', l = l' ->
 Proof with auto.
   unfold invariant, in_square, in_range, range_left, range_right.
   intros. subst l'. destruct p. destruct p'.
-  simpl @fst. simpl @snd. inversion H0.
+  simpl @fst. simpl @snd. inversion H0. simpl.
   rewrite H. rewrite H1. split...
-Defined.
+Qed.
 
 Definition invariant_squares (l: Location): Square := world.
 
@@ -213,7 +213,7 @@ Proof with auto.
     apply CRmult_lt_pos_r...
     apply positive_CRpos.
    apply t1_rev...
- Defined.
+Defined.
 
 (* .. and then show to have inverses: *)
 
@@ -256,7 +256,7 @@ Proof.
     rewrite <- diff_opp.
     symmetry. apply t11.
   reflexivity.
-Defined.
+Qed.
 
 Lemma y_flow_inv_correct l y y': yf l y (y_flow_inv l y y') == y'.
 Proof.
@@ -277,7 +277,7 @@ Proof.
       symmetry. apply t11.
     reflexivity.
   symmetry. apply t11.
-Defined.
+Qed.
 
 (* Next, our reset function: *)
 
@@ -359,7 +359,7 @@ Definition concrete_system: c_concrete.System :=
 Inductive Interval: Set := I01 | I12 | I23 | I34 | I45.
 
 Definition Interval_eq_dec (i i': Interval): decision (i=i').
-Proof. destruct i; destruct i'; auto; right; discriminate. Defined.
+Proof. dec_eq. Defined.
 
 Definition interval_bounds (i: Interval): Range :=
   match i with
@@ -373,8 +373,8 @@ Proof. destruct i; compute; tauto. Qed.
 
 Lemma NoDup_intervals: NoDup intervals.
   apply decision_true with (NoDup_dec Interval_eq_dec intervals).
-  vm_compute. reflexivity.
-Defined.
+  vm_compute. ref.
+Qed.
 
 Definition s_absInterval (r: CR):
   { i: Interval | in_range r05 r -> in_range (interval_bounds i) r }.
@@ -402,115 +402,121 @@ Lemma regions_cover_invariants l (p: c_concrete.Point concrete_system):
     (c_square_abstraction.absInterval absInterval absInterval p).
 Proof with auto.
   simpl c_concrete.invariant.
-  unfold c_square_abstraction.in_region.
-  unfold invariant, in_square, in_range, range_left, range_right.
   destruct p.
-  simpl @fst. simpl @snd.
   intros.
-  unfold absInterval.
+  unfold absInterval. simpl.
   destruct (s_absInterval c). destruct (s_absInterval c0). simpl.
   destruct H.
   split.
-    apply i...
+  apply i...
   apply i0...
-Defined.
+Qed.
 
 Let Region := c_square_abstraction.SquareInterval Interval Interval.
 
-Definition guard_overestimation
-  (ls: Location * Region * Location): Prop
-  := match guard_square (fst (fst ls)) (snd ls) with
-  | Some s => squares_overlap s
-     (c_square_abstraction.square interval_bounds interval_bounds (snd (fst ls)))
-  | None => False
-  end.
+Definition guard_overestimation (ls : Location * Region * Location) : Prop :=
+  let (lr, l2) := ls in
+  let (l1, r) := lr in
+    match guard_square l1 l2 with
+    | Some s => squares_overlap (s, 
+        c_square_abstraction.square interval_bounds interval_bounds r)
+    | None => False
+    end.
 
-Definition guard_dec (e: Qpos) u:
-  option (~ c_square_abstraction.abstract_guard interval_bounds interval_bounds guard u).
+Definition guard_dec eps (ls : Location * Region * Location) :=
+  let (lr, l2) := ls in
+  let (l1, r) := lr in
+    match guard_square l1 l2 with
+    | Some s => squares_overlap_dec eps (s,
+        c_square_abstraction.square interval_bounds interval_bounds r)
+    | None => false
+    end.
+
+Lemma over_guard eps : 
+  guard_dec eps >=> c_square_abstraction.abstract_guard interval_bounds interval_bounds guard.
 Proof with auto.
-  intros.
-  apply opt_neg_impl with (guard_overestimation u).
-    unfold guard_overestimation.
-    unfold c_square_abstraction.abstract_guard, guard.
-    destruct u. destruct p.
-    simpl @fst. simpl @snd.
-    intros. destruct H. destruct H.
-    destruct (guard_square l0 l)...
-    apply squares_share_point with x0...
-  apply weak_decision_to_opt_neg.
-  unfold guard_overestimation.
-  destruct guard_square.
-    apply (squares_overlap_dec e).
-  apply definitely_not.
-  intro. assumption.
+  intros eps [[l r] l'] gf [p [in_p g]].
+  unfold guard_dec in gf. unfold guard in g.
+  simpl @fst in *. simpl @snd in *.  
+  destruct (guard_square l l'); try contradiction.
+  apply (over_squares_overlap eps _ gf).
+  apply squares_share_point with p...
+Qed.
+
+Definition abs_invariant eps :=
+  c_square_abstraction.do_invariant interval_bounds interval_bounds invariant invariant_squares eps.
+
+Definition invariant_dec eps :=
+  c_square_abstraction.invariant_dec interval_bounds interval_bounds
+    invariant_squares eps.
+
+Definition initial_dec eps :=
+  c_square_abstraction.initial_dec (Location:=Location) 
+    interval_bounds interval_bounds initial_square eps.
+
+Lemma over_initial eps : 
+  initial_dec eps >=> 
+  c_abstraction.initial_condition concrete_system 
+  (c_square_abstraction.in_region interval_bounds interval_bounds).
+Proof with auto.
+  apply c_square_abstraction.over_initial.
+  intros. destruct H...
 Defined.
 
-Definition invariant_dec: Qpos -> forall u,
-  option (~ c_square_abstraction.abstract_invariant
-     interval_bounds interval_bounds invariant u) :=
-  c_square_abstraction.invariant_dec
-    interval_bounds interval_bounds invariant invariant_squares
-    invariant_squares_correct.
-
-Lemma initial_representative (p : c_concrete.State concrete_system):
- c_concrete.initial p ->
-  fst p = initial_location /\ in_square (snd p) initial_square.
-Proof. auto. Qed.
-
-Definition initial_dec: forall u, option
-  (~ c_abstraction.initial_condition concrete_system
-     (c_square_abstraction.in_region interval_bounds interval_bounds) u)
-  := c_square_abstraction.initial_dec interval_bounds interval_bounds xf yf initial_representative.
-
-Definition abstract_system (e: Qpos): c_abstract.System concrete_system.
-Proof with auto.
-  intro.
-  apply (@c_abstraction.abstract_system concrete_system
-    (c_square_abstraction.SquareInterval Interval Interval)
-    (c_square_abstraction.SquareInterval_eq_dec Interval_eq_dec Interval_eq_dec)
-    (c_square_abstraction.in_region interval_bounds interval_bounds)
-    (c_square_abstraction.squareIntervals intervals intervals)
-    (c_square_abstraction.squareIntervals_complete _ intervals_complete _ intervals_complete)
-    (c_square_abstraction.NoDup_squareIntervals NoDup_intervals NoDup_intervals)
-    (c_square_abstraction.absInterval absInterval absInterval)).
-        exact (c_square_abstraction.cont_decider
-         Location_eq_dec locations_complete xf yf x_flow_inv y_flow_inv
-         x_flow_inv_correct y_flow_inv_correct xflow_mono yflow_mono
-         initial invariant_initial guard reset (invariant_dec e)
-         invariant_wd NoDup_locations e).
-      refine (c_square_abstraction.disc_decider Location_eq_dec
-        locations_complete xf yf initial
-       invariant_initial reset (invariant_dec e) invariant_wd
-       NoDup_locations xreset yreset xreset_inc yreset_inc _ _ e).
-        destruct p. reflexivity.
-      exact (guard_dec e).
-    exact initial_dec.
-  exact regions_cover_invariants.
+Definition abstract_system (eps : Qpos) : c_abstract.System concrete_system.
+Proof.
+  intro eps. eapply c_abstraction.abstract_system.
+  eexact (c_square_abstraction.SquareInterval_eq_dec Interval_eq_dec Interval_eq_dec).
+  eexact (c_square_abstraction.squareIntervals_complete _ intervals_complete _ intervals_complete).
+  eexact (c_square_abstraction.NoDup_squareIntervals NoDup_intervals NoDup_intervals).
+  eapply (@c_square_abstraction.do_cont_trans Location Interval Interval Location_eq_dec locations locations_complete interval_bounds interval_bounds xf yf x_flow_inv y_flow_inv).
+  eexact x_flow_inv_correct.
+  eexact y_flow_inv_correct.
+  eexact xflow_mono.
+  eexact yflow_mono.
+  eexact invariant_squares_correct.
+  eexact eps.
+  eapply c_square_abstraction.do_disc_trans.
+  eexact invariant_squares_correct.
+  eexact xreset_inc.
+  eexact yreset_inc.
+  destruct p; ref.
+  eexact (mk_DO (over_guard eps)).
+  eexact eps.
+  eexact (mk_DO (over_initial eps)).
+  unfold c_abstraction.RegionsCoverInvariants.
+  eexact regions_cover_invariants.
 Defined.
 
 Definition abs_sys := abstract_system (1#100).
+
+(*
+Definition vs := abstract_as_graph.vertices abs_sys.
+
+Definition g := abstract_as_graph.g abs_sys.
+Definition graph := flat_map (@digraph.edges g) vs.
+Time Eval vm_compute in (List.length graph).
+*)
 
 Definition unsafe_abstract_state:
   c_abstract.State concrete_system (c_abstract.Region abs_sys)
   := (Up, (I23, I23)).
 
-Theorem safe (p: c_concrete.Point concrete_system):
-  absInterval (fst p) = I23 -> absInterval (snd p) = I23 ->
-   ~ c_concrete.reachable (Up: c_concrete.Location concrete_system, p).
+Theorem safe (p: c_concrete.Point concrete_system) :
+  let (x, y) := p in
+  absInterval x = I23 -> absInterval y = I23 ->   ~c_concrete.reachable (Up: c_concrete.Location concrete_system, p).
 Proof with auto.
   cut (forall s : c_concrete.State concrete_system,
-     (fst s, (absInterval (fst (snd s)), absInterval (snd (snd s)))) =
-     unsafe_abstract_state -> ~ c_concrete.reachable s).
-    intros.
-    apply H.
-    simpl @fst. simpl @snd.
-    simpl in *.
-    rewrite H0. rewrite H1. reflexivity.
-  apply semidec_true with (abstract_as_graph.semidecide_reachable2 abs_sys (Up, (I23, I23))).
-  vm_compute...
+    let (l, p) := s in
+    let (x, y) := p in
+     (l, (absInterval x, absInterval y)) = unsafe_abstract_state -> 
+     ~c_concrete.reachable s).
+  destruct p; intros. apply (H (Up, (c, c0))).
+  rewrite H0. rewrite H1. ref.
+  destruct s as [l [px py]]. intro H.
+  apply abstract_as_graph.concrete_unreachable_ok with abs_sys (Up, (I23, I23)); 
+    [idtac | auto].
+  vm_compute; ref.
 Qed.
-  (* note: the time to compute the above currently appears to be
-   linear in the amount of initial abstract states, which should be
-   easy to fix *)
 
 Print Assumptions safe.

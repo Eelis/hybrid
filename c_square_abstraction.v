@@ -8,27 +8,31 @@ Require Import c_monotonic_flow.
 Require c_concrete.
 Require Import List.
 Set Implicit Arguments.
-Open Local Scope CR_scope.
+
+Open Scope CR_scope.
 
 Section contents.
 
   Variables
     (Location Xinterval Yinterval: Set)
-    (Location_eq_dec: forall l l': Location, {l=l'}+{l<>l'})
-    (Xinterval_eq_dec: forall i i': Xinterval, {i=i'}+{i<>i'})
-    (Yinterval_eq_dec: forall i i': Yinterval, {i=i'}+{i<>i'}).
+    (Location_eq_dec: forall l l': Location, decision (l = l'))
+    (Xinterval_eq_dec: forall i i': Xinterval, decision (i = i'))
+    (Yinterval_eq_dec: forall i i': Yinterval, decision (i = i')).
 
-  Definition SquareInterval: Set := prod Xinterval Yinterval.
+  Definition SquareInterval: Set := (Xinterval * Yinterval)%type.
 
-  Definition SquareInterval_eq_dec (i i': SquareInterval): {i=i'}+{i<>i'}.
-    unfold SquareInterval.
-    apply (pair_eq_dec Xinterval_eq_dec Yinterval_eq_dec).
+  Definition SquareInterval_eq_dec (i i': SquareInterval): decision (i = i').
+    dec_eq. apply Yinterval_eq_dec. apply Xinterval_eq_dec.
   Defined.
 
+  (* FIXME, abstract the triple, list + its completness + NoDups *)
   Variables
-    (locations: list Location) (locations_complete: forall l, List.In l locations)
-    (Xintervals: list Xinterval) (Xintervals_complete: forall i, List.In i Xintervals)
-    (Yintervals: list Yinterval) (Yintervals_complete: forall i, List.In i Yintervals)
+    (locations: list Location) 
+    (locations_complete: forall l, List.In l locations)
+    (Xintervals: list Xinterval) 
+    (Xintervals_complete: forall i, List.In i Xintervals)
+    (Yintervals: list Yinterval) 
+    (Yintervals_complete: forall i, List.In i Yintervals)
     (NoDup_Xintervals: NoDup Xintervals)
     (NoDup_Yintervals: NoDup Yintervals).
 
@@ -38,7 +42,6 @@ Section contents.
   Lemma squareIntervals_complete: forall s, List.In s squareIntervals.
   Proof with auto.
     destruct s.
-    unfold squareIntervals.
     destruct (in_flat_map (fun i => map (pair i) Yintervals) Xintervals (x, y)).
     apply H0.
     exists x.
@@ -48,7 +51,6 @@ Section contents.
 
   Lemma NoDup_squareIntervals: NoDup squareIntervals.
   Proof with auto.
-    unfold squareIntervals.
     apply NoDup_flat_map; intros...
       destruct (fst (in_map_iff (pair a) Yintervals x) H1).
       destruct (fst (in_map_iff (pair b) Yintervals x) H2).
@@ -75,7 +77,8 @@ Section contents.
     (xflow_inv yflow_inv: Location -> CR -> CR -> Time)
     (xflow_correct: forall l x x', xflow l x (xflow_inv l x x') == x')
     (yflow_correct: forall l y y', yflow l y (yflow_inv l y y') == y')
-    (xmono: forall l, mono (xflow l)) (ymono: forall l, mono (yflow l)).
+    (xmono: forall l, mono (xflow l)) 
+    (ymono: forall l, mono (yflow l)).
 
   Let Point := ProdCSetoid CRasCSetoid CRasCSetoid.
 
@@ -87,11 +90,11 @@ Section contents.
     (concrete_guard: Location * c_geometry.Point -> Location -> Prop)
     (reset: Location -> Location -> Point -> Point).
 
-  Definition abstract_guard (ls: prod (prod Location SquareInterval) Location): Prop
+  Definition abstract_guard (ls: (Location * SquareInterval) * Location): Prop
     := exists p, c_geometry.in_square p (square (snd (fst ls))) /\
 	concrete_guard (fst (fst ls), p) (snd ls).
 
-  Definition abstract_invariant (ls: prod Location SquareInterval): Prop :=
+  Definition abstract_invariant (ls: Location * SquareInterval): Prop :=
     exists p,
       c_geometry.in_square p (square (snd ls)) /\
       concrete_invariant (fst ls, p).
@@ -104,39 +107,50 @@ Section contents.
   Hypothesis invariant_squares_correct: forall l p,
     concrete_invariant (l, p) -> in_square p (invariant_squares l).
 
-  Definition invariant_dec (e: Qpos) u: option (~ abstract_invariant u).
+Ltac bool_contradict id :=
+  match goal with
+  | id: ?X = false |- _ =>
+      absurd (X = true); [congruence | idtac]
+  | id: ?X = true |- _ =>
+      absurd (X = false); [congruence | idtac]
+  end.
+
+  Definition invariant_dec eps (li : Location * SquareInterval) : bool :=
+    let (l, i) := li in
+      squares_overlap_dec eps (invariant_squares l, square i).
+
+  Lemma over_invariant eps : invariant_dec eps >=> abstract_invariant.
   Proof with auto.
-    intros.
-    apply opt_neg_impl with (squares_overlap (invariant_squares (fst u))
-    (square (snd u))).
-      intros. destruct H. destruct H.
-      apply squares_share_point with x...
-    apply weak_decision_to_opt_neg.
-    apply (squares_overlap_dec e).
-  Defined.
+    intros eps [l i] id [p [pi lp]].
+    bool_contradict id. unfold invariant_dec.
+    estim (over_squares_overlap eps).
+    apply squares_share_point with p...
+  Qed.
+
+  Definition do_invariant eps := mk_DO (over_invariant eps).
 
   Variable
-    (invariant_decider: forall u, option (~ abstract_invariant u)).
+    (invariant_decider : dec_overestimator abstract_invariant).
 
   Definition continuous_transition_condition'
-    (l: prod Location (prod SquareInterval SquareInterval)): Prop :=
-     c_square_flow_conditions.practical_decideable (xflow_inv (fst l)) (yflow_inv (fst l))
-      (xmono (fst l)) (ymono (fst l)) (square (fst (snd l))) (square (snd (snd l)))
-    /\ abstract_invariant (fst l, fst (snd l))
-    /\ abstract_invariant (fst l, snd (snd l)).
+    (p: Location * (SquareInterval * SquareInterval)) : Prop :=
+    let (l, si) := p in
+    let (i1, i2) := si in
+      c_square_flow_conditions.practical_decideable (xflow_inv l) (yflow_inv l)
+        (xmono l) (ymono l) (square i1) (square i2) /\
+      abstract_invariant (l, i1) /\
+      abstract_invariant (l, i2).
      (* Note how we only check the invariant at s and s', not at
       points in between. *)
 
-  Lemma kaas (e: Qpos): forall u, option (~ continuous_transition_condition' u).
-	 (* todo: rename *)
-    intros.
-    unfold continuous_transition_condition'.
-    apply opt_neg_conj.
-      apply weak_decision_to_opt_neg.
-      apply c_square_flow_conditions.decide_practical.
-      exact e.
-    apply opt_neg_conj; apply invariant_decider.
-  Defined.
+  Definition cont_trans_cond'_dec eps 
+   (p : Location * (SquareInterval * SquareInterval)) : bool :=
+   let (l, si) := p in
+   let (i1, i2) := si in
+     c_square_flow_conditions.practical_dec (xflow_inv l) (yflow_inv l) 
+       (xmono l) (ymono l) (square i1) (square i2) eps () &&
+     invariant_dec eps (l, i1) &&
+     invariant_dec eps (l, i2).
 
   Hypothesis invariant_wd: forall l l', l = l' -> forall p p', p[=]p' ->
     (concrete_invariant (l, p) <-> concrete_invariant (l', p')).
@@ -157,31 +171,51 @@ Section contents.
     (reset_components: forall p l l',
       reset l l' p = (xreset l l' (fst p), yreset l l' (snd p))).
 
-  Variable guard_decider: forall u, option (~ abstract_guard u).
+  Variable guard_decider : dec_overestimator abstract_guard.
 
   Definition disc_overestimation (ss: (Location * SquareInterval) *
-    (Location * SquareInterval)): Prop :=
+    (Location * SquareInterval)) : Prop :=
     let (source, target) := ss in
     let (l, s) := source in
     let (l', s') := target in
-       abstract_invariant (l, s) /\
-       abstract_invariant (l', s') /\
-       abstract_guard (l, s, l') /\
-       squares_overlap
-         (map_square (xresetinc l l') (yresetinc l l') (square s))
-         (square s').
+      abstract_invariant (l, s) /\
+      abstract_invariant (l', s') /\
+      abstract_guard (l, s, l') /\
+      squares_overlap (map_square (xresetinc l l') (yresetinc l l') (square s),
+        square s').
 
-  Lemma disc_overestimation_dec (e: Qpos) s: option (~ disc_overestimation s).
+  Definition disc_overestimation_dec eps (ss: (Location * SquareInterval) *
+    (Location * SquareInterval)) : bool :=
+    let (source, target) := ss in
+    let (l, s) := source in
+    let (l', s') := target in
+      invariant_dec eps (l, s) &&
+      invariant_dec eps (l', s') &&
+      (do_pred guard_decider) (l, s, l') &&
+      squares_overlap_dec eps (map_square (xresetinc l l') (yresetinc l l') 
+        (square s), square s').
+
+  Lemma over_disc_trans eps : 
+    disc_overestimation_dec eps >=> c_abstraction.disc_trans_cond concrete_system in_region.
   Proof with auto.
-    intros.
-    unfold disc_overestimation.
-    destruct s. destruct p. destruct p0.
-    apply opt_neg_conj. apply invariant_decider.
-    apply opt_neg_conj. apply invariant_decider.
-    apply opt_neg_conj. apply guard_decider.
-    apply weak_decision_to_opt_neg.
-    apply (squares_overlap_dec e).
-  Defined.
+    intros eps [[l1 s1] [l2 s2]] cond 
+      [p [q [ps1 [qs2 [guard [res [inv1 inv2]]]]]]].
+    unfold disc_overestimation_dec in cond.
+    band_discr. bool_solver. bool_solver.
+    estim (over_invariant eps). exists p...
+    estim (over_invariant eps). exists q...
+    estim ((do_correct guard_decider)). exists p...
+    estim (over_squares_overlap eps).
+    apply squares_share_point with (reset l1 l2 p); rewrite reset_components.
+    apply in_map_square... destruct p. destruct q.
+    rewrite reset_components in res. inversion res. 
+    destruct ps1. destruct qs2. destruct H3. destruct H4. simpl in *.
+    split. 
+    split; rewrite H...
+    split; rewrite H0...
+  Qed.
+
+  Definition do_disc_trans eps := mk_DO (over_disc_trans eps).
 
   Variables
     (absXinterval: CR -> Xinterval)
@@ -190,147 +224,65 @@ Section contents.
   Definition absInterval (p: Point): SquareInterval :=
     (absXinterval (fst p), absYinterval (snd p)).
 
-  Lemma disc_overestimation_valid u:
-    c_abstraction.disc_trans_cond concrete_system in_region u ->
-    disc_overestimation u.
+  Lemma over_cont_trans eps : 
+    cont_trans_cond'_dec eps >=> c_abstraction.cont_trans_cond concrete_system in_region.
   Proof with auto.
-    intros.
-    destruct u.
-    destruct H. destruct H. destruct H. destruct H0.
-    unfold disc_overestimation.
-    destruct p. destruct p0.
-    destruct H1. destruct H2. destruct H3.
-    simpl @fst in *. simpl @snd in *.
-    split.
-      unfold abstract_invariant.
-      simpl @snd. simpl @fst.
-      exists x...
-    split.
-      unfold abstract_invariant.
-      simpl @fst. simpl @snd.
-      exists x0...
-    split.
-      unfold abstract_guard.
-      simpl @fst. simpl @snd.
-      exists x...
-    apply squares_share_point with (reset l l0 x).
-      rewrite reset_components.
-      apply in_map_square...
-    rewrite reset_components in H2.
-    rewrite reset_components.
-    destruct x0.
-    inversion H2.
-    unfold in_square.
-    simpl @fst. simpl @snd.
-    destruct H0.
-    destruct H0. destruct H7.
-    simpl @fst in *. simpl @snd in *.
-    split.
-      split; rewrite H5...
-    split; rewrite H6...
-  Qed.
-
-  Definition disc_decider (e: Qpos) u:
-    option (~ c_abstraction.disc_trans_cond concrete_system in_region u)
-      := opt_neg_impl (@disc_overestimation_valid u) (disc_overestimation_dec e u).
-
-  Lemma cont_overestimation_valid u:
-    c_abstraction.cont_trans_cond concrete_system in_region u ->
-    continuous_transition_condition' u.
-  Proof with auto.
-    intros.
-    unfold continuous_transition_condition'.
-    destruct u.
-    destruct H. destruct H. destruct H.
-    destruct H0. destruct H1. destruct H2.
-    destruct H2. simpl @fst in *. simpl @snd in *.
-    split.
-      apply c_square_flow_conditions.ideal_implies_practical_decideable.
-          intros.
-          apply xflow_correct.
-        intros.
-        apply yflow_correct.
-      unfold c_square_flow_conditions.ideal.
-      exists x.
-      split...
-      exists (proj1_sig x1).
-      destruct x1.
-      split... apply (CRnonNeg_le_zero x1)...
-      simpl proj1_sig in *.
-      unfold c_square_flow_conditions.f.
-      unfold concrete_system in H3.
-      unfold c_concrete.flow in H3.
-      simpl bsm in H3.
-      unfold in_square.
-      destruct H0. destruct H0. destruct H4.
-      simpl @fst. simpl @snd.
-      destruct x0.
-      inversion H3.
-      split.
-        split; rewrite H7...
-      split; rewrite H8...
-    split.
-      unfold abstract_invariant.
-      exists x.
-      split...
-      simpl @fst.
-      apply (c_concrete.invariant_wd concrete_system (refl_equal l) x
-       (c_concrete.flow concrete_system l x (' 0)))...
-        symmetry.
-        apply flow_zero.
-      apply H2...
-        apply CRle_refl.
-      destruct x1...
-      apply (CRnonNeg_le_zero x1)...
-    unfold abstract_invariant.
-    exists x0.
-    split...
-    simpl @fst.
-    apply (c_concrete.invariant_wd concrete_system (refl_equal l) _ x0 H3).
-    apply H2.
-      destruct x1...
-      apply (CRnonNeg_le_zero x1)...
+    intros eps [l [i1 i2]] cond [p [q [pi1 [qi2 ct]]]].
+    destruct ct as [lp_lq [[t tpos] [ctc cteq]]].
+    bool_contradict cond.
+    unfold cont_trans_cond'_dec. bool_solver. bool_solver.
+    eapply (over_true _ (c_square_flow_conditions.over_practical_dec _)).
+    apply c_square_flow_conditions.ideal_implies_practical_decideable...
+    exists p. split...
+    exists t. split. 
+    apply (CRnonNeg_le_zero t)...
+    simpl bsm in cteq. 
+    destruct p. destruct q. inversion cteq.    
+    destruct pi1. destruct qi2. destruct H3. destruct H4.
+    split. 
+    split; rewrite H... 
+    split; rewrite H0...
+    estim (over_invariant eps). exists p. split... 
+    apply (c_concrete.invariant_wd concrete_system (refl_equal l) p
+      (c_concrete.flow concrete_system l p (' 0))).
+    symmetry. apply flow_zero. 
+    apply ctc. apply CRle_refl.    
+    apply (CRnonNeg_le_zero t)...
+    estim (over_invariant eps). exists q. split... 
+    apply (c_concrete.invariant_wd concrete_system (refl_equal l) _ q cteq).
+    apply ctc. 
+    apply (CRnonNeg_le_zero t)...
     apply CRle_refl.
   Qed.
 
-  Definition cont_decider (e: Qpos) u: option
-    (~ c_abstraction.cont_trans_cond concrete_system in_region u)
-      := opt_neg_impl (@cont_overestimation_valid u) (kaas e u).
-
-
+  Definition do_cont_trans eps := mk_DO (over_cont_trans eps).
 
   (* If one's initial location can be expressed as a simple square
    in a single location, we can decide it for the abstract system
    by checking overlap with regions. *)
 
-  Variables (initial_location: Location) (initial_square: Square)
+  Variables 
+    (initial_location: Location) 
+    (initial_square: Square)
     (initial_representative:
-      forall (p: c_concrete.State concrete_system),
-      c_concrete.initial p -> (fst p = initial_location /\
-       in_square (snd p) initial_square)).
+      forall (p : c_concrete.State concrete_system),
+        c_concrete.initial p -> 
+        in_square (snd p) initial_square).
 
-  Lemma initial_dec u: option
-    (~ c_abstraction.initial_condition concrete_system in_region u).
+  Definition initial_dec eps (s : Location * SquareInterval) : bool :=
+    let (l, si) := s in
+      squares_overlap_dec eps (initial_square, square si).
+
+  Lemma over_initial eps : 
+    initial_dec eps >=> c_abstraction.initial_condition concrete_system in_region.
   Proof with auto.
-    simpl.
-    unfold c_abstraction.initial_condition.
-    unfold c_concrete.initial.
-    unfold concrete_system.
-    destruct u.
-    simpl c_concrete.Point.
-    destruct (Location_eq_dec l initial_location).
-      subst.
-      destruct (squares_overlap_dec (1#100) initial_square (square s)).
-          exact None.
-        apply Some. intro. destruct H.
-        simpl @snd in H. simpl @fst in H. destruct H.
-        apply n.
-        apply squares_share_point with x...
-        apply (initial_representative H0).
-      exact None.
-    apply Some. intro. destruct H. destruct H.
-    apply n.
-    destruct (initial_representative H0)...
-  Defined.
+    intros eps [l i] id [p [pi lp]].
+    bool_contradict id.
+    estim (over_squares_overlap eps).
+    apply squares_share_point with p...
+    apply (initial_representative lp).
+  Qed.
+
+  Definition do_initial eps := mk_DO (over_initial eps).
 
 End contents.

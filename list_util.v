@@ -306,3 +306,29 @@ Hint Resolve in_eq.
 Hint Resolve in_cons.
 Hint Resolve NoDup_cons.
 Hint Resolve NoDup_nil.
+
+Lemma in_filter (A : Type) (f : A -> bool) (x : A) (l : list A) :
+  In x l -> f x = true -> In x (filter f l).
+Proof.
+  intros. destruct filter_In with A f x l. firstorder.
+Qed.
+
+Lemma existsb_forall : 
+  forall A (l : list A) P x, 
+    existsb P l = false -> In x l -> P x = false.
+Proof.
+  induction l; intros.
+  contradiction.
+  destruct (Bool.orb_false_elim _ _ H).
+  destruct H0.
+  subst. hyp.
+  apply IHl; hyp.
+Qed.  
+
+Lemma filter_app (A : Type) (f : A -> bool) ls ls' :
+  filter f ls ++ filter f ls' =
+  filter f (ls ++ ls').
+Proof.
+  induction ls. ref. intros.
+  simpl. destruct (f a); simpl. rewrite IHls. ref. apply IHls.
+Qed.
