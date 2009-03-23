@@ -496,9 +496,7 @@ Definition graph := flat_map (@digraph.edges g) vs.
 Time Eval vm_compute in (List.length graph).
 
 Definition unsafe_abstract_states :=
-  List.map (fun l => (l, (I23, I23))) (Right::nil). (*(Up::Down::Left::nil).*)
-  (* TODO: this should be replaced with [locations] but at the moment
-           rotator is not safe for location Right *)
+  List.map (fun l => (l, (I23, I23))) locations.
 
 (** Specification of what does it mean for the rotator example to be safe.
     It means that none of the abstract states in the list 

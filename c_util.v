@@ -75,13 +75,11 @@ Lemma CRlt_trans x y z: x < y -> y < z -> x < z.
 Qed.
 
 Lemma positive_CRpos (q: positive): CRpos ('q).
-Admitted.
-(*
-  unfold CRpos.
-  SearchAbout [positive Qpos].
-  intro. exists q. apply CRle_refl.
+Proof.
+  unfold CRpos. intro. 
+  exists (QposMake q 1). 
+  apply CRle_refl.
 Qed.
-*)
 
 Lemma Qpos_CRpos (q: Qpos): CRpos ('q).
   unfold CRpos.
@@ -125,10 +123,9 @@ Qed.
 
 Lemma Qmult_inv (x: Q) (y: positive): (x == y -> x * (1 # y) == 1)%Q.
 Proof with auto.
-  intros.
-  rewrite H.
-  clear H.
-Admitted.
+  intros. rewrite H.
+  unfold Qeq. simpl. repeat rewrite Pmult_1_r. ref.
+Qed.
 
 Lemma QposAsQ_Qpos_plus x y: QposAsQ (Qpos_plus x y) = (QposAsQ x + QposAsQ y)%Q.
   reflexivity.
