@@ -452,7 +452,7 @@ Definition invariant_dec eps :=
 
 Definition initial_dec eps :=
   c_square_abstraction.initial_dec (Location:=Location) 
-    interval_bounds interval_bounds initial_square eps.
+    Location_eq_dec interval_bounds interval_bounds Up initial_square eps.
 
 Lemma over_initial eps : 
   initial_dec eps >=> 
@@ -460,8 +460,8 @@ Lemma over_initial eps :
   (c_square_abstraction.in_region interval_bounds interval_bounds).
 Proof with auto.
   apply c_square_abstraction.over_initial.
-  intros. destruct H...
-Defined.
+  intros. destruct s... 
+Qed.
 
 Definition abstract_system (eps : Qpos) : c_abstract.System concrete_system.
 Proof.
@@ -490,33 +490,49 @@ Defined.
 
 Definition abs_sys := abstract_system (1#100).
 
-(*
 Definition vs := abstract_as_graph.vertices abs_sys.
-
 Definition g := abstract_as_graph.g abs_sys.
 Definition graph := flat_map (@digraph.edges g) vs.
 Time Eval vm_compute in (List.length graph).
-*)
 
-Definition unsafe_abstract_state:
-  c_abstract.State concrete_system (c_abstract.Region abs_sys)
-  := (Up, (I23, I23)).
+Definition unsafe_abstract_states :=
+  List.map (fun l => (l, (I23, I23))) (Right::nil). (*(Up::Down::Left::nil).*)
+  (* TODO: this should be replaced with [locations] but at the moment
+           rotator is not safe for location Right *)
 
-Theorem safe (p: c_concrete.Point concrete_system) :
-  let (x, y) := p in
-  absInterval x = I23 -> absInterval y = I23 ->   ~c_concrete.reachable (Up: c_concrete.Location concrete_system, p).
-Proof with auto.
-  cut (forall s : c_concrete.State concrete_system,
+(** Specification of what does it mean for the rotator example to be safe.
+    It means that none of the abstract states in the list 
+    [unsafe_abstract_states] is reachable. *)
+Definition rotator_is_safe := 
+  forall s : c_concrete.State concrete_system,
     let (l, p) := s in
     let (x, y) := p in
-     (l, (absInterval x, absInterval y)) = unsafe_abstract_state -> 
-     ~c_concrete.reachable s).
-  destruct p; intros. apply (H (Up, (c, c0))).
-  rewrite H0. rewrite H1. ref.
-  destruct s as [l [px py]]. intro H.
-  apply abstract_as_graph.concrete_unreachable_ok with abs_sys (Up, (I23, I23)); 
-    [idtac | auto].
-  vm_compute; ref.
+      List.In (l, (absInterval x, absInterval y)) unsafe_abstract_states ->
+      ~c_concrete.reachable s.
+
+Definition unsafe : bool :=
+  abstract_as_graph.some_reachable abs_sys unsafe_abstract_states.
+
+(** This theorem guarantees that validating in the extracted program that
+    [unsafe = false], ensures that rotator is indeed safe. *)
+Theorem unsafe_correct : unsafe = false -> rotator_is_safe.
+Proof.
+  unfold unsafe, rotator_is_safe. intros srf [l [px py]] su.
+  apply abstract_as_graph.states_unreachable with 
+    abs_sys unsafe_abstract_states (l, (absInterval px, absInterval py)); 
+    trivial.
 Qed.
 
-Print Assumptions safe.
+(** Instead of validating this condition in the extracted program we can
+    also do it directly in Coq (though it will be slower) *)
+Theorem rotator_safe : rotator_is_safe.
+Proof.
+  Time apply unsafe_correct; vm_compute; ref.
+Time Qed.
+
+Print Assumptions rotator_safe.
+
+(** We extract the program to verify safety of the rotator example. *)
+Recursive Extraction unsafe.
+ (* TODO: For this to work we need to make sure that the computations
+    do not depend on lemmas using axioms. *)

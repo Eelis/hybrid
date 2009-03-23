@@ -141,8 +141,7 @@ Section using_duplication.
     apply c_abstract.NoDup_regions.
   Qed.
 
-  Definition state_reachable s : bool :=
-    let (vr, _) := @digraph.reachables g init_verts NoDup_init_verts in
+  Definition state_reachable vr s : bool :=
     let edge tt := 
       match In_dec (digraph.Vertex_eq_dec g) (tt, s) vr with
       | left _ => true
@@ -151,10 +150,15 @@ Section using_duplication.
     in
       edge Cont || edge Disc.
 
-  Lemma over_abstract_reachable : state_reachable >=> c_abstract.reachable ahs.
+  Definition reachable_verts :=
+    let (vr, _) := @digraph.reachables g init_verts NoDup_init_verts in
+      vr.
+
+  Lemma over_abstract_reachable : 
+    state_reachable reachable_verts >=> c_abstract.reachable ahs.
   Proof with auto.
     intros s sur. apply respect_inv. intros v init_t.
-    unfold state_reachable in sur.
+    unfold state_reachable, reachable_verts in sur.
     assert (In v init_verts).
     rewrite init_verts_eq. apply in_filter... apply vertices_exhaustive.
     destruct (@digraph.reachables g init_verts). 
@@ -165,13 +169,21 @@ Section using_duplication.
     intro. apply n0. apply (snd (i (Disc, s))). exists v...
   Qed.
 
-  Lemma concrete_unreachable_ok (s : a_State) :
-    state_reachable s = false ->
-    forall cs, c_abstract.abs ahs cs = s -> ~c_concrete.reachable cs.
+  Definition some_reachable ss : bool :=
+    List.existsb (state_reachable reachable_verts) ss.
+
+  Lemma states_unreachable (ss : list a_State) :
+    some_reachable ss = false ->
+    forall s cs, 
+      In s ss -> c_abstract.abs ahs cs = s -> ~c_concrete.reachable cs.
   Proof with auto.
     intros. intro.
-    apply (over_abstract_reachable H).
-    subst. apply c_abstract.reachable_concrete_abstract...
+    contradict H. apply not_false_true.
+    apply (snd (existsb_exists (state_reachable reachable_verts) ss)).
+    exists s; split...
+    subst. apply over_true with a_State (c_abstract.reachable ahs).
+    apply over_abstract_reachable.
+    apply c_abstract.reachable_concrete_abstract...
   Qed.
 
 End using_duplication.

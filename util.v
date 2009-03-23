@@ -15,6 +15,12 @@ Ltac destruct_and :=
 
 Definition decision (P: Prop): Set := { P } + { ~ P }.
 
+Definition decision_to_bool P (dec : decision P) : bool :=
+  match dec with
+  | left _ => true
+  | right _ => false
+  end.
+
 Ltac dec_eq := unfold decision; decide equality.
 
 Implicit Arguments fst [[A] [B]].

@@ -265,22 +265,26 @@ Ltac bool_contradict id :=
     (initial_location: Location) 
     (initial_square: Square)
     (initial_representative:
-      forall (p : c_concrete.State concrete_system),
-        c_concrete.initial p -> 
-        in_square (snd p) initial_square).
+      forall (s : c_concrete.State concrete_system),
+        let (l, p) := s in
+          c_concrete.initial s -> 
+          l = initial_location /\ in_square p initial_square).
 
   Definition initial_dec eps (s : Location * SquareInterval) : bool :=
     let (l, si) := s in
-      squares_overlap_dec eps (initial_square, square si).
+      squares_overlap_dec eps (initial_square, square si) &&
+      decision_to_bool (Location_eq_dec l initial_location).
 
   Lemma over_initial eps : 
     initial_dec eps >=> c_abstraction.initial_condition concrete_system in_region.
   Proof with auto.
     intros eps [l i] id [p [pi lp]].
-    bool_contradict id.
+    destruct (initial_representative (l, p) lp). subst.
+    unfold initial_dec in id. band_discr.
     estim (over_squares_overlap eps).
     apply squares_share_point with p...
-    apply (initial_representative lp).
+    set (w := Location_eq_dec initial_location initial_location).
+    dependent inversion w. ref. contradiction n. ref.
   Qed.
 
   Definition do_initial eps := mk_DO (over_initial eps).
