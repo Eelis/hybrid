@@ -16,6 +16,13 @@ Definition OCRle (r: option CR * option CR): Prop :=
 
 Definition OpenRange: Type := sigT OCRle.
 
+Coercion open_range (r: Range): OpenRange :=
+  match r with
+  | existT (x, y) H => existT _ (Some x, Some y) H
+  end.
+
+Definition unbounded_range: OpenRange := existT _ (None, None) I.
+
 Definition range_left (r: Range): CR := fst (proj1_sig r).
 Definition range_right (r: Range): CR := snd (proj1_sig r).
 
@@ -34,6 +41,9 @@ Definition in_orange (r: OpenRange) (x: CR): Prop :=
   | Some u => x <= u
   | None => True
   end.
+
+Lemma in_unbounded_range x: in_orange unbounded_range x.
+Proof with auto. intros. split; simpl; auto. Qed.
 
 Definition in_range_dec eps (r : Range) (x : CR) : bool :=
   CRle_dec eps (range_left r, x) && CRle_dec eps (x, range_right r).
@@ -66,6 +76,9 @@ Qed.
 Definition Square: Type := (Range * Range)%type.
 Definition OpenSquare: Type := (OpenRange * OpenRange)%type.
 
+Definition unbounded_square: OpenSquare
+  := (unbounded_range, unbounded_range).
+
 Definition Point: Type := ProdCSetoid CRasCSetoid CRasCSetoid.
 
 Definition in_square (p : Point) (s : Square) : Prop :=
@@ -76,6 +89,9 @@ Definition in_square (p : Point) (s : Square) : Prop :=
 Definition in_osquare (p : Point) (s : OpenSquare) : Prop :=
   in_orange (fst s) (fst p) /\
   in_orange (snd s) (snd p).
+
+Lemma in_unbounded_square p: in_osquare p unbounded_square.
+Proof with auto. intros. split; apply in_unbounded_range. Qed.
 
 Definition in_square_dec eps (p : Point) (s : Square) : bool :=
   let (px, py) := p in

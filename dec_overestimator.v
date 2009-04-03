@@ -14,7 +14,7 @@ Definition weak_decider T (P: T -> Prop) :=
   forall x, option (~ P x).
 *)
 
-Definition overestimates A bool_dec pred :=
+Definition overestimates A (bool_dec: A -> bool) (pred: A -> Prop): Prop :=
   forall a : A, bool_dec a = false -> ~pred a.
 
 Notation "A >=> B" := (overestimates A B) (at level 40).
@@ -24,6 +24,13 @@ Proof.
   intros.
   destruct (bool_case (P x)). hyp.
   elimtype False. apply (H x); hyp. 
+Qed.
+
+Lemma over_and T (f g: T -> bool) (p q: T -> Prop):
+  (f >=> p) -> (g >=> q) ->
+  (fun x => f x && g x) >=> (fun x => p x /\ q x).
+Proof.
+  repeat intro. destruct (andb_false_elim _ _ H1); firstorder.
 Qed.
 
 Record dec_overestimator (A : Type) (Ideal : A -> Prop) := mk_DO

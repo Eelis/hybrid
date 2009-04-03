@@ -4,7 +4,9 @@ import List (nub)
 import Prelude hiding (Left, Right)
 
 range_coordinate :: Range -> Int
-range_coordinate r = case r of I01 -> 0; I12 -> 1; I23 -> 2; I34 -> 3; I45 -> 4
+range_coordinate r = case r of
+  I01 -> 0; I12 -> 1; I23 -> 2; I34 -> 3; I45 -> 4
+  OI_1 -> 0; OI12 -> 1; OI23 -> 2; OI34 -> 3; OI4_ -> 4
 
 location_index :: Location -> Int
 location_index l = case l of Up -> 0; Right -> 1; Down -> 2; Left -> 3
