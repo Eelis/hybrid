@@ -76,6 +76,9 @@ Qed.
 Definition Square: Type := (Range * Range)%type.
 Definition OpenSquare: Type := (OpenRange * OpenRange)%type.
 
+Coercion open_square (s: Square): OpenSquare
+  := (fst s: OpenRange, snd s: OpenRange).
+
 Definition unbounded_square: OpenSquare
   := (unbounded_range, unbounded_range).
 

@@ -50,9 +50,9 @@ Definition r41_: OpenRange. exists (Some ('(41#10)), None). simpl. trivial. Defi
 
 (* Our invariant: *)
 
-Definition world: Square := (r05, r05).
+Definition world: OpenSquare := (r05: OpenRange, r05: OpenRange).
 Definition oworld: OpenSquare := unbounded_square.
-Definition invariant (s: State): Prop := in_square (point s) world.
+Definition invariant (s: State): Prop := in_osquare (point s) world.
 Definition oinvariant (s: State): Prop := True.
 
 Let PointCSetoid: CSetoid := ProdCSetoid CRasCSetoid CRasCSetoid.
@@ -61,7 +61,7 @@ Lemma invariant_wd: forall l l', l = l' ->
   forall (p p': PointCSetoid), p[=]p' ->
    (invariant (l, p) <-> invariant (l', p')).
 Proof with auto.
-  unfold invariant, in_square, in_range, range_left, range_right.
+  unfold invariant, in_osquare, in_orange, orange_left, orange_right.
   intros. subst l'. destruct p. destruct p'.
   simpl @fst. simpl @snd. inversion H0. simpl.
   rewrite H. rewrite H1. split...
@@ -72,12 +72,12 @@ Lemma oinvariant_wd: forall l l', l = l' ->
    (oinvariant (l, p) <-> oinvariant (l', p')).
 Proof. split; trivial. Qed.
 
-Definition invariant_squares (l: Location): Square := world.
+Definition invariant_squares (l: Location): OpenSquare := world.
 Definition oinvariant_squares (l: Location): OpenSquare := unbounded_square.
 
 Lemma invariant_squares_correct (l : Location) (p : Point):
-  invariant (l, p) -> in_square p (invariant_squares l).
-Proof. auto. Qed. (* todo: is this stuff still necessary? *)
+  invariant (l, p) -> in_osquare p (invariant_squares l).
+Proof. auto. Qed.
 
 Lemma oinvariant_squares_correct (l : Location) (p : Point):
   oinvariant (l, p) -> in_osquare p (oinvariant_squares l).
@@ -85,11 +85,11 @@ Proof. intros. apply in_unbounded_square. Qed.
 
 (* Our initial states: *)
 
-Definition initial_square: Square := (r009, r05).
+Definition initial_square: OpenSquare := (r009: OpenRange, r05: OpenRange).
 Definition initial_osquare: OpenSquare := (r_09, unbounded_range).
 Definition initial_location := Up.
 Definition initial (s: State): Prop :=
-  loc s = initial_location /\ in_square (point s) initial_square.
+  loc s = initial_location /\ in_osquare (point s) initial_square.
 
 Definition oinitial (s: State): Prop :=
   loc s = initial_location /\ in_osquare (point s) initial_osquare.
@@ -97,7 +97,7 @@ Definition oinitial (s: State): Prop :=
 Lemma invariant_initial s: initial s -> invariant s.
 Proof with auto.
   destruct s. destruct p.
-  unfold initial, invariant, in_square, in_range.
+  unfold initial, invariant, in_osquare, in_orange.
   simpl. intros [A [[B C] [D E]]].
   split... split...
   unfold range_right in *. simpl in *.
@@ -337,12 +337,12 @@ Defined.
 
 (* Last but not least, we define the guard conditions: *)
 
-Definition guard_square (l l': Location): option Square :=
+Definition guard_square (l l': Location): option OpenSquare :=
   match l, l' with
-  | Up, Right   => Some (r05, r415)
-  | Right, Down => Some (r415, r05)
-  | Down, Left  => Some (r05, r009)
-  | Left, Up    => Some (r009, r05)
+  | Up, Right   => Some (open_square (r05, r415))
+  | Right, Down => Some (open_square (r415, r05))
+  | Down, Left  => Some (open_square (r05, r009))
+  | Left, Up    => Some (open_square (r009, r05))
   | _, _ => None
   end.
 
@@ -358,7 +358,7 @@ Definition guard_osquare (l l': Location): option OpenSquare :=
 Definition guard (s: State) (l: Location): Prop :=
   match guard_square (fst s) l with
   | None => False
-  | Some q => in_square (snd s) q
+  | Some q => in_osquare (snd s) q
   end.
 
 Definition oguard (s: State) (l: Location): Prop :=
@@ -393,7 +393,7 @@ Proof. dec_eq. Defined.
 Definition OInterval_eq_dec (i i': OInterval): decision (i=i').
 Proof. dec_eq. Defined.
 
-Definition interval_bounds (i: Interval): Range :=
+Definition interval_bounds (i: Interval): OpenRange :=
   match i with
   | I01 => r01 | I12 => r12 | I23 => r23 | I34 => r34 | I45 => r45
   end.
@@ -423,10 +423,10 @@ Lemma NoDup_ointervals: NoDup ointervals.
 Qed.
 
 Definition s_absInterval (r: CR):
-  { i: Interval | in_range r05 r -> in_range (interval_bounds i) r }.
+  { i: Interval | in_orange r05 r -> in_orange (interval_bounds i) r }.
 Proof with auto.
   intro.
-  unfold in_range, range_left, range_right.
+  unfold in_orange, orange_left, orange_right.
   unfold r05.
   simpl.
   destruct (CR_le_le_dec r ('1)).
@@ -457,15 +457,19 @@ Definition oabsInterval (r: CR): OInterval := proj1_sig (s_oabsInterval r).
 
 Lemma regions_cover_invariants l (p: c_concrete.Point concrete_system):
   c_concrete.invariant (l, p) ->
-  c_square_abstraction.in_region interval_bounds interval_bounds p
+  c_square_abstraction.in_oregion interval_bounds interval_bounds p
     (c_square_abstraction.absInterval absInterval absInterval p).
 Proof with auto.
   simpl c_concrete.invariant.
   destruct p.
   intros.
-  unfold absInterval. simpl.
+  unfold c_square_abstraction.in_oregion.
+  unfold c_square_abstraction.absInterval.
+  simpl.
+  unfold absInterval.
   destruct (s_absInterval c). destruct (s_absInterval c0). simpl.
-  destruct H...
+  destruct H.
+  split...
 Qed.
 
 Lemma oregions_cover_invariants l (p: c_concrete.Point oconcrete_system):
@@ -487,12 +491,12 @@ Qed.
 Let Region := c_square_abstraction.SquareInterval Interval Interval.
 Let ORegion := c_square_abstraction.SquareInterval OInterval OInterval.
 
-Definition guard_overestimation (ls : Location * Region * Location) : Prop :=
+Definition oguard_overestimation' (ls : Location * ORegion * Location) : Prop :=
   let (lr, l2) := ls in
   let (l1, r) := lr in
     match guard_square l1 l2 with
-    | Some s => squares_overlap (s, 
-        c_square_abstraction.square interval_bounds interval_bounds r)
+    | Some s => osquares_overlap (s, 
+        c_square_abstraction.osquare ointerval_bounds ointerval_bounds r)
     | None => False
     end.
 
@@ -509,8 +513,8 @@ Definition guard_dec eps (ls : Location * Region * Location) :=
   let (lr, l2) := ls in
   let (l1, r) := lr in
     match guard_square l1 l2 with
-    | Some s => squares_overlap_dec eps (s,
-        c_square_abstraction.square interval_bounds interval_bounds r)
+    | Some s => osquares_overlap_dec eps (s,
+        c_square_abstraction.osquare interval_bounds interval_bounds r)
     | None => false
     end.
 
@@ -524,14 +528,14 @@ Definition oguard_dec eps (ls : Location * ORegion * Location) :=
     end.
 
 Lemma over_guard eps : 
-  guard_dec eps >=> c_square_abstraction.abstract_guard interval_bounds interval_bounds guard.
+  guard_dec eps >=> c_square_abstraction.abstract_oguard interval_bounds interval_bounds guard.
 Proof with auto.
   intros eps [[l r] l'] gf [p [in_p g]].
   unfold guard_dec in gf. unfold guard in g.
   simpl @fst in *. simpl @snd in *.  
   destruct (guard_square l l'); try contradiction.
-  apply (over_squares_overlap eps _ gf).
-  apply squares_share_point with p...
+  apply (over_osquares_overlap eps gf).
+  apply osquares_share_point with p...
 Qed.
 
 Lemma over_oguard eps : 
@@ -545,15 +549,8 @@ Proof with auto.
   apply osquares_share_point with p...
 Qed.
 
-Definition abs_invariant eps :=
-  c_square_abstraction.do_invariant interval_bounds interval_bounds invariant invariant_squares eps.
-
-Definition invariant_dec eps :=
-  c_square_abstraction.invariant_dec interval_bounds interval_bounds
-    invariant_squares eps.
-
 Definition initial_dec eps :=
-  c_square_abstraction.initial_dec (Location:=Location) 
+  c_square_abstraction.oinitial_dec (Location:=Location) 
     Location_eq_dec interval_bounds interval_bounds Up initial_square eps.
 
 Definition oinitial_dec eps :=
@@ -562,11 +559,11 @@ Definition oinitial_dec eps :=
 
 Lemma over_initial eps : 
   initial_dec eps >=> 
-  c_abstraction.initial_condition concrete_system 
-  (c_square_abstraction.in_region interval_bounds interval_bounds).
+  c_abstraction.initial_condition concrete_system
+  (c_square_abstraction.in_oregion interval_bounds interval_bounds).
 Proof with auto.
-  apply c_square_abstraction.over_initial.
-  intros. destruct s... 
+  apply c_square_abstraction.over_oinitial.
+  intros. destruct s...
 Qed.
 
 Lemma over_oinitial eps : 
@@ -590,7 +587,7 @@ Proof.
                   eexact y_flow_inv_correct.
                 eexact xflow_mono.
               eexact yflow_mono.
-            eexact (fun _: Location => world). (* silly *)
+            eexact (fun _: Location => (r01,r01)). (* silly *)
           eexact oinvariant_squares_correct.
         exact eps.
       eapply c_square_abstraction.do_odisc_trans.
@@ -611,15 +608,15 @@ Proof.
               eexact (c_square_abstraction.SquareInterval_eq_dec Interval_eq_dec Interval_eq_dec).
             eexact (c_square_abstraction.squareIntervals_complete _ intervals_complete _ intervals_complete).
           eexact (c_square_abstraction.NoDup_squareIntervals NoDup_intervals NoDup_intervals).
-        eapply (@c_square_abstraction.do_cont_trans Location Interval Interval Location_eq_dec locations locations_complete interval_bounds interval_bounds xf yf x_flow_inv y_flow_inv).
+        eapply (@c_square_abstraction.do_ocont_trans Location Interval Interval Location_eq_dec locations locations_complete interval_bounds interval_bounds xf yf x_flow_inv y_flow_inv).
                     eexact x_flow_inv_correct.
                   eexact y_flow_inv_correct.
                 eexact xflow_mono.
               eexact yflow_mono.
-            eexact invariant_squares_correct.
-          exact (fun _ => unbounded_square). (* silly *)
-        eexact eps.
-      eapply c_square_abstraction.do_disc_trans.
+            eexact (fun _: Location => (r01,r01)). (* silly *)
+          eexact invariant_squares_correct.
+        exact eps.
+      eapply c_square_abstraction.do_odisc_trans.
                 eexact invariant_squares_correct.
               eexact xreset_inc.
             eexact yreset_inc.

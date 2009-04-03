@@ -31,6 +31,10 @@ Section reachability.
   Let tr (v w: Vertex g): Prop := In w (edges v).
   Let ved := Vertex_eq_dec g.
 
+  Definition Edge: Set := (Vertex g * Vertex g)%type.
+  Definition Edge_eq_dec: forall (e e': Edge), decision (e=e')
+    := pair_eq_dec ved ved.
+
   Definition reachable := reachability.reachable tr.
 
   Variable start: list (Vertex g).
