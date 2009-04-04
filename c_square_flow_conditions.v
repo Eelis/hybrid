@@ -45,31 +45,19 @@ Section contents.
      (f: Flow CRasCSetoid)
      (finv: CR -> CR -> Time)
      (finv_correct: forall x x', f x (finv x x') == x')
-     (fm: mono f)  (a b: Range).
-  Variables (oa ob: OpenRange).
-
-  Let x: Range -> CR := if fm then range_left else range_right.
-  Let x': Range -> CR := if fm then range_right else range_left.
+     (fm: mono f)
+     (oa ob: OpenRange).
 
   Let ox: OpenRange -> option CR := if fm then orange_left else orange_right.
   Let ox': OpenRange -> option CR := if fm then orange_right else orange_left.
 
-  Definition in_r (r: Range) ux: Prop := mle fm (x r) ux /\ mle fm ux (x' r).
-
   Definition in_or (r: OpenRange) (ux: CR): Prop :=
     omle fm (ox r) (Some ux) /\ omle fm (Some ux) (ox' r).
 
-  Definition in_range_alt r p: in_range p r <-> in_r p r.
-    unfold in_range, in_r, x, x'.
-    destruct p. unfold range_left, range_right.
-    simpl.
-    destruct fm; tauto.
-  Qed.
-
   Definition in_orange_alt r p: in_orange p r <-> in_or p r.
-    unfold in_orange, in_or, ox, ox', orange_left, orange_right, x, x'.
+    unfold in_orange, in_or, ox, ox', orange_left, orange_right.
     destruct p.
-    destruct x0.
+    destruct x.
     unfold omle.
     simpl.
     destruct o0; destruct o1; destruct fm; tauto.
@@ -84,85 +72,6 @@ Section contents.
     as finv_wd.
   Proof. intros. apply (inv_wd fm); assumption. Qed.
 
-  Lemma dammit (x: CR): x == x.
-    reflexivity.
-  Qed.
-
-  Hint Immediate dammit.
-
-  Lemma inv_test_guarantees_flow (t: CR):
-    finv (x' a) (x b) <= t -> t <= finv (x a) (x' b) ->
-    exists xu : CR, in_r a xu /\ in_r b (f xu t).
-  Proof with auto.
-    intros.
-    exists ((if fm then CRmax else CRmin) (f (x b) (-t)) (x a)).
-    split.
-      split; unfold mle; destruct fm.
-            apply CRmax_ub_r.
-          apply CRmin_lb_r.
-        apply CRmax_lub.
-          rewrite (inv_inv fm finv finv_correct) in H.
-          rewrite <- (finv_correct (x b) (x' a)).
-          apply mildly_increasing...
-            intros. rewrite H1. reflexivity. (* hm *)
-          apply t12...
-        destruct a...
-      apply CRmin_glb.
-        rewrite (inv_inv fm finv finv_correct) in H.
-        rewrite <- (finv_correct (x b) (x' a)).
-        apply mildly_decreasing...
-          intros. rewrite H1. reflexivity. (* hm *)
-        apply t12...
-      destruct a...
-    split.
-      unfold mle.
-      destruct fm.
-        apply CRle_trans with (f (f (x b) (-t)) t).
-          rewrite <- flow_additive...
-          rewrite (Radd_comm CR_ring_theory).
-          rewrite (Ropp_def CR_ring_theory).
-          rewrite flow_zero.
-          apply CRle_refl.
-        apply (f_le_left fm finv finv_correct).
-        apply CRmax_ub_l.
-      apply CRle_trans with (f (f (x b) (-t)) t).
-        apply (f_le_left fm finv finv_correct).
-        apply CRmin_lb_l.
-      clear H H0.
-      rewrite <- flow_additive.
-      rewrite (Radd_comm CR_ring_theory).
-      rewrite (Ropp_def CR_ring_theory).
-      rewrite flow_zero.
-      apply CRle_refl.
-    assert (x' b == f (f (x' b) (-t)) t).
-      rewrite <- flow_additive.
-      rewrite (Radd_comm CR_ring_theory).
-      rewrite (Ropp_def CR_ring_theory).
-      rewrite flow_zero...
-    unfold mle.
-    destruct fm.
-      rewrite H1.
-      apply (f_le_left fm finv finv_correct).
-      apply CRmax_lub.
-        apply (f_le_left fm finv finv_correct).
-        destruct b...
-      rewrite <- (finv_correct (x' b) (x a)).
-      apply mildly_increasing...
-        intros. rewrite H2. reflexivity. (* hm *)
-      rewrite (inv_inv fm finv finv_correct).
-      apply t8...
-    rewrite H1.
-    apply (f_le_left fm finv finv_correct).
-    apply CRmin_glb.
-      apply (f_le_left fm finv finv_correct).
-      destruct b...
-    rewrite <- (finv_correct (x' b) (x a)).
-    apply mildly_decreasing...
-      intros. rewrite H2. reflexivity. (* hm *)
-    rewrite (inv_inv fm finv finv_correct).
-    apply t8...
-  Qed.
-
 End contents.
 End one_axis.
 
@@ -173,29 +82,18 @@ Section contents.
      (finvx finvy: CR -> CR -> Time)
      (finvx_correct: forall x x', fx x (finvx x x') == x')
      (finvy_correct: forall y y', fy y (finvy y y') == y')
-     (fxm: mono fx) (fym: mono fy) (a b: Square).
-  Variables (oa ob: OpenSquare).
+     (fxm: mono fx) (fym: mono fy)
+     (oa ob: OpenSquare).
 
   Definition f (p: Point) (t: Time): Point := (fx (fst p) t, fy (snd p) t).
-
-  Let x  (s: Square): CR := (if fxm then range_left  else range_right) (fst s).
-  Let x' (s: Square): CR := (if fxm then range_right else range_left ) (fst s).
-  Let y  (s: Square): CR := (if fym then range_left  else range_right) (snd s).
-  Let y' (s: Square): CR := (if fym then range_right else range_left ) (snd s).
 
   Let ox  (s: OpenSquare): option CR := (if fxm then orange_left  else orange_right) (fst s).
   Let ox' (s: OpenSquare): option CR := (if fxm then orange_right else orange_left ) (fst s).
   Let oy  (s: OpenSquare): option CR := (if fym then orange_left  else orange_right) (snd s).
   Let oy' (s: OpenSquare): option CR := (if fym then orange_right else orange_left ) (snd s).
 
-  Let in_x (s: Square) ux: Prop := mle fxm (x s) ux /\ mle fxm ux (x' s).
-  Let in_y (s: Square) uy: Prop := mle fym (y s) uy /\ mle fym uy (y' s).
-
   Let in_ox (s: OpenSquare) (ux: CR): Prop := omle fxm (ox s) (Some ux) /\ omle fxm (Some ux) (ox' s).
   Let in_oy (s: OpenSquare) (uy: CR): Prop := omle fym (oy s) (Some uy) /\ omle fym (Some uy) (oy' s).
-
-  Let mle_x_x' s: mle fxm (x s) (x' s).
-  Proof. intros [[[c i] d] [[u p] v]]. destruct fxm; auto. Qed.
 
   Let omle_x_x' s: omle fxm (ox s) (ox' s).
   Proof. intros [[[c i] d] [[u p] v]]. destruct fxm; auto. Qed.
@@ -203,25 +101,9 @@ Section contents.
   Let omle_y_y' s: omle fym (oy s) (oy' s).
   Proof. intros [[[c i] d] [[u p] v]]. destruct fym; auto. Qed.
 
-  Let mle_y_y' s: mle fym (y s) (y' s).
-  Proof. intros [[[c i] d] [[u p] v]]. destruct fym; auto. Qed.
-
-  Hint Immediate mle_x_x' mle_y_y'.
-
-  Let in_s s (p: Point): Prop :=
-    in_x s (fst p) /\ in_y s (snd p).
-    (* expressed in terms of the mono accessors, makes reasoning easier *)
-
   Let in_os (s: OpenSquare) (p: Point): Prop :=
     in_ox s (fst p) /\ in_oy s (snd p).
-
-  Definition in_square_alt s p: in_square p s <-> in_s s p.
-    unfold in_square, in_s, in_x, in_y.
-    destruct s. destruct p. destruct r. destruct r0.
-    subst x x' y y'.
-    simpl. unfold in_range.
-    destruct fxm; destruct fym; tauto.
-  Qed.
+    (* expressed in terms of the mono accessors, makes reasoning easier *)
 
   Definition in_osquare_alt s p: in_osquare p s <-> in_os s p.
     unfold in_osquare, in_os, in_ox, in_oy.
@@ -231,40 +113,14 @@ Section contents.
     destruct fxm; destruct fym; tauto.
   Qed.
 
-  Let in_x_x s: in_x s (x s).
-  Proof. subst in_x. split. apply mle_refl. apply mle_x_x'. Qed.
-  Let in_x_x' s: in_x s (x' s).
-  Proof. subst in_x. split. apply mle_x_x'. apply mle_refl. Qed.
-  Let in_y_y s: in_y s (y s).
-  Proof. subst in_y. split. apply mle_refl. apply mle_y_y'. Qed.
-  Let in_y_y' s: in_y s (y' s).
-  Proof. subst in_y. split. apply mle_y_y'. apply mle_refl. Qed.
-
-  Hint Immediate in_x_x in_x_x' in_y_y in_y_y'.
-
-  Definition ideal: Prop :=
-    exists p: Point, in_square p a /\
-    exists t: Time, '0 <= t /\ in_square (f p t) b.
-      (* unaware of invariants *)
-
   Definition oideal: Prop :=
     exists p: Point, in_osquare p oa /\
     exists t: Time, '0 <= t /\ in_osquare (f p t) ob.
-
-  Definition naive_ideal: Prop :=
-    exists p: Point, in_square p a /\
-    exists t: Time, in_square (f p t) b.
-    (* naive because it doesn't require 0<=t *)
 
   Definition onaive_ideal: Prop :=
     exists p: Point, in_osquare p oa /\
     exists t: Time, in_osquare (f p t) ob.
     (* naive because it doesn't require 0<=t *)
-
-  Definition naive_decideable: Prop :=
-    finvx (x' a) (x b) <= finvy (y a) (y' b) /\
-    finvy (y' a) (y b) <= finvx (x a) (x' b).
-    (* naive in the same way *)
 
   Definition opt_prop A (o: option A) (f: A -> Prop): Prop :=
     match o with
@@ -322,49 +178,6 @@ Section contents.
   Hint Immediate CRle_refl.
   Hint Resolve t9.
 
-  Lemma naive_ideal_implies_naive_decideable: naive_ideal -> naive_decideable.
-  Proof with auto with real.
-    unfold naive_ideal, naive_decideable.
-    intros.
-    destruct H. destruct H. destruct H0.
-    set (fst (in_square_alt a x0) H).
-      clearbody i. clear H. rename i into H.
-    set (fst (in_square_alt b (f x0 x1)) H0).
-      clearbody i. clear H0. rename i into H0.
-    destruct H. destruct H0.
-    rename x1 into t. destruct x0. rename c into ux. rename c0 into uy.
-    destruct H. destruct H1. destruct H0. destruct H2.
-    simpl in *.
-    split; apply CRle_trans with t.
-          rewrite <- (inv_correct' fxm finvx finvx_correct ux t).
-          rewrite (inv_plus fxm finvx finvx_correct ux (x' a) (fx ux t)).
-          rewrite (inv_plus fxm finvx finvx_correct (x' a) (x b) (fx ux t)).
-          rewrite <- (Radd_0_l CR_ring_theory (finvx (x' a) (x b))) at 1.
-          apply t9...
-          rewrite <- (Radd_0_l CR_ring_theory (finvx (x' a) (x b))) at 1.
-          rewrite (Radd_comm CR_ring_theory)...
-        rewrite <- (inv_correct' fym finvy finvy_correct uy t).
-        rewrite (inv_plus fym finvy finvy_correct (y a) uy (y' b)).
-        rewrite (inv_plus fym finvy finvy_correct uy (fy uy t) (y' b)).
-        rewrite <- (Radd_0_l CR_ring_theory (finvy uy (fy uy t))) at 1.
-        apply t9...
-        rewrite <- (Radd_0_l CR_ring_theory (finvy uy (fy uy t))) at 1.
-        rewrite (Radd_comm CR_ring_theory)...
-      rewrite <- (inv_correct' fym finvy finvy_correct uy t).
-      rewrite (inv_plus fym finvy finvy_correct uy (y' a) (fy uy t)).
-      rewrite (inv_plus fym finvy finvy_correct (y' a) (y b) (fy uy t)).
-      rewrite <- (Radd_0_l CR_ring_theory (finvy (y' a) (y b))) at 1.
-      apply t9...
-      rewrite <- (Radd_0_l CR_ring_theory (finvy (y' a) (y b))) at 1.
-      rewrite (Radd_comm CR_ring_theory)...
-    rewrite <- (inv_correct' fxm finvx finvx_correct ux t).
-    rewrite (inv_plus fxm finvx finvx_correct (x a) ux (x' b)).
-    rewrite (inv_plus fxm finvx finvx_correct ux (fx ux t) (x' b)).
-    rewrite <- (Radd_0_l CR_ring_theory (finvx ux (fx ux t))) at 1.
-    apply t9...
-    rewrite <- (Radd_0_l CR_ring_theory (finvx ux (fx ux t))) at 1.
-    rewrite (Radd_comm CR_ring_theory)...
-  Qed.
 
   Lemma onaive_ideal_implies_onaive_decideable: onaive_ideal -> onaive_decideable.
   Proof with auto.
@@ -423,140 +236,20 @@ Section contents.
     rewrite (Radd_comm CR_ring_theory)...
   Qed.
 
-  Corollary ideal_implies_naive_decideable: ideal -> naive_decideable.
+  Corollary ideal_implies_naive_decideable: oideal -> onaive_decideable.
   Proof.
-    intro. apply naive_ideal_implies_naive_decideable.
+    intro. apply onaive_ideal_implies_onaive_decideable.
     destruct H. destruct H. destruct H0. destruct H0.
-    unfold naive_ideal. eauto.
+    unfold onaive_ideal. eauto.
   Qed.
 
-  Hint Resolve mle_refl.
+  (* naive_decideable <-> naive_ideal  should be provable. We had a proof
+   of it before we made square bounds optional. It should be routine (but some
+   work) to adapt that proof (which can be found in the darcs history). *)
 
-  Let finvx_ax'_bx_le_finvx_ax_bx':
-    finvx (x' a) (x b) <= finvx (x a) (x' b).
-  Proof with auto.
-    apply CRle_trans with (finvx (x' a) (x' b)).
-      apply (inv_le fxm finvx finvx_correct).
-      destruct fxm; apply mle_x_x'.
-    apply (inv_le_left fxm finvx)...
-  Qed.
-
-  Let finvy_ay'_by_le_finvy_ay_by':
-    finvy (y' a) (y b) <= finvy (y a) (y' b).
-  Proof with auto.
-    apply CRle_trans with (finvy (y' a) (y' b)).
-      apply (inv_le fym finvy finvy_correct).
-      destruct fym; apply mle_y_y'.
-    apply (inv_le_left fym finvy)...
-  Qed.
-
-  Lemma naive_decideable_implies_naive_ideal:
-    naive_decideable -> naive_ideal.
-  Proof with auto with real.
-    intros.
-    destruct H.
-    set (t := CRmin (finvx (x a) (x' b)) (finvy (y a) (y' b))).
-    unfold naive_ideal.
-    assert (finvx (x' a) (x b) <= t /\ t <= finvx (x a) (x' b)).
-      unfold t.
-      split.
-        apply CRmin_glb...
-      apply CRmin_lb_l.
-    assert (finvy (y' a) (y b) <= t /\ t <= finvy (y a) (y' b)).
-      unfold t.
-      split.
-        apply CRmin_glb...
-      apply CRmin_lb_r.
-    assert (exists xu, in_x a xu /\ in_x b (fx xu t)).
-      destruct H1. destruct H2.
-      apply (one_axis.inv_test_guarantees_flow finvx finvx_correct fxm)...
-    assert (exists yu, in_y a yu /\ in_y b (fy yu t)).
-      destruct H1. destruct H2.
-      apply (one_axis.inv_test_guarantees_flow finvy finvy_correct fym)...
-    destruct H3.
-    destruct H4.
-    rename x0 into xu. rename x1 into yu.
-    exists (xu, yu).
-    set in_square_alt. clearbody i.
-    subst in_s in_x in_y.
-    simpl in *.
-    destruct H3. destruct H4. destruct H3. destruct H4.
-    destruct H5. destruct H6.
-    split...
-    destruct (i a (xu, yu)). destruct a. simpl in *...
-    exists t...
-    destruct (i b (f (xu, yu) t)). destruct b. simpl in *...
-  Qed.
-
-  Theorem naive_conditions_equivalent: naive_decideable <-> naive_ideal.
-    split.
-      apply naive_decideable_implies_naive_ideal.
-    apply naive_ideal_implies_naive_decideable.
-  Qed.
-
-  Definition strong_decideable: Prop :=
-    naive_decideable /\ mle fxm (x' a) (x' b) /\ mle fym (y' a) (y' b).
-      (* This is strong enough to imply ideal, but too strong
-        to get the reverse implication. (The latter claim is not
-        yet proved.) *)
-
-  Lemma strong_decideable_implies_ideal: strong_decideable -> ideal.
-  Proof with auto with real.
-    intros.
-    destruct H. destruct H. destruct H0.
-    set (t := CRmin (finvx (x a) (x' b)) (finvy (y a) (y' b))).
-
-    assert (finvx (x' a) (x b) <= t /\ t <= finvx (x a) (x' b)).
-      unfold t.
-      split.
-        apply CRmin_glb...
-      apply CRmin_lb_l.
-    assert (finvy (y' a) (y b) <= t /\ t <= finvy (y a) (y' b)).
-      unfold t.
-      split.
-        apply CRmin_glb...
-      apply CRmin_lb_r.
-    assert (exists xu, in_x a xu /\ in_x b (fx xu t)).
-      destruct H3. destruct H4.
-      apply (one_axis.inv_test_guarantees_flow finvx finvx_correct fxm)...
-    assert (exists yu, in_y a yu /\ in_y b (fy yu t)).
-      destruct H3. destruct H4.
-      apply (one_axis.inv_test_guarantees_flow finvy finvy_correct fym)...
-    destruct H5. destruct H6.
-    unfold ideal.
-    rename x0 into xu. rename x1 into yu.
-    exists (xu, yu).
-    subst in_x in_y.
-    simpl in H5, H6.
-    destruct H5. destruct H6. destruct H5. destruct H6.
-    destruct H7. destruct H8.
-    split.
-      destruct (in_square_alt a (xu, yu)).
-      apply H14.
-      split...
-    exists t.
-    split.
-      unfold t.
-      admit.
-      (*
-
-      unfold CRmin.
-      destruct H3. destruct H4.
-      destruct (Rle_dec (finvx (x a) (x' b)) (finvy (y a) (y' b))).
-        destruct (inv_nonneg fxm fxf finvx finvx_correct (x a) (x' b)).
-        apply H16.
-        apply mle_trans with (x' a)...
-      destruct (inv_nonneg fym fyf finvy finvy_correct (y a) (y' b)).
-      apply H16.
-      apply mle_trans with (y' a)...
-      *)
-    destruct (in_square_alt b (f (xu, yu) t)).
-    apply H14.
-    split...
-  Qed.
-
-  Definition practical_decideable: Prop :=
-    naive_decideable /\ mle fxm (x a) (x' b) /\ mle fym (y a) (y' b).
+  Definition opractical_decideable: Prop :=
+    onaive_decideable /\
+    omle fxm (ox oa) (ox' ob) /\ omle fym (oy oa) (oy' ob).
         (* This is weak enough to be implied by ideal, but not strong
           enough to get the reverse implication. (The latter claim is not
           yet proved.) For now, it's an acceptable compromise. *)
@@ -564,43 +257,18 @@ Section contents.
     (* Todo: can we define a decideable condition equivalent
      to (non-naive) ideal? *)
 
-  Definition opractical_decideable: Prop :=
-    onaive_decideable /\
-    omle fxm (ox oa) (ox' ob) /\ omle fym (oy oa) (oy' ob).
-
-  Lemma ideal_implies_practical_decideable:
-    ideal -> practical_decideable.
-  Proof with auto with real.
-    unfold ideal, practical_decideable.
-    split.
-      apply ideal_implies_naive_decideable...
-    destruct H. destruct H. destruct H0. destruct H0.
-    set (fst (in_square_alt a x0) H). clearbody i. clear H. rename i into H.
-    set (fst (in_square_alt b (f x0 x1)) H1). clearbody i. clear H1. rename i into H1.
-    destruct x0. rename x1 into t. rename c into ux. rename c0 into uy.
-    destruct H. destruct H1. simpl in *.
-    destruct H. destruct H2. destruct H1. destruct H3.
-    split.
-      apply mle_trans with ux...
-      apply mle_trans with (fx ux t)...
-      apply mle_flow...
-    apply mle_trans with uy...
-    apply mle_trans with (fy uy t)...
-    apply mle_flow...
-  Qed.
-
 Lemma omle_trans f (m: mono f) (x: option CR) (y: CR):
   omle m x (Some y) -> forall z, omle m (Some y) z -> omle m x z.
 Proof with auto.
   intros.
   unfold omle in *.
   destruct m.
-    destruct x0; destruct z...
+    destruct x; destruct z...
     apply CRle_trans with m0...
-    apply CRle_trans with y0...
-  destruct x0; destruct z...
+    apply CRle_trans with y...
+  destruct x; destruct z...
   apply CRle_trans with m0...
-  apply CRle_trans with y0...
+  apply CRle_trans with y...
 Qed.  
 
   Lemma oideal_implies_opractical_decideable:
@@ -625,25 +293,6 @@ Qed.
     apply mle_flow...
   Qed.
 
-  Lemma practical_decideable_implies_naive_ideal:
-    practical_decideable -> naive_ideal.
-  Proof.
-    unfold practical_decideable.
-    intros.
-    apply naive_decideable_implies_naive_ideal.
-    destruct H. assumption.
-  Qed.
-
-  Definition naive_dec eps (_ : unit) : bool :=
-    CRle_dec eps (finvx (x' a) (x b), finvy (y a) (y' b)) &&
-    CRle_dec eps (finvy (y' a) (y b), finvx (x a) (x' b)).
-
-  Lemma over_naive_dec eps : naive_dec eps >=> fun _ => naive_decideable.
-  Proof.
-    intros eps q n_d [o1 o2]. unfold naive_dec in n_d.
-    band_discr; estim (over_CRle eps).
-  Qed.
-
   Lemma over_onaive_dec eps: onaive_dec eps >=> fun _ => onaive_decideable.
   Proof with auto.
     intros eps q n_d [o1 o2]. unfold onaive_dec in n_d.
@@ -660,25 +309,10 @@ Qed.
     apply (over_CRnonNeg eps e)...
   Qed.
 
-  Definition practical_dec eps (_ : unit) : bool :=
-    naive_dec eps () && 
-    (if fxm then CRle_dec eps (x a, x' b) else CRle_dec eps (x' b, x a)) &&
-    (if fym then CRle_dec eps (y a, y' b) else CRle_dec eps (y' b, y a)).
-
   Definition opractical_dec eps (_ : unit) : bool :=
     onaive_dec eps () &&
     omle_dec fxm eps (ox oa) (ox' ob) &&
     omle_dec fym eps (oy oa) (oy' ob).
-
-  Lemma over_practical_dec eps : 
-    practical_dec eps >=> fun _ => practical_decideable.
-  Proof with auto.
-    intros eps q n_d [nd [o1 o2]]. unfold practical_dec in n_d.
-    band_discr. bool_solver.
-    apply (over_true () (over_naive_dec eps))...
-    generalize o1. case fxm; intros; estim (over_CRle eps).
-    generalize o2. case fym; intros; estim (over_CRle eps).
-  Qed.
 
   Lemma over_opractical_dec eps : 
     opractical_dec eps >=> fun _ => opractical_decideable.

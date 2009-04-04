@@ -457,13 +457,13 @@ Definition oabsInterval (r: CR): OInterval := proj1_sig (s_oabsInterval r).
 
 Lemma regions_cover_invariants l (p: c_concrete.Point concrete_system):
   c_concrete.invariant (l, p) ->
-  c_square_abstraction.in_oregion interval_bounds interval_bounds p
+  c_square_abstraction.in_region interval_bounds interval_bounds p
     (c_square_abstraction.absInterval absInterval absInterval p).
 Proof with auto.
   simpl c_concrete.invariant.
   destruct p.
   intros.
-  unfold c_square_abstraction.in_oregion.
+  unfold c_square_abstraction.in_region.
   unfold c_square_abstraction.absInterval.
   simpl.
   unfold absInterval.
@@ -474,13 +474,13 @@ Qed.
 
 Lemma oregions_cover_invariants l (p: c_concrete.Point oconcrete_system):
   c_concrete.invariant (l, p) ->
-  c_square_abstraction.in_oregion ointerval_bounds ointerval_bounds p
+  c_square_abstraction.in_region ointerval_bounds ointerval_bounds p
     (c_square_abstraction.absInterval oabsInterval oabsInterval p).
 Proof with auto.
   simpl c_concrete.invariant.
   destruct p.
   intros.
-  unfold c_square_abstraction.in_oregion.
+  unfold c_square_abstraction.in_region.
   unfold c_square_abstraction.absInterval.
   simpl.
   unfold oabsInterval.
@@ -496,7 +496,7 @@ Definition oguard_overestimation' (ls : Location * ORegion * Location) : Prop :=
   let (l1, r) := lr in
     match guard_square l1 l2 with
     | Some s => osquares_overlap (s, 
-        c_square_abstraction.osquare ointerval_bounds ointerval_bounds r)
+        c_square_abstraction.square ointerval_bounds ointerval_bounds r)
     | None => False
     end.
 
@@ -505,7 +505,7 @@ Definition oguard_overestimation (ls : Location * ORegion * Location) : Prop :=
   let (l1, r) := lr in
     match guard_osquare l1 l2 with
     | Some s => osquares_overlap (s, 
-        c_square_abstraction.osquare ointerval_bounds ointerval_bounds r)
+        c_square_abstraction.square ointerval_bounds ointerval_bounds r)
     | None => False
     end.
 
@@ -514,7 +514,7 @@ Definition guard_dec eps (ls : Location * Region * Location) :=
   let (l1, r) := lr in
     match guard_square l1 l2 with
     | Some s => osquares_overlap_dec eps (s,
-        c_square_abstraction.osquare interval_bounds interval_bounds r)
+        c_square_abstraction.square interval_bounds interval_bounds r)
     | None => false
     end.
 
@@ -523,12 +523,12 @@ Definition oguard_dec eps (ls : Location * ORegion * Location) :=
   let (l1, r) := lr in
     match guard_osquare l1 l2 with
     | Some s => osquares_overlap_dec eps (s,
-        c_square_abstraction.osquare ointerval_bounds ointerval_bounds r)
+        c_square_abstraction.square ointerval_bounds ointerval_bounds r)
     | None => false
     end.
 
 Lemma over_guard eps : 
-  guard_dec eps >=> c_square_abstraction.abstract_oguard interval_bounds interval_bounds guard.
+  guard_dec eps >=> c_square_abstraction.abstract_guard interval_bounds interval_bounds guard.
 Proof with auto.
   intros eps [[l r] l'] gf [p [in_p g]].
   unfold guard_dec in gf. unfold guard in g.
@@ -539,7 +539,7 @@ Proof with auto.
 Qed.
 
 Lemma over_oguard eps : 
-  oguard_dec eps >=> c_square_abstraction.abstract_oguard ointerval_bounds ointerval_bounds oguard.
+  oguard_dec eps >=> c_square_abstraction.abstract_guard ointerval_bounds ointerval_bounds oguard.
 Proof with auto.
   intros eps [[l r] l'] gf [p [in_p g]].
   unfold oguard_dec in gf. unfold oguard in g.
@@ -550,28 +550,28 @@ Proof with auto.
 Qed.
 
 Definition initial_dec eps :=
-  c_square_abstraction.oinitial_dec (Location:=Location) 
+  c_square_abstraction.initial_dec (Location:=Location) 
     Location_eq_dec interval_bounds interval_bounds Up initial_square eps.
 
 Definition oinitial_dec eps :=
-  c_square_abstraction.oinitial_dec (Location:=Location) 
+  c_square_abstraction.initial_dec (Location:=Location) 
     Location_eq_dec ointerval_bounds ointerval_bounds Up initial_osquare eps.
 
 Lemma over_initial eps : 
   initial_dec eps >=> 
   c_abstraction.initial_condition concrete_system
-  (c_square_abstraction.in_oregion interval_bounds interval_bounds).
+  (c_square_abstraction.in_region interval_bounds interval_bounds).
 Proof with auto.
-  apply c_square_abstraction.over_oinitial.
+  apply c_square_abstraction.over_initial.
   intros. destruct s...
 Qed.
 
 Lemma over_oinitial eps : 
   oinitial_dec eps >=> 
   c_abstraction.initial_condition oconcrete_system 
-  (c_square_abstraction.in_oregion ointerval_bounds ointerval_bounds).
+  (c_square_abstraction.in_region ointerval_bounds ointerval_bounds).
 Proof with auto.
-  apply c_square_abstraction.over_oinitial.
+  apply c_square_abstraction.over_initial.
   intros. destruct s...
 Qed.
 
@@ -581,13 +581,11 @@ Proof.
               eexact (c_square_abstraction.SquareInterval_eq_dec OInterval_eq_dec OInterval_eq_dec).
             eexact (c_square_abstraction.squareIntervals_complete _ ointervals_complete _ ointervals_complete).
           eexact (c_square_abstraction.NoDup_squareIntervals NoDup_ointervals NoDup_ointervals).
-        eapply (@c_square_abstraction.do_ocont_trans Location OInterval OInterval Location_eq_dec locations locations_complete ointerval_bounds ointerval_bounds xf yf x_flow_inv y_flow_inv).
-                    (**)
-                    eexact x_flow_inv_correct.
-                  eexact y_flow_inv_correct.
-                eexact xflow_mono.
-              eexact yflow_mono.
-            eexact (fun _: Location => (r01,r01)). (* silly *)
+        eapply (@c_square_abstraction.do_cont_trans Location OInterval OInterval Location_eq_dec locations locations_complete ointerval_bounds ointerval_bounds xf yf x_flow_inv y_flow_inv).
+                  eexact x_flow_inv_correct.
+                eexact y_flow_inv_correct.
+              eexact xflow_mono.
+            eexact yflow_mono.
           eexact oinvariant_squares_correct.
         exact eps.
       eapply c_square_abstraction.do_odisc_trans.
@@ -608,12 +606,11 @@ Proof.
               eexact (c_square_abstraction.SquareInterval_eq_dec Interval_eq_dec Interval_eq_dec).
             eexact (c_square_abstraction.squareIntervals_complete _ intervals_complete _ intervals_complete).
           eexact (c_square_abstraction.NoDup_squareIntervals NoDup_intervals NoDup_intervals).
-        eapply (@c_square_abstraction.do_ocont_trans Location Interval Interval Location_eq_dec locations locations_complete interval_bounds interval_bounds xf yf x_flow_inv y_flow_inv).
-                    eexact x_flow_inv_correct.
-                  eexact y_flow_inv_correct.
-                eexact xflow_mono.
-              eexact yflow_mono.
-            eexact (fun _: Location => (r01,r01)). (* silly *)
+        eapply (@c_square_abstraction.do_cont_trans Location Interval Interval Location_eq_dec locations locations_complete interval_bounds interval_bounds xf yf x_flow_inv y_flow_inv).
+                  eexact x_flow_inv_correct.
+                eexact y_flow_inv_correct.
+              eexact xflow_mono.
+            eexact yflow_mono.
           eexact invariant_squares_correct.
         exact eps.
       eapply c_square_abstraction.do_odisc_trans.
