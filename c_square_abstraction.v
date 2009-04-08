@@ -132,23 +132,14 @@ Ltac bool_contradict id :=
 
   Variable  invariant_decider: dec_overestimator abstract_invariant.
 
-  Definition continuous_transition_condition
-    (p: Location * (SquareInterval * SquareInterval)) : Prop :=
-    let (l, si) := p in
-    let (i1, i2) := si in
-      c_square_flow_conditions.opractical_decideable (xflow_inv l) (yflow_inv l)
-        (xmono l) (ymono l) (square i1) (square i2) /\
-      abstract_invariant (l, i1) /\
-      abstract_invariant (l, i2).
-     (* Note how we only check the invariant at s and s', not at
-      points in between. *)
-
   Definition cont_trans_cond_dec eps 
    (p : Location * (SquareInterval * SquareInterval)) : bool :=
    let (l, si) := p in
    let (i1, i2) := si in
-     c_square_flow_conditions.opractical_dec (xflow_inv l) (yflow_inv l) 
-       (xmono l) (ymono l) (square i1) (square i2) eps () &&
+     c_square_flow_conditions.decide_practical
+       (c_square_flow_conditions.one_axis.flow_range (xflow_inv l) (xflow_correct l) (xmono l))
+       (c_square_flow_conditions.one_axis.flow_range (yflow_inv l) (yflow_correct l) (ymono l))
+       (square i1) (square i2) eps tt &&
      invariant_dec eps (l, i1) &&
      invariant_dec eps (l, i2).
 
@@ -236,8 +227,12 @@ Ltac bool_contradict id :=
     unfold cont_trans_cond_dec.
     bool_solver.
       bool_solver.
-        eapply (over_true _ (c_square_flow_conditions.over_opractical_dec _)).
-        apply c_square_flow_conditions.oideal_implies_opractical_decideable...
+        eapply (over_true _ (c_square_flow_conditions.over_decide_practical eps)).
+        apply c_square_flow_conditions.ideal_implies_practical_decideable with (xflow l) (yflow l)...
+            intros.
+            apply (c_square_flow_conditions.one_axis.flow_range_covers) with x...
+          intros.
+          apply (c_square_flow_conditions.one_axis.flow_range_covers) with y...
         exists p. split...
         exists t. split. 
           apply (CRnonNeg_le_zero t)...

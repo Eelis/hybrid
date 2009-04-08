@@ -91,6 +91,18 @@ Qed.
 Definition opt_to_bool A (o: option A): bool :=
   match o with Some _ => true | None => false end.
 
+Definition opt {A R}: (A -> R) -> R -> option A -> R :=
+  option_rect (fun _ => R).
+
+Definition flip_opt {A R} (r: R) (o: option A) (f: A -> R): R :=
+  option_rect (fun _ => R) f r o.
+
+Definition opt_prop A (o: option A) (f: A -> Prop): Prop :=
+  match o with
+  | None => True
+  | Some v => f v
+  end.
+
 Lemma unsumbool_true (P Q: Prop) (sb: {P}+{Q}): unsumbool sb = true -> P.
 Proof. destruct sb. auto. discriminate. Qed.
 Lemma decision_true (P: Prop) (sb: decision P): unsumbool sb = true -> P.

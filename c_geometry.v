@@ -14,6 +14,13 @@ Definition OCRle (r: option CR * option CR): Prop :=
   | _ => True
   end.
 
+Definition CRmin_of_upper_bounds (a b: option CR): option CR :=
+  match a, b with
+  | None, _ => b
+  | _, None => a
+  | Some a, Some b => Some (CRmin a b)
+  end.
+
 Definition OpenRange: Type := sigT OCRle.
 
 Coercion open_range (r: Range): OpenRange :=
