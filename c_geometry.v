@@ -142,6 +142,32 @@ Definition oranges_overlap (r : OpenRange * OpenRange) : Prop :=
   | _, _ => True
   end.
 
+Hint Immediate CRmax_ub_l.
+Hint Immediate CRmax_ub_r.
+Hint Immediate CRmin_lb_l.
+Hint Immediate CRmin_lb_r.
+Hint Immediate CRle_refl.
+Hint Resolve CRmax_lub.
+
+Lemma overlapping_oranges_share_point (r: OpenRange * OpenRange):
+  oranges_overlap r -> exists p, in_orange (fst r) p /\ in_orange (snd r) p.
+Proof with auto.
+  intros [[[a e] b] [[c f] d]] [H H0].
+  unfold in_orange.
+  unfold orange_left, orange_right in *.
+  simpl @fst in *. simpl @snd in *.
+  destruct a.
+    destruct c; [| eauto].
+    exists (CRmax m m0).
+    destruct e; destruct f...
+  destruct c. eauto.
+  destruct e.
+    destruct f; [| eauto].
+    exists (CRmin m m0)...
+  destruct f. eauto.
+  exists ('0)...
+Qed.
+
 Definition ranges_overlap_dec eps (r : Range * Range) : bool :=
   let (a, b) := r in
     CRle_dec eps (range_left a, range_right b) &&

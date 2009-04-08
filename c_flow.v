@@ -1,4 +1,5 @@
 Require Import c_util.
+Require Import c_geometry.
 Require Import CRreal.
 Set Implicit Arguments.
 Open Local Scope CR_scope.
@@ -16,6 +17,10 @@ Record Flow (X: CSetoid): Type :=
   ; flow_additive: forall x t t',
       flow_morphism x (t + t') [=] flow_morphism (flow_morphism x t) t'
   }.
+
+Definition range_flow_inv_spec (f: Flow CRasCSetoid)
+  (i: OpenRange -> OpenRange -> OpenRange): Prop :=
+    forall a p, in_orange a p -> forall b t, in_orange b (f p t) -> in_orange (i a b) t.
 
 Section product_flow.
 

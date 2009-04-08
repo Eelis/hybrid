@@ -74,11 +74,9 @@ Section contents.
 
   Variables
     (xflow yflow: Location -> Flow CRasCSetoid)
-    (xflow_inv yflow_inv: Location -> CR -> CR -> Time)
-    (xflow_correct: forall l x x', xflow l x (xflow_inv l x x') == x')
-    (yflow_correct: forall l y y', yflow l y (yflow_inv l y y') == y')
-    (xmono: forall l, mono (xflow l)) 
-    (ymono: forall l, mono (yflow l)).
+    (xflow_invr yflow_invr: Location -> OpenRange -> OpenRange -> OpenRange)
+    (xflow_invr_correct: forall l, range_flow_inv_spec (xflow l) (xflow_invr l))
+    (yflow_invr_correct: forall l, range_flow_inv_spec (yflow l) (yflow_invr l)).
 
   Let Point := ProdCSetoid CRasCSetoid CRasCSetoid.
 
@@ -136,10 +134,7 @@ Ltac bool_contradict id :=
    (p : Location * (SquareInterval * SquareInterval)) : bool :=
    let (l, si) := p in
    let (i1, i2) := si in
-     c_square_flow_conditions.decide_practical
-       (c_square_flow_conditions.one_axis.flow_range (xflow_inv l) (xflow_correct l) (xmono l))
-       (c_square_flow_conditions.one_axis.flow_range (yflow_inv l) (yflow_correct l) (ymono l))
-       (square i1) (square i2) eps tt &&
+     c_square_flow_conditions.decide_practical (xflow_invr l) (yflow_invr l) (square i1) (square i2) eps tt &&
      invariant_dec eps (l, i1) &&
      invariant_dec eps (l, i2).
 
@@ -229,10 +224,8 @@ Ltac bool_contradict id :=
       bool_solver.
         eapply (over_true _ (c_square_flow_conditions.over_decide_practical eps)).
         apply c_square_flow_conditions.ideal_implies_practical_decideable with (xflow l) (yflow l)...
-            intros.
-            apply (c_square_flow_conditions.one_axis.flow_range_covers) with x...
-          intros.
-          apply (c_square_flow_conditions.one_axis.flow_range_covers) with y...
+            intros. apply xflow_invr_correct with x...
+          intros. apply yflow_invr_correct with y...
         exists p. split...
         exists t. split. 
           apply (CRnonNeg_le_zero t)...

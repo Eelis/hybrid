@@ -50,80 +50,105 @@ Definition r41_: OpenRange. exists (Some ('(41#10)), None). simpl. trivial. Defi
 
 (* Our invariant: *)
 
-Definition world: OpenSquare := (r05: OpenRange, r05: OpenRange).
-Definition oworld: OpenSquare := unbounded_square.
-Definition invariant (s: State): Prop := in_osquare (point s) world.
-Definition oinvariant (s: State): Prop := True.
+Definition world: OpenSquare := unbounded_square.
+Definition invariant (s: State): Prop := True.
 
 Let PointCSetoid: CSetoid := ProdCSetoid CRasCSetoid CRasCSetoid.
 
 Lemma invariant_wd: forall l l', l = l' ->
-  forall (p p': PointCSetoid), p[=]p' ->
-   (invariant (l, p) <-> invariant (l', p')).
-Proof with auto.
-  unfold invariant, in_osquare, in_orange, orange_left, orange_right.
-  intros. subst l'. destruct p. destruct p'.
-  simpl @fst. simpl @snd. inversion H0. simpl.
-  rewrite H. rewrite H1. split...
-Qed.
-
-Lemma oinvariant_wd: forall l l', l = l' ->
-  forall (p p': PointCSetoid), p[=]p' ->
-   (oinvariant (l, p) <-> oinvariant (l', p')).
+  forall (p p': PointCSetoid), p[=]p' -> (invariant (l, p) <-> invariant (l', p')).
 Proof. split; trivial. Qed.
 
-Definition invariant_squares (l: Location): OpenSquare := world.
-Definition oinvariant_squares (l: Location): OpenSquare := unbounded_square.
+Definition invariant_squares (l: Location): OpenSquare := unbounded_square.
 
 Lemma invariant_squares_correct (l : Location) (p : Point):
   invariant (l, p) -> in_osquare p (invariant_squares l).
-Proof. auto. Qed.
-
-Lemma oinvariant_squares_correct (l : Location) (p : Point):
-  oinvariant (l, p) -> in_osquare p (oinvariant_squares l).
 Proof. intros. apply in_unbounded_square. Qed.
 
 (* Our initial states: *)
 
-Definition initial_square: OpenSquare := (r009: OpenRange, r05: OpenRange).
-Definition initial_osquare: OpenSquare := (r_09, unbounded_range).
+Definition initial_square: OpenSquare := (r_09, unbounded_range).
 Definition initial_location := Up.
 Definition initial (s: State): Prop :=
   loc s = initial_location /\ in_osquare (point s) initial_square.
-
-Definition oinitial (s: State): Prop :=
-  loc s = initial_location /\ in_osquare (point s) initial_osquare.
-
-Lemma invariant_initial s: initial s -> invariant s.
-Proof with auto.
-  destruct s. destruct p.
-  unfold initial, invariant, in_osquare, in_orange.
-  simpl. intros [A [[B C] [D E]]].
-  split... split...
-  unfold range_right in *. simpl in *.
-  apply CRle_trans with ('(9#10))...
-  CRle_constants.
-Qed.
 
 (* Our flow functions: *)
 
 Definition Xflow (l: Location) (x: CR) (t: Time): CR :=
   match l with
-  | Up => x + t
-  | Right => x + '10*t
-  | Down => x - t
-  | Left => x - '10*t
+  | Up => x
+  | Right => x + t
+  | Down => x
+  | Left => x - t
   end.
 
 Definition Yflow (l: Location) (y: CR) (t: Time): CR :=
   match l with
-  | Up => y + '10*t
-  | Right => y - t
-  | Down => y - '10*t
-  | Left => y + t
+  | Up => y + t
+  | Right => y
+  | Down => y - t
+  | Left => y
   end.
 
-(* .. which we now show to be morphisms over CR: *)
+Definition boring_flow (x: CR) (t: Time): CR := x + t.
+Definition iboring_flow (x: CR) (t: Time): CR := x - t.
+
+Definition boringm: binary_setoid_morphism CRasCSetoid CRasCSetoid CRasCSetoid.
+Proof.
+  apply (Build_binary_setoid_morphism _ _ _ boring_flow).
+  intros. unfold boring_flow.
+  rewrite H. rewrite H0. reflexivity.
+Defined.
+
+Definition iboringm: binary_setoid_morphism CRasCSetoid CRasCSetoid CRasCSetoid.
+Proof.
+  apply (Build_binary_setoid_morphism _ _ _ iboring_flow).
+  intros. unfold iboring_flow.
+  rewrite H. rewrite H0. reflexivity.
+Defined.
+
+Definition boring_Flow: Flow CRasCSetoid.
+  apply (Build_Flow boringm); intros; simpl; unfold boring_flow.
+    apply CRadd_0_r.
+  apply (Radd_assoc CR_ring_theory).
+Defined.
+
+Definition iboring_Flow: Flow CRasCSetoid.
+  apply (Build_Flow iboringm); intros; simpl; unfold iboring_flow.
+    apply CRminus_zero.
+  assert (x0 - (t + t') == x0 - t - t').
+    rewrite (@Ropp_add _ _ _ _ _ _ _ _ t3 CR_ring_eq_ext CR_ring_theory ).
+    rewrite (Radd_assoc CR_ring_theory).
+    reflexivity.
+  assumption.
+Defined.
+
+Definition boring_flow_inv (x x': CR): Time := x' - x.
+
+Definition iboring_flow_inv (x x': CR): Time := x - x'.
+
+Definition boring_flow_mono: mono boring_Flow.
+  left. repeat intro. simpl. unfold boring_flow. apply t1_rev. assumption.
+Defined.
+
+Definition iboring_flow_mono: mono iboring_Flow.
+  right. repeat intro. simpl. unfold iboring_flow. apply t1_rev. 
+  apply CRlt_opp_compat. assumption.
+Defined.
+
+Lemma boring_flow_inv_correct x x': boring_flow x (boring_flow_inv x x') == x'.
+  intros.
+  unfold boring_flow, boring_flow_inv.
+  symmetry.
+  apply t11.
+Defined.
+
+Lemma iboring_flow_inv_correct x x': iboring_flow x (iboring_flow_inv x x') == x'.
+  intros.
+  unfold iboring_flow, iboring_flow_inv.
+  rewrite <- diff_opp.
+  symmetry. apply t11.
+Defined.
 
 Definition xm: Location ->
   binary_setoid_morphism CRasCSetoid CRasCSetoid CRasCSetoid.
@@ -147,62 +172,32 @@ Definition xf: Location -> Flow CRasCSetoid.
 Proof with auto.
   intro l.
   apply (Build_Flow (xm l)); intros;
-   simpl bsm; unfold Xflow; destruct l.
-                apply CRadd_0_r.
-              rewrite CRmult_0_r.
-              apply CRadd_0_r.
-            rewrite CRopp_0.
-            apply CRadd_0_r.
-          rewrite CRmult_0_r.
-          rewrite CRopp_0.
-          apply CRadd_0_r.
-        apply (Radd_assoc CR_ring_theory).
-      rewrite (Rmul_comm CR_ring_theory).
-      rewrite (Rdistr_l CR_ring_theory).
-      rewrite (Radd_assoc CR_ring_theory).
-      repeat rewrite (Rmul_comm CR_ring_theory ('10)).
-      reflexivity.
-    rewrite (@Ropp_add _ _ _ _ _ _ _ _ t3 CR_ring_eq_ext CR_ring_theory ).
+   simpl bsm; unfold Xflow; destruct l; try reflexivity.
+        apply CRadd_0_r.
+      rewrite CRopp_0.
+      apply CRadd_0_r.
     apply (Radd_assoc CR_ring_theory).
+   rewrite (@Ropp_add _ _ _ _ _ _ _ _ t3 CR_ring_eq_ext CR_ring_theory ).
   rewrite <- (Radd_assoc CR_ring_theory).
-  do 2 rewrite (Radd_comm CR_ring_theory x0).
-  apply add_both_sides.
-  do 3 rewrite CRopp_mult_l.
-  repeat rewrite (Rmul_comm CR_ring_theory (-'10)).
-  apply (Rdistr_l CR_ring_theory).
+  reflexivity.
 Defined.
 
 Definition yf: Location -> Flow CRasCSetoid.
 Proof.
   intro l.
   apply (Build_Flow (ym l)); intros;
-   simpl bsm; unfold Yflow; destruct l.
-                rewrite CRmult_0_r.
-                apply CRadd_0_r.
-              rewrite CRopp_0.
-              apply CRadd_0_r.
-            rewrite CRmult_0_r.
-            rewrite CRopp_0.
-            apply CRadd_0_r.
-          apply CRadd_0_r.
-        rewrite CRmult_comm.
-        rewrite (Rdistr_l CR_ring_theory).
-        rewrite (Radd_assoc CR_ring_theory).
-        repeat rewrite (Rmul_comm CR_ring_theory ('10)).
-        reflexivity.
-      rewrite (@Ropp_add _ _ _ _ _ _ _ _ t3 CR_ring_eq_ext CR_ring_theory ).
-      rewrite (Radd_assoc CR_ring_theory).
-      reflexivity.
-    do 3 rewrite CRopp_mult_l.
-    repeat rewrite (Rmul_comm CR_ring_theory (-'10)).
-    rewrite (Rdistr_l CR_ring_theory).
-    rewrite (Radd_assoc CR_ring_theory).
-    reflexivity.
-  apply (Radd_assoc CR_ring_theory).
+   simpl bsm; unfold Yflow; destruct l; try reflexivity.
+        apply CRadd_0_r.
+      rewrite CRopp_0.
+      apply CRadd_0_r.
+    apply (Radd_assoc CR_ring_theory).
+   rewrite (@Ropp_add _ _ _ _ _ _ _ _ t3 CR_ring_eq_ext CR_ring_theory ).
+  rewrite <- (Radd_assoc CR_ring_theory).
+  reflexivity.
 Defined.
 
 (* .. and then show to be monotonic: *)
-
+(*
 Lemma xflow_mono l: mono (xf l).
 Proof with auto.
   unfold mono.
@@ -234,25 +229,80 @@ Proof with auto.
     apply positive_CRpos.
    apply t1_rev...
 Defined.
-
+*)
 (* .. and then show to have inverses: *)
 
-Definition x_flow_inv (l: Location) (x x': CR): Time :=
+Definition smalleps: Qpos := (1#100)%Qpos.
+
+Definition zero_range: OpenRange.
+  exists (Some ('0), Some ('0)).
+  simpl. apply CRle_refl.
+Defined.
+
+Definition neg_range: OpenRange.
+  exists (Some (-'1), Some (-'1)).
+  simpl. apply CRle_refl.
+Defined.
+
+Definition x_flow_inv (l: Location) (a b: OpenRange): OpenRange :=
   match l with
-  | Up => (x' - x)
-  | Right => '(1#10) * (x' - x)
-  | Down => x - x'
-  | Left => '(1#10) * (x - x')
+  | Up =>  if oranges_overlap_dec smalleps (a, b) then unbounded_range else neg_range
+  | Right => @c_square_flow_conditions.one_axis.flow_range boring_Flow (boring_flow_inv)
+    boring_flow_inv_correct boring_flow_mono a b
+  | Down =>  if oranges_overlap_dec smalleps (a, b) then unbounded_range else neg_range
+  | Left => @c_square_flow_conditions.one_axis.flow_range iboring_Flow (iboring_flow_inv)
+    iboring_flow_inv_correct iboring_flow_mono a b
   end.
 
-Definition y_flow_inv (l: Location) (y y': CR): Time :=
+Definition y_flow_inv (l: Location) (a b: OpenRange): OpenRange :=
   match l with
-  | Up => '(1#10) * (y' - y)
-  | Right => y - y'
-  | Down => '(1#10) * (y - y')
-  | Left => y' - y
+  | Right =>  if oranges_overlap_dec smalleps (a, b) then unbounded_range else neg_range
+  | Up => @c_square_flow_conditions.one_axis.flow_range boring_Flow (boring_flow_inv)
+    boring_flow_inv_correct boring_flow_mono a b
+  | Left =>  if oranges_overlap_dec smalleps (a, b) then unbounded_range else neg_range
+  | Down => @c_square_flow_conditions.one_axis.flow_range iboring_Flow (iboring_flow_inv)
+    iboring_flow_inv_correct iboring_flow_mono a b
   end.
 
+Hint Immediate in_unbounded_range.
+
+Lemma x_rfis l: range_flow_inv_spec (xf l) (x_flow_inv l).
+Proof with auto.
+  unfold xf, range_flow_inv_spec.
+  destruct l; simpl; intros.
+        case_eq (oranges_overlap_dec smalleps (a, b))...
+        intros.
+        elimtype False.
+        apply (over_oranges_overlap smalleps H1).
+        apply oranges_share_point with p...
+      apply c_square_flow_conditions.one_axis.flow_range_covers with p...
+    case_eq (oranges_overlap_dec smalleps (a, b))...
+    intros.
+    elimtype False.
+    apply (over_oranges_overlap smalleps H1).
+    apply oranges_share_point with p...
+  apply c_square_flow_conditions.one_axis.flow_range_covers with p...
+Defined.
+
+Lemma y_rfis l: range_flow_inv_spec (yf l) (y_flow_inv l).
+Proof with auto.
+  unfold yf, range_flow_inv_spec.
+  destruct l; simpl; intros.
+        apply c_square_flow_conditions.one_axis.flow_range_covers with p...
+      case_eq (oranges_overlap_dec smalleps (a, b))...
+      intros.
+      elimtype False.
+      apply (over_oranges_overlap smalleps H1).
+      apply oranges_share_point with p...
+    apply c_square_flow_conditions.one_axis.flow_range_covers with p...
+  case_eq (oranges_overlap_dec smalleps (a, b))...
+  intros.
+  elimtype False.
+  apply (over_oranges_overlap smalleps H1).
+  apply oranges_share_point with p...
+Defined.
+
+(*
 Lemma x_flow_inv_correct l x x': xf l x (x_flow_inv l x x') == x'.
 Proof.
   simpl bsm.
@@ -298,6 +348,7 @@ Proof.
     reflexivity.
   symmetry. apply t11.
 Qed.
+*)
 
 (* Next, our reset function: *)
 
@@ -339,15 +390,6 @@ Defined.
 
 Definition guard_square (l l': Location): option OpenSquare :=
   match l, l' with
-  | Up, Right   => Some (open_square (r05, r415))
-  | Right, Down => Some (open_square (r415, r05))
-  | Down, Left  => Some (open_square (r05, r009))
-  | Left, Up    => Some (open_square (r009, r05))
-  | _, _ => None
-  end.
-
-Definition guard_osquare (l l': Location): option OpenSquare :=
-  match l, l' with
   | Up, Right   => Some (unbounded_range, r41_)
   | Right, Down => Some (r41_, unbounded_range)
   | Down, Left  => Some (unbounded_range, r_09)
@@ -361,55 +403,29 @@ Definition guard (s: State) (l: Location): Prop :=
   | Some q => in_osquare (snd s) q
   end.
 
-Definition oguard (s: State) (l: Location): Prop :=
-  match guard_osquare (fst s) l with
-  | None => False
-  | Some q => in_osquare (snd s) q
-  end.
-
 (* Finally, we define our concrete system. *)
 
 Definition concrete_system: c_concrete.System :=
   @c_concrete.Build_System PointCSetoid Location Location_eq_dec
   locations locations_complete NoDup_locations initial invariant
-  invariant_initial invariant_wd
+  (fun _ _ => I) invariant_wd
   (fun l => product_flow (xf l) (yf l)) guard reset.
-
-Definition oconcrete_system: c_concrete.System :=
-  @c_concrete.Build_System PointCSetoid Location Location_eq_dec
-  locations locations_complete NoDup_locations oinitial oinvariant
-  (fun _ _ => I) oinvariant_wd
-  (fun l => product_flow (xf l) (yf l)) oguard reset.
 
 (* Next, for the abstraction, we define our intervals. *)
 
-Inductive Interval: Set := I01 | I12 | I23 | I34 | I45.
-
-Inductive OInterval: Set := OI_1 | OI12 | OI23 | OI34 | OI4_.
+Inductive Interval: Set := OI_1 | OI12 | OI23 | OI34 | OI4_.
 
 Definition Interval_eq_dec (i i': Interval): decision (i=i').
 Proof. dec_eq. Defined.
 
-Definition OInterval_eq_dec (i i': OInterval): decision (i=i').
-Proof. dec_eq. Defined.
-
 Definition interval_bounds (i: Interval): OpenRange :=
-  match i with
-  | I01 => r01 | I12 => r12 | I23 => r23 | I34 => r34 | I45 => r45
-  end.
-
-Definition ointerval_bounds (i: OInterval): OpenRange :=
   match i with
   | OI_1 => r_1 | OI12 => r12 | OI23 => r23 | OI34 => r34 | OI4_ => r4_
   end.
 
-Definition intervals: list Interval := I01 :: I12 :: I23 :: I34 :: I45 :: nil.
-Definition ointervals: list OInterval := OI_1 :: OI12 :: OI23 :: OI34 :: OI4_ :: nil.
+Definition intervals: list Interval := OI_1 :: OI12 :: OI23 :: OI34 :: OI4_ :: nil.
 
 Lemma intervals_complete: forall i, List.In i intervals.
-Proof. destruct i; compute; tauto. Qed.
-
-Lemma ointervals_complete: forall i, List.In i ointervals.
 Proof. destruct i; compute; tauto. Qed.
 
 Lemma NoDup_intervals: NoDup intervals.
@@ -417,31 +433,8 @@ Lemma NoDup_intervals: NoDup intervals.
   vm_compute. ref.
 Qed.
 
-Lemma NoDup_ointervals: NoDup ointervals.
-  apply decision_true with (NoDup_dec OInterval_eq_dec ointervals).
-  vm_compute. ref.
-Qed.
-
 Definition s_absInterval (r: CR):
-  { i: Interval | in_orange r05 r -> in_orange (interval_bounds i) r }.
-Proof with auto.
-  intro.
-  unfold in_orange, orange_left, orange_right.
-  unfold r05.
-  simpl.
-  destruct (CR_le_le_dec r ('1)).
-    exists I01. intros. destruct H. simpl. split...
-  destruct (CR_le_le_dec r ('2)).
-    exists I12. intros. destruct H. simpl. split...
-  destruct (CR_le_le_dec r ('3)).
-    exists I23. intros. destruct H. simpl. split...
-  destruct (CR_le_le_dec r ('4)).
-    exists I34. intros. destruct H. simpl. split...
-  exists I45. intros. destruct H. simpl. split...
-Defined.
-
-Definition s_oabsInterval (r: CR):
-  { i: OInterval | in_orange (ointerval_bounds i) r }.
+  { i: Interval | in_orange (interval_bounds i) r }.
 Proof with auto.
   intro.
   unfold in_orange, orange_left, orange_right.
@@ -453,7 +446,6 @@ Proof with auto.
 Defined.
 
 Definition absInterval (r: CR): Interval := proj1_sig (s_absInterval r).
-Definition oabsInterval (r: CR): OInterval := proj1_sig (s_oabsInterval r).
 
 Lemma regions_cover_invariants l (p: c_concrete.Point concrete_system):
   c_concrete.invariant (l, p) ->
@@ -468,46 +460,10 @@ Proof with auto.
   simpl.
   unfold absInterval.
   destruct (s_absInterval c). destruct (s_absInterval c0). simpl.
-  destruct H.
-  split...
-Qed.
-
-Lemma oregions_cover_invariants l (p: c_concrete.Point oconcrete_system):
-  c_concrete.invariant (l, p) ->
-  c_square_abstraction.in_region ointerval_bounds ointerval_bounds p
-    (c_square_abstraction.absInterval oabsInterval oabsInterval p).
-Proof with auto.
-  simpl c_concrete.invariant.
-  destruct p.
-  intros.
-  unfold c_square_abstraction.in_region.
-  unfold c_square_abstraction.absInterval.
-  simpl.
-  unfold oabsInterval.
-  destruct (s_oabsInterval c). destruct (s_oabsInterval c0). simpl.
   split...
 Qed.
 
 Let Region := c_square_abstraction.SquareInterval Interval Interval.
-Let ORegion := c_square_abstraction.SquareInterval OInterval OInterval.
-
-Definition oguard_overestimation' (ls : Location * ORegion * Location) : Prop :=
-  let (lr, l2) := ls in
-  let (l1, r) := lr in
-    match guard_square l1 l2 with
-    | Some s => osquares_overlap (s, 
-        c_square_abstraction.square ointerval_bounds ointerval_bounds r)
-    | None => False
-    end.
-
-Definition oguard_overestimation (ls : Location * ORegion * Location) : Prop :=
-  let (lr, l2) := ls in
-  let (l1, r) := lr in
-    match guard_osquare l1 l2 with
-    | Some s => osquares_overlap (s, 
-        c_square_abstraction.square ointerval_bounds ointerval_bounds r)
-    | None => False
-    end.
 
 Definition guard_dec eps (ls : Location * Region * Location) :=
   let (lr, l2) := ls in
@@ -515,15 +471,6 @@ Definition guard_dec eps (ls : Location * Region * Location) :=
     match guard_square l1 l2 with
     | Some s => osquares_overlap_dec eps (s,
         c_square_abstraction.square interval_bounds interval_bounds r)
-    | None => false
-    end.
-
-Definition oguard_dec eps (ls : Location * ORegion * Location) :=
-  let (lr, l2) := ls in
-  let (l1, r) := lr in
-    match guard_osquare l1 l2 with
-    | Some s => osquares_overlap_dec eps (s,
-        c_square_abstraction.square ointerval_bounds ointerval_bounds r)
     | None => false
     end.
 
@@ -538,79 +485,36 @@ Proof with auto.
   apply osquares_share_point with p...
 Qed.
 
-Lemma over_oguard eps : 
-  oguard_dec eps >=> c_square_abstraction.abstract_guard ointerval_bounds ointerval_bounds oguard.
-Proof with auto.
-  intros eps [[l r] l'] gf [p [in_p g]].
-  unfold oguard_dec in gf. unfold oguard in g.
-  simpl @fst in *. simpl @snd in *.  
-  destruct (guard_osquare l l'); try contradiction.
-  apply (over_osquares_overlap eps gf).
-  apply osquares_share_point with p...
-Qed.
-
 Definition initial_dec eps :=
   c_square_abstraction.initial_dec (Location:=Location) 
     Location_eq_dec interval_bounds interval_bounds Up initial_square eps.
 
-Definition oinitial_dec eps :=
-  c_square_abstraction.initial_dec (Location:=Location) 
-    Location_eq_dec ointerval_bounds ointerval_bounds Up initial_osquare eps.
-
 Lemma over_initial eps : 
   initial_dec eps >=> 
-  c_abstraction.initial_condition concrete_system
+  c_abstraction.initial_condition concrete_system 
   (c_square_abstraction.in_region interval_bounds interval_bounds).
 Proof with auto.
   apply c_square_abstraction.over_initial.
   intros. destruct s...
 Qed.
+(*
+Definition x_invr (l: Location): OpenRange -> OpenRange -> OpenRange :=
+  c_square_flow_conditions.one_axis.flow_range (x_flow_inv l)
+    (x_flow_inv_correct l) (xflow_mono l).
 
-Lemma over_oinitial eps : 
-  oinitial_dec eps >=> 
-  c_abstraction.initial_condition oconcrete_system 
-  (c_square_abstraction.in_region ointerval_bounds ointerval_bounds).
-Proof with auto.
-  apply c_square_abstraction.over_initial.
-  intros. destruct s...
-Qed.
-
-Definition oabstract_system (eps : Qpos) : c_abstract.System oconcrete_system.
-Proof.
-  intro eps. eapply c_abstraction.abstract_system.
-              eexact (c_square_abstraction.SquareInterval_eq_dec OInterval_eq_dec OInterval_eq_dec).
-            eexact (c_square_abstraction.squareIntervals_complete _ ointervals_complete _ ointervals_complete).
-          eexact (c_square_abstraction.NoDup_squareIntervals NoDup_ointervals NoDup_ointervals).
-        eapply (@c_square_abstraction.do_cont_trans Location OInterval OInterval Location_eq_dec locations locations_complete ointerval_bounds ointerval_bounds xf yf x_flow_inv y_flow_inv).
-                  eexact x_flow_inv_correct.
-                eexact y_flow_inv_correct.
-              eexact xflow_mono.
-            eexact yflow_mono.
-          eexact oinvariant_squares_correct.
-        exact eps.
-      eapply c_square_abstraction.do_odisc_trans.
-                eexact oinvariant_squares_correct.
-              eexact xreset_inc.
-            eexact yreset_inc.
-          destruct p; ref.
-        eexact (mk_DO (over_oguard eps)).
-      eexact eps.
-    eexact (mk_DO (over_oinitial eps)).
-  unfold c_abstraction.RegionsCoverInvariants.
-  eexact oregions_cover_invariants.
-Defined.
-
+Definition y_invr (l: Location): OpenRange -> OpenRange -> OpenRange :=
+  c_square_flow_conditions.one_axis.flow_range (y_flow_inv l)
+    (y_flow_inv_correct l) (yflow_mono l).
+*)
 Definition abstract_system (eps : Qpos) : c_abstract.System concrete_system.
-Proof.
+Proof with auto.
   intro eps. eapply c_abstraction.abstract_system.
               eexact (c_square_abstraction.SquareInterval_eq_dec Interval_eq_dec Interval_eq_dec).
             eexact (c_square_abstraction.squareIntervals_complete _ intervals_complete _ intervals_complete).
           eexact (c_square_abstraction.NoDup_squareIntervals NoDup_intervals NoDup_intervals).
         eapply (@c_square_abstraction.do_cont_trans Location Interval Interval Location_eq_dec locations locations_complete interval_bounds interval_bounds xf yf x_flow_inv y_flow_inv).
-                  eexact x_flow_inv_correct.
-                eexact y_flow_inv_correct.
-              eexact xflow_mono.
-            eexact yflow_mono.
+              apply x_rfis.
+            apply y_rfis.
           eexact invariant_squares_correct.
         exact eps.
       eapply c_square_abstraction.do_odisc_trans.
@@ -626,24 +530,20 @@ Proof.
 Defined.
 
 Definition abs_sys := abstract_system (1#100).
-Definition oabs_sys := oabstract_system (1#100).
 
 Definition vs := abstract_as_graph.vertices abs_sys.
-Definition ovs := abstract_as_graph.vertices oabs_sys.
 Definition g := abstract_as_graph.g abs_sys.
-Definition og := abstract_as_graph.g oabs_sys.
 Definition graph := flat_map (@digraph.edges g) vs.
-Definition ograph := flat_map (@digraph.edges og) ovs.
+
 Time Eval vm_compute in (List.length graph).
 
 Definition unsafe_abstract_states :=
-  List.map (fun l => (l, (I23, I23))) locations.
-Definition unsafe_oabstract_states :=
   List.map (fun l => (l, (OI23, OI23))) locations.
 
 (** Specification of what does it mean for the rotator example to be safe.
     It means that none of the abstract states in the list 
     [unsafe_abstract_states] is reachable. *)
+
 Definition rotator_is_safe := 
   forall s : c_concrete.State concrete_system,
     let (l, p) := s in
@@ -651,21 +551,12 @@ Definition rotator_is_safe :=
       List.In (l, (absInterval x, absInterval y)) unsafe_abstract_states ->
       ~c_concrete.reachable s.
 
-Definition orotator_is_safe := 
-  forall s : c_concrete.State oconcrete_system,
-    let (l, p) := s in
-    let (x, y) := p in
-      List.In (l, (oabsInterval x, oabsInterval y)) unsafe_oabstract_states ->
-      ~c_concrete.reachable s.
-
 Definition unsafe : bool :=
   abstract_as_graph.some_reachable abs_sys unsafe_abstract_states.
 
-Definition ounsafe : bool :=
-  abstract_as_graph.some_reachable oabs_sys unsafe_oabstract_states.
-
 (** This theorem guarantees that validating in the extracted program that
     [unsafe = false], ensures that rotator is indeed safe. *)
+
 Theorem unsafe_correct : unsafe = false -> rotator_is_safe.
 Proof.
   unfold unsafe, rotator_is_safe. intros srf [l [px py]] su.
@@ -674,34 +565,12 @@ Proof.
     trivial.
 Qed.
 
-Theorem ounsafe_correct : ounsafe = false -> orotator_is_safe.
-Proof.
-  unfold ounsafe, orotator_is_safe. intros srf [l [px py]] su.
-  apply abstract_as_graph.states_unreachable with 
-    oabs_sys unsafe_oabstract_states (l, (oabsInterval px, oabsInterval py)); 
-    trivial.
-Qed.
-
 (** Instead of validating this condition in the extracted program we can
     also do it directly in Coq (though it will be slower) *)
+
 Theorem rotator_safe : rotator_is_safe.
 Proof.
   Time apply unsafe_correct; vm_compute; ref.
-Time Qed.
-
-(* hm, the orotator isn't actually safe, because the infinite boundaries now provide
-plenty of space for the slight flow skewage to make the center reachable :-( *)
-
-(*
-Theorem orotator_safe : orotator_is_safe.
-Proof.
-  Time apply ounsafe_correct; vm_compute; ref.
-Time Qed.
-*)
+Qed.
 
 Print Assumptions rotator_safe.
-
-(** We extract the program to verify safety of the rotator example. *)
-(*Recursive Extraction unsafe.*)
- (* TODO: For this to work we need to make sure that the computations
-    do not depend on lemmas using axioms. *)
