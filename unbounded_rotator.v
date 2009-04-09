@@ -74,281 +74,59 @@ Definition initial (s: State): Prop :=
 
 (* Our flow functions: *)
 
-Definition Xflow (l: Location) (x: CR) (t: Time): CR :=
+Definition xf (l: Location): Flow CRasCSetoid :=
   match l with
-  | Up => x
-  | Right => x + t
-  | Down => x
-  | Left => x - t
+  | Right => c_flow.pos_linear_flow.flow 1
+  | Left => c_flow.neg_linear_flow.flow 1
+  | _ => c_flow.constant.flow
   end.
 
-Definition Yflow (l: Location) (y: CR) (t: Time): CR :=
+Definition yf (l: Location): Flow CRasCSetoid :=
   match l with
-  | Up => y + t
-  | Right => y
-  | Down => y - t
-  | Left => y
+  | Up => c_flow.pos_linear_flow.flow 1
+  | Down => c_flow.neg_linear_flow.flow 1
+  | _ => c_flow.constant.flow
   end.
-
-Definition boring_flow (x: CR) (t: Time): CR := x + t.
-Definition iboring_flow (x: CR) (t: Time): CR := x - t.
-
-Definition boringm: binary_setoid_morphism CRasCSetoid CRasCSetoid CRasCSetoid.
-Proof.
-  apply (Build_binary_setoid_morphism _ _ _ boring_flow).
-  intros. unfold boring_flow.
-  rewrite H. rewrite H0. reflexivity.
-Defined.
-
-Definition iboringm: binary_setoid_morphism CRasCSetoid CRasCSetoid CRasCSetoid.
-Proof.
-  apply (Build_binary_setoid_morphism _ _ _ iboring_flow).
-  intros. unfold iboring_flow.
-  rewrite H. rewrite H0. reflexivity.
-Defined.
-
-Definition boring_Flow: Flow CRasCSetoid.
-  apply (Build_Flow boringm); intros; simpl; unfold boring_flow.
-    apply CRadd_0_r.
-  apply (Radd_assoc CR_ring_theory).
-Defined.
-
-Definition iboring_Flow: Flow CRasCSetoid.
-  apply (Build_Flow iboringm); intros; simpl; unfold iboring_flow.
-    apply CRminus_zero.
-  assert (x0 - (t + t') == x0 - t - t').
-    rewrite (@Ropp_add _ _ _ _ _ _ _ _ t3 CR_ring_eq_ext CR_ring_theory ).
-    rewrite (Radd_assoc CR_ring_theory).
-    reflexivity.
-  assumption.
-Defined.
-
-Definition boring_flow_inv (x x': CR): Time := x' - x.
-
-Definition iboring_flow_inv (x x': CR): Time := x - x'.
-
-Definition boring_flow_mono: mono boring_Flow.
-  left. repeat intro. simpl. unfold boring_flow. apply t1_rev. assumption.
-Defined.
-
-Definition iboring_flow_mono: mono iboring_Flow.
-  right. repeat intro. simpl. unfold iboring_flow. apply t1_rev. 
-  apply CRlt_opp_compat. assumption.
-Defined.
-
-Lemma boring_flow_inv_correct x x': boring_flow x (boring_flow_inv x x') == x'.
-  intros.
-  unfold boring_flow, boring_flow_inv.
-  symmetry.
-  apply t11.
-Defined.
-
-Lemma iboring_flow_inv_correct x x': iboring_flow x (iboring_flow_inv x x') == x'.
-  intros.
-  unfold iboring_flow, iboring_flow_inv.
-  rewrite <- diff_opp.
-  symmetry. apply t11.
-Defined.
-
-Definition xm: Location ->
-  binary_setoid_morphism CRasCSetoid CRasCSetoid CRasCSetoid.
-Proof.
-  intro l. apply (Build_binary_setoid_morphism _ _ _ (Xflow l)).
-  intros. unfold Xflow.
-  destruct l; try auto; rewrite H; rewrite H0; reflexivity.
-Defined.
-
-Definition ym: Location ->
-  binary_setoid_morphism CRasCSetoid CRasCSetoid CRasCSetoid.
-Proof.
-  intro l. apply (Build_binary_setoid_morphism _ _ _ (Yflow l)).
-  intros. unfold Yflow.
-  destruct l; try auto; rewrite H; rewrite H0; reflexivity.
-Defined.
-
-(* .. and then show to satisfy the flow identities: *)
-
-Definition xf: Location -> Flow CRasCSetoid.
-Proof with auto.
-  intro l.
-  apply (Build_Flow (xm l)); intros;
-   simpl bsm; unfold Xflow; destruct l; try reflexivity.
-        apply CRadd_0_r.
-      rewrite CRopp_0.
-      apply CRadd_0_r.
-    apply (Radd_assoc CR_ring_theory).
-   rewrite (@Ropp_add _ _ _ _ _ _ _ _ t3 CR_ring_eq_ext CR_ring_theory ).
-  rewrite <- (Radd_assoc CR_ring_theory).
-  reflexivity.
-Defined.
-
-Definition yf: Location -> Flow CRasCSetoid.
-Proof.
-  intro l.
-  apply (Build_Flow (ym l)); intros;
-   simpl bsm; unfold Yflow; destruct l; try reflexivity.
-        apply CRadd_0_r.
-      rewrite CRopp_0.
-      apply CRadd_0_r.
-    apply (Radd_assoc CR_ring_theory).
-   rewrite (@Ropp_add _ _ _ _ _ _ _ _ t3 CR_ring_eq_ext CR_ring_theory ).
-  rewrite <- (Radd_assoc CR_ring_theory).
-  reflexivity.
-Defined.
-
-(* .. and then show to be monotonic: *)
-(*
-Lemma xflow_mono l: mono (xf l).
-Proof with auto.
-  unfold mono.
-  destruct l; [left | left | right | right]; intros; intro; intros; simpl.
-        apply t1_rev...
-      apply t1_rev.
-      apply CRmult_lt_pos_r...
-      apply positive_CRpos.
-    apply t1_rev.
-    apply CRlt_opp_compat...
-  apply t1_rev.
-  apply CRlt_opp_compat.
-  apply CRmult_lt_pos_r...
-  apply positive_CRpos.
-Defined.
-
-Lemma yflow_mono l: mono (yf l).
-Proof with auto.
-  unfold mono.
-  destruct l; [left | right | right | left]; intros; intro; intros; simpl.
-        apply t1_rev.
-        apply CRmult_lt_pos_r...
-        apply positive_CRpos.
-      apply t1_rev.
-      apply CRlt_opp_compat...
-    apply t1_rev.
-    apply CRlt_opp_compat...
-    apply CRmult_lt_pos_r...
-    apply positive_CRpos.
-   apply t1_rev...
-Defined.
-*)
-(* .. and then show to have inverses: *)
-
-Definition smalleps: Qpos := (1#100)%Qpos.
-
-Definition zero_range: OpenRange.
-  exists (Some ('0), Some ('0)).
-  simpl. apply CRle_refl.
-Defined.
-
-Definition neg_range: OpenRange.
-  exists (Some (-'1), Some (-'1)).
-  simpl. apply CRle_refl.
-Defined.
 
 Definition x_flow_inv (l: Location) (a b: OpenRange): OpenRange :=
   match l with
-  | Up =>  if oranges_overlap_dec smalleps (a, b) then unbounded_range else neg_range
-  | Right => @c_square_flow_conditions.one_axis.flow_range boring_Flow (boring_flow_inv)
-    boring_flow_inv_correct boring_flow_mono a b
-  | Down =>  if oranges_overlap_dec smalleps (a, b) then unbounded_range else neg_range
-  | Left => @c_square_flow_conditions.one_axis.flow_range iboring_Flow (iboring_flow_inv)
-    iboring_flow_inv_correct iboring_flow_mono a b
+  | Right => c_square_flow_conditions.one_axis.flow_range
+    _ (c_flow.pos_linear_flow.inv_correct 1) (c_flow.pos_linear_flow.mono 1) a b
+  | Left => c_square_flow_conditions.one_axis.flow_range
+    _ (c_flow.neg_linear_flow.inv_correct 1) (c_flow.neg_linear_flow.mono 1) a b
+  | _ =>  c_flow.constant.inv a b
   end.
 
 Definition y_flow_inv (l: Location) (a b: OpenRange): OpenRange :=
   match l with
-  | Right =>  if oranges_overlap_dec smalleps (a, b) then unbounded_range else neg_range
-  | Up => @c_square_flow_conditions.one_axis.flow_range boring_Flow (boring_flow_inv)
-    boring_flow_inv_correct boring_flow_mono a b
-  | Left =>  if oranges_overlap_dec smalleps (a, b) then unbounded_range else neg_range
-  | Down => @c_square_flow_conditions.one_axis.flow_range iboring_Flow (iboring_flow_inv)
-    iboring_flow_inv_correct iboring_flow_mono a b
+  | Up => c_square_flow_conditions.one_axis.flow_range
+    _ (c_flow.pos_linear_flow.inv_correct 1) (c_flow.pos_linear_flow.mono 1) a b
+  | Down => c_square_flow_conditions.one_axis.flow_range
+    _ (c_flow.neg_linear_flow.inv_correct 1) (c_flow.neg_linear_flow.mono 1) a b
+  | _ =>  c_flow.constant.inv a b
   end.
-
-Hint Immediate in_unbounded_range.
 
 Lemma x_rfis l: range_flow_inv_spec (xf l) (x_flow_inv l).
 Proof with auto.
-  unfold xf, range_flow_inv_spec.
-  destruct l; simpl; intros.
-        case_eq (oranges_overlap_dec smalleps (a, b))...
-        intros.
-        elimtype False.
-        apply (over_oranges_overlap smalleps H1).
-        apply oranges_share_point with p...
+  destruct l; simpl xf.
+        apply c_flow.constant.inv_correct.
+      unfold range_flow_inv_spec. intros.
       apply c_square_flow_conditions.one_axis.flow_range_covers with p...
-    case_eq (oranges_overlap_dec smalleps (a, b))...
-    intros.
-    elimtype False.
-    apply (over_oranges_overlap smalleps H1).
-    apply oranges_share_point with p...
+    apply c_flow.constant.inv_correct.
+  unfold range_flow_inv_spec. intros.
   apply c_square_flow_conditions.one_axis.flow_range_covers with p...
-Defined.
+Qed.
 
 Lemma y_rfis l: range_flow_inv_spec (yf l) (y_flow_inv l).
 Proof with auto.
-  unfold yf, range_flow_inv_spec.
-  destruct l; simpl; intros.
+  destruct l; simpl yf.
+        unfold range_flow_inv_spec. intros.
         apply c_square_flow_conditions.one_axis.flow_range_covers with p...
-      case_eq (oranges_overlap_dec smalleps (a, b))...
-      intros.
-      elimtype False.
-      apply (over_oranges_overlap smalleps H1).
-      apply oranges_share_point with p...
+      apply c_flow.constant.inv_correct.
+    unfold range_flow_inv_spec. intros.
     apply c_square_flow_conditions.one_axis.flow_range_covers with p...
-  case_eq (oranges_overlap_dec smalleps (a, b))...
-  intros.
-  elimtype False.
-  apply (over_oranges_overlap smalleps H1).
-  apply oranges_share_point with p...
-Defined.
-
-(*
-Lemma x_flow_inv_correct l x x': xf l x (x_flow_inv l x x') == x'.
-Proof.
-  simpl bsm.
-  unfold Xflow, x_flow_inv.
-  intros.
-  destruct l.
-        symmetry.
-        apply t11.
-      rewrite (Rmul_assoc CR_ring_theory).
-      rewrite CRmult_Qmult.
-      rewrite Qmult_inv.
-        rewrite (Rmul_1_l CR_ring_theory).
-        symmetry. apply t11.
-      reflexivity.
-    rewrite <- diff_opp.
-    symmetry. apply t11.
-  rewrite (Rmul_assoc CR_ring_theory).
-  rewrite CRmult_Qmult.
-  rewrite Qmult_inv.
-    rewrite (Rmul_1_l CR_ring_theory).
-    rewrite <- diff_opp.
-    symmetry. apply t11.
-  reflexivity.
+  apply c_flow.constant.inv_correct.
 Qed.
-
-Lemma y_flow_inv_correct l y y': yf l y (y_flow_inv l y y') == y'.
-Proof.
-  simpl bsm. unfold Yflow, y_flow_inv. intros. destruct l.
-        rewrite (Rmul_assoc CR_ring_theory).
-        rewrite CRmult_Qmult.
-        rewrite Qmult_inv.
-          rewrite (Rmul_1_l CR_ring_theory).
-          symmetry. apply t11.
-        reflexivity.
-      rewrite <- diff_opp.
-      symmetry. apply t11.
-    rewrite (Rmul_assoc CR_ring_theory).
-    rewrite CRmult_Qmult.
-    rewrite Qmult_inv.
-      rewrite (Rmul_1_l CR_ring_theory).
-      rewrite <- diff_opp.
-      symmetry. apply t11.
-    reflexivity.
-  symmetry. apply t11.
-Qed.
-*)
 
 (* Next, our reset function: *)
 
@@ -497,15 +275,7 @@ Proof with auto.
   apply c_square_abstraction.over_initial.
   intros. destruct s...
 Qed.
-(*
-Definition x_invr (l: Location): OpenRange -> OpenRange -> OpenRange :=
-  c_square_flow_conditions.one_axis.flow_range (x_flow_inv l)
-    (x_flow_inv_correct l) (xflow_mono l).
 
-Definition y_invr (l: Location): OpenRange -> OpenRange -> OpenRange :=
-  c_square_flow_conditions.one_axis.flow_range (y_flow_inv l)
-    (y_flow_inv_correct l) (yflow_mono l).
-*)
 Definition abstract_system (eps : Qpos) : c_abstract.System concrete_system.
 Proof with auto.
   intro eps. eapply c_abstraction.abstract_system.

@@ -8,11 +8,7 @@ Section single_inverses.
 
   Variable f: Flow CRasCSetoid.
 
-  Definition mono: Type :=
-    sum (forall x, strongly_increasing (f x))
-      (forall x, strongly_decreasing (f x)).
-
-  Variable fmono: mono.
+  Variable fmono: mono f.
 
   Lemma purify_mono: forall x, monotonic (f x).
   Proof.

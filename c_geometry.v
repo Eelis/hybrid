@@ -52,6 +52,8 @@ Definition in_orange (r: OpenRange) (x: CR): Prop :=
 Lemma in_unbounded_range x: in_orange unbounded_range x.
 Proof with auto. intros. split; simpl; auto. Qed.
 
+Hint Immediate in_unbounded_range.
+
 Definition in_range_dec eps (r : Range) (x : CR) : bool :=
   CRle_dec eps (range_left r, x) && CRle_dec eps (x, range_right r).
 

@@ -91,196 +91,50 @@ Qed.
 
 (* Our flow functions: *)
 
-Definition Xflow (l: Location) (x: CR) (t: Time): CR :=
+Definition xf (l: Location): Flow CRasCSetoid :=
   match l with
-  | Up => x + t
-  | Right => x + '10*t
-  | Down => x - t
-  | Left => x - '10*t
+  | Up => c_flow.pos_linear_flow.flow 1
+  | Right => c_flow.pos_linear_flow.flow 10
+  | Down => c_flow.neg_linear_flow.flow 1
+  | Left => c_flow.neg_linear_flow.flow 10
   end.
 
-Definition Yflow (l: Location) (y: CR) (t: Time): CR :=
+Definition x_flow_inv (l: Location) (a b: OpenRange): OpenRange :=
   match l with
-  | Up => y + '10*t
-  | Right => y - t
-  | Down => y - '10*t
-  | Left => y + t
+  | Up => c_square_flow_conditions.one_axis.flow_range _ (c_flow.pos_linear_flow.inv_correct 1) (c_flow.pos_linear_flow.mono 1) a b
+  | Right => c_square_flow_conditions.one_axis.flow_range _ (c_flow.pos_linear_flow.inv_correct 10) (c_flow.pos_linear_flow.mono 10) a b
+  | Down => c_square_flow_conditions.one_axis.flow_range _ (c_flow.neg_linear_flow.inv_correct 1) (c_flow.neg_linear_flow.mono 1) a b
+  | Left => c_square_flow_conditions.one_axis.flow_range _ (c_flow.neg_linear_flow.inv_correct 10) (c_flow.neg_linear_flow.mono 10) a b
   end.
 
-(* .. which we now show to be morphisms over CR: *)
+Definition yf (l: Location): Flow CRasCSetoid :=
+  match l with
+  | Up => c_flow.pos_linear_flow.flow 10
+  | Right => c_flow.neg_linear_flow.flow 1
+  | Down => c_flow.neg_linear_flow.flow 10
+  | Left => c_flow.pos_linear_flow.flow 1
+  end.
 
-Definition xm: Location ->
-  binary_setoid_morphism CRasCSetoid CRasCSetoid CRasCSetoid.
-Proof.
-  intro l. apply (Build_binary_setoid_morphism _ _ _ (Xflow l)).
-  intros. unfold Xflow.
-  destruct l; try auto; rewrite H; rewrite H0; reflexivity.
-Defined.
+Definition y_flow_inv (l: Location) (a b: OpenRange): OpenRange :=
+  match l with
+  | Up => c_square_flow_conditions.one_axis.flow_range _ (c_flow.pos_linear_flow.inv_correct 10) (c_flow.pos_linear_flow.mono 10) a b
+  | Right => c_square_flow_conditions.one_axis.flow_range _ (c_flow.neg_linear_flow.inv_correct 1) (c_flow.neg_linear_flow.mono 1) a b
+  | Down => c_square_flow_conditions.one_axis.flow_range _ (c_flow.neg_linear_flow.inv_correct 10) (c_flow.neg_linear_flow.mono 10) a b
+  | Left => c_square_flow_conditions.one_axis.flow_range _ (c_flow.pos_linear_flow.inv_correct 1) (c_flow.pos_linear_flow.mono 1) a b
+  end.
 
-Definition ym: Location ->
-  binary_setoid_morphism CRasCSetoid CRasCSetoid CRasCSetoid.
-Proof.
-  intro l. apply (Build_binary_setoid_morphism _ _ _ (Yflow l)).
-  intros. unfold Yflow.
-  destruct l; try auto; rewrite H; rewrite H0; reflexivity.
-Defined.
-
-(* .. and then show to satisfy the flow identities: *)
-
-Definition xf: Location -> Flow CRasCSetoid.
+Lemma x_rfis l: range_flow_inv_spec (xf l) (x_flow_inv l).
 Proof with auto.
-  intro l.
-  apply (Build_Flow (xm l)); intros;
-   simpl bsm; unfold Xflow; destruct l.
-                apply CRadd_0_r.
-              rewrite CRmult_0_r.
-              apply CRadd_0_r.
-            rewrite CRopp_0.
-            apply CRadd_0_r.
-          rewrite CRmult_0_r.
-          rewrite CRopp_0.
-          apply CRadd_0_r.
-        apply (Radd_assoc CR_ring_theory).
-      rewrite (Rmul_comm CR_ring_theory).
-      rewrite (Rdistr_l CR_ring_theory).
-      rewrite (Radd_assoc CR_ring_theory).
-      repeat rewrite (Rmul_comm CR_ring_theory ('10)).
-      reflexivity.
-    rewrite (@Ropp_add _ _ _ _ _ _ _ _ t3 CR_ring_eq_ext CR_ring_theory ).
-    apply (Radd_assoc CR_ring_theory).
-  rewrite <- (Radd_assoc CR_ring_theory).
-  do 2 rewrite (Radd_comm CR_ring_theory x0).
-  apply add_both_sides.
-  do 3 rewrite CRopp_mult_l.
-  repeat rewrite (Rmul_comm CR_ring_theory (-'10)).
-  apply (Rdistr_l CR_ring_theory).
-Defined.
-
-Definition yf: Location -> Flow CRasCSetoid.
-Proof.
-  intro l.
-  apply (Build_Flow (ym l)); intros;
-   simpl bsm; unfold Yflow; destruct l.
-                rewrite CRmult_0_r.
-                apply CRadd_0_r.
-              rewrite CRopp_0.
-              apply CRadd_0_r.
-            rewrite CRmult_0_r.
-            rewrite CRopp_0.
-            apply CRadd_0_r.
-          apply CRadd_0_r.
-        rewrite CRmult_comm.
-        rewrite (Rdistr_l CR_ring_theory).
-        rewrite (Radd_assoc CR_ring_theory).
-        repeat rewrite (Rmul_comm CR_ring_theory ('10)).
-        reflexivity.
-      rewrite (@Ropp_add _ _ _ _ _ _ _ _ t3 CR_ring_eq_ext CR_ring_theory ).
-      rewrite (Radd_assoc CR_ring_theory).
-      reflexivity.
-    do 3 rewrite CRopp_mult_l.
-    repeat rewrite (Rmul_comm CR_ring_theory (-'10)).
-    rewrite (Rdistr_l CR_ring_theory).
-    rewrite (Radd_assoc CR_ring_theory).
-    reflexivity.
-  apply (Radd_assoc CR_ring_theory).
-Defined.
-
-(* .. and then show to be monotonic: *)
-
-Lemma xflow_mono l: mono (xf l).
-Proof with auto.
-  unfold mono.
-  destruct l; [left | left | right | right]; intros; intro; intros; simpl.
-        apply t1_rev...
-      apply t1_rev.
-      apply CRmult_lt_pos_r...
-      apply positive_CRpos.
-    apply t1_rev.
-    apply CRlt_opp_compat...
-  apply t1_rev.
-  apply CRlt_opp_compat.
-  apply CRmult_lt_pos_r...
-  apply positive_CRpos.
-Defined.
-
-Lemma yflow_mono l: mono (yf l).
-Proof with auto.
-  unfold mono.
-  destruct l; [left | right | right | left]; intros; intro; intros; simpl.
-        apply t1_rev.
-        apply CRmult_lt_pos_r...
-        apply positive_CRpos.
-      apply t1_rev.
-      apply CRlt_opp_compat...
-    apply t1_rev.
-    apply CRlt_opp_compat...
-    apply CRmult_lt_pos_r...
-    apply positive_CRpos.
-   apply t1_rev...
-Defined.
-
-(* .. and then show to have inverses: *)
-
-Definition x_flow_inv (l: Location) (x x': CR): Time :=
-  match l with
-  | Up => (x' - x)
-  | Right => '(1#10) * (x' - x)
-  | Down => x - x'
-  | Left => '(1#10) * (x - x')
-  end.
-
-Definition y_flow_inv (l: Location) (y y': CR): Time :=
-  match l with
-  | Up => '(1#10) * (y' - y)
-  | Right => y - y'
-  | Down => '(1#10) * (y - y')
-  | Left => y' - y
-  end.
-
-Lemma x_flow_inv_correct l x x': xf l x (x_flow_inv l x x') == x'.
-Proof.
-  simpl bsm.
-  unfold Xflow, x_flow_inv.
-  intros.
-  destruct l.
-        symmetry.
-        apply t11.
-      rewrite (Rmul_assoc CR_ring_theory).
-      rewrite CRmult_Qmult.
-      rewrite Qmult_inv.
-        rewrite (Rmul_1_l CR_ring_theory).
-        symmetry. apply t11.
-      reflexivity.
-    rewrite <- diff_opp.
-    symmetry. apply t11.
-  rewrite (Rmul_assoc CR_ring_theory).
-  rewrite CRmult_Qmult.
-  rewrite Qmult_inv.
-    rewrite (Rmul_1_l CR_ring_theory).
-    rewrite <- diff_opp.
-    symmetry. apply t11.
-  reflexivity.
+  destruct l; simpl xf;
+      unfold range_flow_inv_spec; intros;
+      apply c_square_flow_conditions.one_axis.flow_range_covers with p...
 Qed.
 
-Lemma y_flow_inv_correct l y y': yf l y (y_flow_inv l y y') == y'.
-Proof.
-  simpl bsm. unfold Yflow, y_flow_inv. intros. destruct l.
-        rewrite (Rmul_assoc CR_ring_theory).
-        rewrite CRmult_Qmult.
-        rewrite Qmult_inv.
-          rewrite (Rmul_1_l CR_ring_theory).
-          symmetry. apply t11.
-        reflexivity.
-      rewrite <- diff_opp.
-      symmetry. apply t11.
-    rewrite (Rmul_assoc CR_ring_theory).
-    rewrite CRmult_Qmult.
-    rewrite Qmult_inv.
-      rewrite (Rmul_1_l CR_ring_theory).
-      rewrite <- diff_opp.
-      symmetry. apply t11.
-    reflexivity.
-  symmetry. apply t11.
+Lemma y_rfis l: range_flow_inv_spec (yf l) (y_flow_inv l).
+Proof with auto.
+  destruct l; simpl yf;
+   unfold range_flow_inv_spec; intros;
+   apply c_square_flow_conditions.one_axis.flow_range_covers with p...
 Qed.
 
 (* Next, our reset function: *)
@@ -438,25 +292,15 @@ Proof with auto.
   intros. destruct s...
 Qed.
 
-Definition x_invr (l: Location): OpenRange -> OpenRange -> OpenRange :=
-  c_square_flow_conditions.one_axis.flow_range (x_flow_inv l)
-    (x_flow_inv_correct l) (xflow_mono l).
-
-Definition y_invr (l: Location): OpenRange -> OpenRange -> OpenRange :=
-  c_square_flow_conditions.one_axis.flow_range (y_flow_inv l)
-    (y_flow_inv_correct l) (yflow_mono l).
-
 Definition abstract_system (eps : Qpos) : c_abstract.System concrete_system.
 Proof with auto.
   intro eps. eapply c_abstraction.abstract_system.
               eexact (c_square_abstraction.SquareInterval_eq_dec Interval_eq_dec Interval_eq_dec).
             eexact (c_square_abstraction.squareIntervals_complete _ intervals_complete _ intervals_complete).
           eexact (c_square_abstraction.NoDup_squareIntervals NoDup_intervals NoDup_intervals).
-        eapply (@c_square_abstraction.do_cont_trans Location Interval Interval Location_eq_dec locations locations_complete interval_bounds interval_bounds xf yf x_invr y_invr).
-              repeat intro.
-              apply c_square_flow_conditions.one_axis.flow_range_covers with p...
-            repeat intro.
-            apply c_square_flow_conditions.one_axis.flow_range_covers with p...
+        eapply (@c_square_abstraction.do_cont_trans Location Interval Interval Location_eq_dec locations locations_complete interval_bounds interval_bounds xf yf x_flow_inv y_flow_inv).
+              exact x_rfis.
+            exact y_rfis.
           eexact invariant_squares_correct.
         exact eps.
       eapply c_square_abstraction.do_odisc_trans.
