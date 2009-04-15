@@ -76,33 +76,33 @@ Definition initial (s: State): Prop :=
 
 Definition xf (l: Location): Flow CRasCSetoid :=
   match l with
-  | Right => c_flow.pos_linear_flow.flow 1
-  | Left => c_flow.neg_linear_flow.flow 1
+  | Right => c_flow.positive_linear.f 1
+  | Left => c_flow.negative_linear.f 1
   | _ => c_flow.constant.flow
   end.
 
 Definition yf (l: Location): Flow CRasCSetoid :=
   match l with
-  | Up => c_flow.pos_linear_flow.flow 1
-  | Down => c_flow.neg_linear_flow.flow 1
+  | Up => c_flow.positive_linear.f 1
+  | Down => c_flow.negative_linear.f 1
   | _ => c_flow.constant.flow
   end.
 
 Definition x_flow_inv (l: Location) (a b: OpenRange): OpenRange :=
   match l with
   | Right => c_square_flow_conditions.one_axis.flow_range
-    _ (c_flow.pos_linear_flow.inv_correct 1) (c_flow.pos_linear_flow.mono 1) a b
+    _ (c_flow.positive_linear.inv_correct 1) (c_flow.positive_linear.mono 1) a b
   | Left => c_square_flow_conditions.one_axis.flow_range
-    _ (c_flow.neg_linear_flow.inv_correct 1) (c_flow.neg_linear_flow.mono 1) a b
+    _ (c_flow.negative_linear.inv_correct 1) (c_flow.negative_linear.mono 1) a b
   | _ =>  c_flow.constant.inv a b
   end.
 
 Definition y_flow_inv (l: Location) (a b: OpenRange): OpenRange :=
   match l with
   | Up => c_square_flow_conditions.one_axis.flow_range
-    _ (c_flow.pos_linear_flow.inv_correct 1) (c_flow.pos_linear_flow.mono 1) a b
+    _ (c_flow.positive_linear.inv_correct 1) (c_flow.positive_linear.mono 1) a b
   | Down => c_square_flow_conditions.one_axis.flow_range
-    _ (c_flow.neg_linear_flow.inv_correct 1) (c_flow.neg_linear_flow.mono 1) a b
+    _ (c_flow.negative_linear.inv_correct 1) (c_flow.negative_linear.mono 1) a b
   | _ =>  c_flow.constant.inv a b
   end.
 

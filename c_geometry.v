@@ -8,7 +8,52 @@ Open Local Scope CR_scope.
 
 Definition Range: Type := { r: CR * CR | fst r <= snd r }.
 
-Definition OCRle (r: option CR * option CR): Prop :=
+
+Section option_setoid.
+
+  Variable s: CSetoid.
+
+  Let cmp (a b: option s): Prop :=
+    match a, b with
+    | Some x, Some y => x [=] y
+    | None, None => True
+    | _, _ => False
+    end.
+
+  Let ap (a b: option s): CProp :=
+    match a, b with
+    | Some x, Some y => cs_ap x y
+    | None, None => False
+    | _, _ => True
+    end.
+
+  Let is: is_CSetoid (option s) cmp ap.
+  Proof with auto.
+    destruct s.
+    apply Build_is_CSetoid; intro.
+          destruct x.
+            simpl.
+            apply (ax_ap_irreflexive cs_crr cs_eq cs_ap cs_proof).
+          repeat intro...
+        destruct x; destruct y; simpl; auto.
+        apply (ax_ap_symmetric cs_crr cs_eq cs_ap cs_proof).
+      destruct x; destruct y; destruct z; simpl; auto.
+      apply (ax_ap_cotransitive cs_crr cs_eq cs_ap cs_proof)...
+    repeat intro.
+    split; intro.
+      destruct x; destruct y; simpl in *; auto.
+      apply (ax_ap_tight cs_crr cs_eq cs_ap cs_proof c c0)...
+    destruct x; destruct y; simpl in *; try intro; auto.
+    apply (ax_ap_tight cs_crr cs_eq cs_ap cs_proof c c0)...
+  Qed.
+
+  Definition option_setoid: CSetoid := Build_CSetoid (option s) cmp ap is.
+
+End option_setoid.
+
+Definition optCR: CSetoid := option_setoid CRasCSetoid.
+
+Definition OCRle (r: optCR * optCR): Prop :=
   match r with
   | (Some l, Some u) => l <= u
   | _ => True
@@ -21,7 +66,8 @@ Definition CRmin_of_upper_bounds (a b: option CR): option CR :=
   | Some a, Some b => Some (CRmin a b)
   end.
 
-Definition OpenRange: Type := sigT OCRle.
+
+Definition OpenRange: Type := sig OCRle.
 
 Coercion open_range (r: Range): OpenRange :=
   match r with
@@ -48,6 +94,30 @@ Definition in_orange (r: OpenRange) (x: CR): Prop :=
   | Some u => x <= u
   | None => True
   end.
+
+Lemma in_orange_wd (r r': OpenRange): fst (`r) [=] fst (`r') -> snd (`r) [=] snd (`r') ->
+  forall x x', x == x' -> in_orange r x -> in_orange r' x'.
+Proof with auto.
+  destruct r. destruct r'.
+  unfold in_orange, orange_left, orange_right.
+  simpl proj1_sig.
+  intros.
+  destruct H2.
+  destruct x.
+  destruct x0.
+  simpl @fst in *. simpl @snd in *.
+  split.
+    destruct c1...
+    rewrite <- H1.
+    destruct c; [| simpl in H; tauto].
+    simpl in H.
+    rewrite <- H...
+  destruct c2...
+  rewrite <- H1.
+  destruct c0; [| simpl in H0; tauto].
+  simpl in H0.
+  rewrite <- H0...
+Qed.
 
 Lemma in_unbounded_range x: in_orange unbounded_range x.
 Proof with auto. intros. split; simpl; auto. Qed.
@@ -160,12 +230,12 @@ Proof with auto.
   simpl @fst in *. simpl @snd in *.
   destruct a.
     destruct c; [| eauto].
-    exists (CRmax m m0).
+    exists (CRmax c c0).
     destruct e; destruct f...
   destruct c. eauto.
   destruct e.
     destruct f; [| eauto].
-    exists (CRmin m m0)...
+    exists (CRmin c c0)...
   destruct f. eauto.
   exists ('0)...
 Qed.
@@ -290,7 +360,7 @@ Proof with simpl; auto.
   intros.
   exists (option_map f (fst (`r)), option_map f (snd (`r))).
   destruct r. destruct x.
-  destruct o0... destruct o1...
+  destruct c... destruct c0...
 Defined.
 
 Definition in_map_range p r (f: CR -> CR) (i: increasing f): in_range r p ->
@@ -307,8 +377,37 @@ Proof.
   destruct r.
   unfold in_orange, orange_left, orange_right in *.
   destruct x. destruct H.
-  destruct o0; destruct o1; simpl; auto.
+  destruct c; destruct c0; simpl; auto.
 Qed.
+
+Section scaling.
+
+  Variables (s: CR) (H: '0 <= s).
+
+  Program Definition scale_orange (r: OpenRange): OpenRange :=
+    (option_map (CRmult s) (fst (`r)), option_map (CRmult s) (snd (`r))) .
+  Next Obligation. Proof with auto.
+    destruct r as [[a b] h].
+    destruct a... destruct b...
+    simpl in *. apply CRle_mult...
+  Qed.
+
+Hint Resolve CRle_mult.
+
+  Lemma in_scale_orange p r : in_orange r p ->
+    in_orange (scale_orange r) (s * p).
+  Proof with simpl; auto.
+    intros.
+    destruct r.
+    unfold in_orange, orange_left, orange_right in *.
+    unfold scale_orange.
+    destruct x.
+    simpl in *.
+    destruct H0.
+    destruct c; destruct c0...
+  Qed.
+
+End scaling.
 
 Section mapping.
 

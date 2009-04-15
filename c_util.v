@@ -1,6 +1,7 @@
 Require Import util.
 Require Export CRsign.
 Require Export CRln.
+Require Import CRexp.
 
 Set Implicit Arguments.
 Open Local Scope CR_scope.
@@ -361,7 +362,7 @@ Proof with auto.
     rewrite CRopp_0.
     symmetry. apply CRadd_0_r.
   assumption.
-Qed.
+Defined.
 
 Lemma CRpos_mult x y: CRpos x -> CRpos y -> CRpos (x * y).
 Proof.
@@ -397,21 +398,232 @@ Proof.
   assumption.
 Qed.
 
-Lemma t6 x y: CRneg (x - y) -> CRpos (y - x).
-Proof.
+Lemma CRpos_opp x: CRneg x -> CRpos (-x).
+Proof with auto.
   unfold CRpos, CRneg, CRle.
   intros.
   destruct H.
   exists x0.
   rewrite CRopp_Qopp.
-  rewrite (Radd_comm CR_ring_theory).
-  set (@Ropp_add _ _ _ _ _ _ _ _ t3 CR_ring_eq_ext CR_ring_theory).
-  rewrite m in c.
-  set (@Ropp_opp _ _ _ _ _ _ _ _ t3 CR_ring_eq_ext CR_ring_theory).
-  rewrite m0 in c.
-  rewrite (Radd_comm CR_ring_theory y).
+  rewrite (Radd_comm CR_ring_theory)...
+Qed.
+
+Lemma CRpos_opp' x: CRneg (-x) -> CRpos x.
+Proof with auto.
+   intros.
+   apply (@CRpos_wd (--x)).
+   apply (Ropp_opp t3 CR_ring_eq_ext CR_ring_theory).
+   apply CRpos_opp...
+Qed.
+
+Lemma t6 x y: CRneg (x - y) -> CRpos (y - x).
+Proof with auto.
+  intros.
+  apply CRpos_opp'.
+  apply CRneg_wd with (x - y)...
+  apply diff_opp.
+Qed.
+
+Import PowerSeries.
+Import Exponential.
+
+Lemma exp_sum a b: exp (a + b) == exp a * exp b.
+  intros.
+  rewrite <- (CRasIRasCR_id a).
+  rewrite <- (CRasIRasCR_id b).
+  rewrite <- IR_plus_as_CR.
+  do 3 rewrite <- exp_correct.
+  rewrite <- IR_mult_as_CR.
+  apply IRasCR_wd.
+  apply Exp_plus.
+Qed.
+
+Lemma blo x y: x < y -> x < IRasCR (CRasIR y).
+  intros.
+  apply CRlt_wd with x y.
+      reflexivity.
+    symmetry.
+    apply CRasIRasCR_id.
   assumption.
 Qed.
+
+Lemma CRln_expand a p: CRln a p == CRln (IRasCR (CRasIR a)) (blo p).
+Proof. intros. apply CRln_wd. symmetry. apply CRasIRasCR_id. Qed.
+
+Lemma CR_mult_as_IR (x y: CR): CRasIR (x * y) [=] CRasIR x [*] CRasIR y.
+Proof with auto.
+  intros.
+  transitivity (CRasIR (IRasCR (CRasIR x) * IRasCR (CRasIR y))).
+    apply CRasIR_wd.
+    repeat rewrite CRasIRasCR_id.
+    reflexivity.
+  transitivity (CRasIR (IRasCR (CRasIR x [*] CRasIR y))).
+    apply CRasIR_wd.
+    rewrite <- IR_mult_as_CR.
+    reflexivity.
+  apply IRasCRasIR_id.
+Qed. (* this is an extra-awful proof *)
+
+Lemma CRln_mult a b p q r: CRln (a * b) r == CRln a p + CRln b q.
+Proof with auto.
+  intros.
+  assert (Zero [<] CRasIR a).
+    apply CR_less_as_IR.
+    apply CRlt_wd with ('0) a...
+      symmetry. apply IR_Zero_as_CR.
+    symmetry. apply CRasIRasCR_id.
+  assert (Zero [<] CRasIR b).
+    apply CR_less_as_IR.
+    apply CRlt_wd with ('0) b...
+      symmetry. apply IR_Zero_as_CR.
+    symmetry. apply CRasIRasCR_id.
+  assert (Zero [<] CRasIR (a * b)).
+    apply CR_less_as_IR.
+    apply CRlt_wd with ('0) (a * b)...
+      symmetry. apply IR_Zero_as_CR.
+    symmetry. apply CRasIRasCR_id.
+  rewrite (CRln_expand p).
+  rewrite (CRln_expand q).
+  rewrite CRln_expand at 1.
+  rewrite <- (CRln_correct (CRasIR (a * b)) X1).
+  rewrite <- (CRln_correct (CRasIR a) X).
+  rewrite <- (CRln_correct (CRasIR b) X0).
+  rewrite <- IR_plus_as_CR.
+  apply IRasCR_wd.
+  assert (Zero [<] CRasIR a [*] CRasIR b).
+    apply CR_less_as_IR.
+    apply CRlt_wd with ('0) (a * b)...
+      symmetry. apply IR_Zero_as_CR.
+    transitivity (IRasCR (CRasIR (a * b))).
+      symmetry. apply CRasIRasCR_id.
+    apply IRasCR_wd.
+    apply CR_mult_as_IR.
+  rewrite <- (Log_mult (CRasIR a) (CRasIR b) X X0 X2).
+  apply Log_wd.
+  apply CR_mult_as_IR.
+Qed.
+
+Lemma exp_0: exp ('0) == '1.
+  rewrite <- IR_One_as_CR.
+  rewrite <- IR_Zero_as_CR.
+  rewrite <- exp_correct.
+  apply IRasCR_wd.
+  apply Exp_zero.
+Qed.
+
+Lemma exp_le_inv x y: exp x <= exp y -> x <= y.
+  intros x y.
+  rewrite <- (CRasIRasCR_id x).
+  rewrite <- (CRasIRasCR_id y).
+  do 2 rewrite <- exp_correct.
+  intros.
+  apply (IR_leEq_as_CR (CRasIR x) (CRasIR y)).
+  apply Exp_cancel_leEq.
+  apply <- IR_leEq_as_CR.
+  assumption.
+Qed.
+
+Lemma CRln_exp x p: CRln (exp x) p == x.
+Proof with auto.
+  intros.
+  assert ('0 < exp (IRasCR (CRasIR x))).
+    apply CRlt_wd with ('0) (exp x)...
+      reflexivity.
+    rewrite (CRasIRasCR_id x).
+    reflexivity.
+  assert (exp x == IRasCR (Exp (CRasIR x))).
+    rewrite exp_correct.
+    apply exp_wd.
+    symmetry.
+    apply CRasIRasCR_id.
+  assert ('0 < IRasCR (Exp (CRasIR x))).
+    apply CRlt_wd with ('0) (exp x)...
+    reflexivity.
+  rewrite (CRln_wd p H).
+    rewrite (CRln_wd H H1).
+      assert (Zero [<] Exp (CRasIR x)).
+        apply CR_less_as_IR.
+        apply CRlt_wd with ('0) (exp x)...
+        rewrite IR_Zero_as_CR. reflexivity.
+      rewrite <- (CRln_correct (Exp (CRasIR x)) X).
+      rewrite <- (CRasIRasCR_id x) at 2.
+      apply IRasCR_wd.
+      apply Log_Exp.
+    rewrite <- exp_correct.
+    reflexivity.
+  apply exp_wd.
+  symmetry.
+  apply CRasIRasCR_id.
+Qed.
+
+Lemma exp_ln x p: exp (CRln x p) == x.
+Proof with auto.
+  intros.
+  assert ('0 < IRasCR (CRasIR x)).
+    apply CRlt_wd with ('0) x...
+      reflexivity.
+    symmetry. apply CRasIRasCR_id.
+  assert (CRln x p == CRln _ H).
+    apply CRln_wd. symmetry. apply CRasIRasCR_id.
+  rewrite (exp_wd H0).
+  assert (Zero [<] CRasIR x).
+    apply CR_less_as_IR.
+    apply CRlt_wd with ('0) x...
+      rewrite IR_Zero_as_CR. reflexivity.
+    symmetry. apply CRasIRasCR_id.
+  rewrite <- (CRln_correct (CRasIR x) X).
+  rewrite <- exp_correct.
+  rewrite <- (CRasIRasCR_id x) at 2.
+  apply IRasCR_wd.
+  apply Exp_Log.
+Qed.
+
+Lemma CRpos_plus x y: CRpos x -> CRnonNeg y -> CRpos (x + y).
+Proof with auto.
+  intros.
+  unfold CRpos.
+  destruct H.
+  exists x0.
+  unfold CRle in *.
+  rewrite (Radd_comm CR_ring_theory x).
+  rewrite <- (Radd_assoc CR_ring_theory).
+  apply t10...
+Qed.
+
+Lemma CRlt_le_trans: forall x y, x < y -> forall z, y <= z -> x < z.
+Proof with auto.
+  intros.
+  unfold CRlt in *.
+  unfold CRle in *.
+  apply CRpos_wd with (y - x + (z - y)).
+    rewrite <- (Radd_assoc CR_ring_theory).
+    rewrite (Radd_assoc CR_ring_theory (-x)).
+    rewrite <- t11.
+    apply (Radd_comm CR_ring_theory).
+  apply CRpos_plus...
+Qed.
+
+Definition Qpos_div (a b: Qpos): Qpos :=
+  match a, b with
+  | QposMake aNum aDen, QposMake bNum bDen =>
+    QposMake (aNum * bDen) (aDen * bNum)
+  end.
+
+  (* todo: *)
+Axiom bah: forall x y, '0 < x * y -> '0 < x -> '0 < y.
+Axiom exp_pos: forall x, '0 < exp x.
+Axiom CRinv_pos: forall x, '0 < x -> forall p: x >< '0, '0 < CRinv x p.
+Axiom CRinv_mult: forall x (p: x >< '0), x * CRinv x p == '1.
+Axiom exp_inc: forall x y, x < y -> exp x < exp y.
+Axiom exp_inc': forall x y, exp x < exp y -> x < y.
+Axiom exp_opp_ln: forall x xp, x * exp (- CRln x xp) == '1.
+Axiom CRln_le: forall x y (p: '0 < x) (q: '0 < y), x <= y -> CRln x p <= CRln y q.
+Axiom CRlt_irrefl: forall a,  a < a -> False.
+Axiom CRle_mult: forall x, '0 <= x -> forall a b, a <= b -> x * a <= x * b.
+Axiom CRmult_le_compat_r: forall x y, x <= y -> forall z, CRnonNeg z -> z * x <= z * y.
+Axiom CRmult_le_inv: forall x, CRnonNeg x -> forall a b, x * a <= x * b -> a <= b.
+Axiom CRle_opp_inv: forall x y, -x <= -y -> y <= x.
+
 
 Definition weak_CRlt_decision (f: (CR -> CR -> Set) -> Set): Set :=
   option (sum (f CRlt) (f (fun x y => y < x))).

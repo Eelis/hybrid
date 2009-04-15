@@ -93,34 +93,34 @@ Qed.
 
 Definition xf (l: Location): Flow CRasCSetoid :=
   match l with
-  | Up => c_flow.pos_linear_flow.flow 1
-  | Right => c_flow.pos_linear_flow.flow 10
-  | Down => c_flow.neg_linear_flow.flow 1
-  | Left => c_flow.neg_linear_flow.flow 10
+  | Up => c_flow.positive_linear.f 1
+  | Right => c_flow.positive_linear.f 10
+  | Down => c_flow.negative_linear.f 1
+  | Left => c_flow.negative_linear.f 10
   end.
 
 Definition x_flow_inv (l: Location) (a b: OpenRange): OpenRange :=
   match l with
-  | Up => c_square_flow_conditions.one_axis.flow_range _ (c_flow.pos_linear_flow.inv_correct 1) (c_flow.pos_linear_flow.mono 1) a b
-  | Right => c_square_flow_conditions.one_axis.flow_range _ (c_flow.pos_linear_flow.inv_correct 10) (c_flow.pos_linear_flow.mono 10) a b
-  | Down => c_square_flow_conditions.one_axis.flow_range _ (c_flow.neg_linear_flow.inv_correct 1) (c_flow.neg_linear_flow.mono 1) a b
-  | Left => c_square_flow_conditions.one_axis.flow_range _ (c_flow.neg_linear_flow.inv_correct 10) (c_flow.neg_linear_flow.mono 10) a b
+  | Up => c_square_flow_conditions.one_axis.flow_range _ (c_flow.positive_linear.inv_correct 1) (c_flow.positive_linear.mono 1) a b
+  | Right => c_square_flow_conditions.one_axis.flow_range _ (c_flow.positive_linear.inv_correct 10) (c_flow.positive_linear.mono 10) a b
+  | Down => c_square_flow_conditions.one_axis.flow_range _ (c_flow.negative_linear.inv_correct 1) (c_flow.negative_linear.mono 1) a b
+  | Left => c_square_flow_conditions.one_axis.flow_range _ (c_flow.negative_linear.inv_correct 10) (c_flow.negative_linear.mono 10) a b
   end.
 
 Definition yf (l: Location): Flow CRasCSetoid :=
   match l with
-  | Up => c_flow.pos_linear_flow.flow 10
-  | Right => c_flow.neg_linear_flow.flow 1
-  | Down => c_flow.neg_linear_flow.flow 10
-  | Left => c_flow.pos_linear_flow.flow 1
+  | Up => c_flow.positive_linear.f 10
+  | Right => c_flow.negative_linear.f 1
+  | Down => c_flow.negative_linear.f 10
+  | Left => c_flow.positive_linear.f 1
   end.
 
 Definition y_flow_inv (l: Location) (a b: OpenRange): OpenRange :=
   match l with
-  | Up => c_square_flow_conditions.one_axis.flow_range _ (c_flow.pos_linear_flow.inv_correct 10) (c_flow.pos_linear_flow.mono 10) a b
-  | Right => c_square_flow_conditions.one_axis.flow_range _ (c_flow.neg_linear_flow.inv_correct 1) (c_flow.neg_linear_flow.mono 1) a b
-  | Down => c_square_flow_conditions.one_axis.flow_range _ (c_flow.neg_linear_flow.inv_correct 10) (c_flow.neg_linear_flow.mono 10) a b
-  | Left => c_square_flow_conditions.one_axis.flow_range _ (c_flow.pos_linear_flow.inv_correct 1) (c_flow.pos_linear_flow.mono 1) a b
+  | Up => c_square_flow_conditions.one_axis.flow_range _ (c_flow.positive_linear.inv_correct 10) (c_flow.positive_linear.mono 10) a b
+  | Right => c_square_flow_conditions.one_axis.flow_range _ (c_flow.negative_linear.inv_correct 1) (c_flow.negative_linear.mono 1) a b
+  | Down => c_square_flow_conditions.one_axis.flow_range _ (c_flow.negative_linear.inv_correct 10) (c_flow.negative_linear.mono 10) a b
+  | Left => c_square_flow_conditions.one_axis.flow_range _ (c_flow.positive_linear.inv_correct 1) (c_flow.positive_linear.mono 1) a b
   end.
 
 Lemma x_rfis l: range_flow_inv_spec (xf l) (x_flow_inv l).
