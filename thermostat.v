@@ -21,11 +21,14 @@ Definition r15_1: Range. exists ('(1#2), '1); CRle_constants. Defined.
 Definition r1_2: Range. exists ('1, '2); CRle_constants. Defined.
 Definition r2_3: Range. exists ('2, '3); CRle_constants. Defined.
 Definition r45_5: Range. exists ('(9#2), '5); CRle_constants. Defined.
+Definition r3_45: Range. exists ('3, '(9#2)); CRle_constants. Defined.
 Definition r5_6: Range. exists ('5, '6); CRle_constants. Defined.
 Definition r6_9: Range. exists ('6, '9); CRle_constants. Defined.
 Definition r9_10: Range. exists ('9, '10); CRle_constants. Defined.
 Definition r5_10: Range. exists ('5, '10); CRle_constants. Defined.
 Definition rC_10: Range. exists ('centi, '10); CRle_constants. Defined.
+Definition rC_3: Range. exists ('centi, '3); CRle_constants. Defined.
+Definition rC_45: Range. exists ('centi, '(9#2)); CRle_constants. Defined.
 
 Inductive Location: Set := Heat | Cool | Check.
 
@@ -204,7 +207,7 @@ Definition concrete_system: c_concrete.System :=
 (* intervals: *)
 
 Inductive ClockInterval: Set := CI_15 | CI15_1 | CI1_2 | CI2_3 | CI3_.
-Inductive TempInterval: Set := TI_45 | TI45_5 | TI5_6 | TI6_9 | TI9_10 | TI10_.
+Inductive TempInterval: Set := TIC_3 | TI3_45 | TI45_5 | TI5_6 | TI6_9 | TI9_10 | TI10_.
 
 Definition ClockInterval_eq_dec (i i': ClockInterval): decision (i=i'). dec_eq. Defined.
 Definition TempInterval_eq_dec (i i': TempInterval): decision (i=i'). dec_eq. Defined.
@@ -218,7 +221,8 @@ Definition ClockInterval_bounds (i: ClockInterval): OpenRange :=
 
 Definition TempInterval_bounds (i: TempInterval): OpenRange :=
   match i with
-  | TI_45 => below ('(9#2))
+  | TIC_3 => rC_3
+  | TI3_45 => r3_45
   | TI45_5 => r45_5
   | TI5_6 => r5_6
   | TI6_9 => r6_9
@@ -227,7 +231,7 @@ Definition TempInterval_bounds (i: TempInterval): OpenRange :=
   end.
 
 Definition clock_intervals: list ClockInterval := CI_15 :: CI15_1 :: CI1_2 :: CI2_3 :: CI3_ :: nil.
-Definition temp_intervals: list TempInterval := TI_45 :: TI45_5 :: TI5_6 :: TI6_9 :: TI9_10 :: TI10_ :: nil.
+Definition temp_intervals: list TempInterval := TIC_3 :: TI3_45 :: TI45_5 :: TI5_6 :: TI6_9 :: TI9_10 :: TI10_ :: nil.
 
 Lemma clock_intervals_complete: forall i, List.In i clock_intervals.
 Proof. destruct i; compute; tauto. Qed.
@@ -258,11 +262,12 @@ Proof with auto.
 Defined.
 
 Definition s_absTempInterval (r: CR):
-  { i: TempInterval | in_orange (TempInterval_bounds i) r }.
+  { i: TempInterval | 'centi <= r -> in_orange (TempInterval_bounds i) r }.
 Proof with auto.
   intro.
   unfold in_orange, orange_left, orange_right.
-  destruct (CR_le_le_dec r ('(9#2))). exists TI_45. simpl...
+  destruct (CR_le_le_dec r ('3)). exists TIC_3. simpl...
+  destruct (CR_le_le_dec r ('(9#2))). exists TI3_45. simpl...
   destruct (CR_le_le_dec r ('5)). exists TI45_5...
   destruct (CR_le_le_dec r ('6)). exists TI5_6...
   destruct (CR_le_le_dec r ('9)). exists TI6_9...
@@ -287,6 +292,7 @@ Proof with auto.
   unfold absClockInterval, absTempInterval.
   destruct (s_absClockInterval s). destruct (s_absTempInterval s0). simpl.
   split...
+  destruct H...
 Qed.
 
 Let Region := c_square_abstraction.SquareInterval ClockInterval TempInterval.

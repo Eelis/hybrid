@@ -7,9 +7,13 @@ range_coordinate :: Range -> Int
 range_coordinate r = case r of
   I01 -> 0; I12 -> 1; I23 -> 2; I34 -> 3; I45 -> 4
   OI_1 -> 0; OI12 -> 1; OI23 -> 2; OI34 -> 3; OI4_ -> 4
+  CI_15 -> 0; CI15_1 -> 1; CI1_2 -> 2; CI2_3 -> 4; CI3_ -> 6
+  TIC_3 -> 0; TI3_45 -> 3; TI45_5 -> 4; TI5_6 -> 5; TI6_9 -> 6; TI9_10 -> 9; TI10_ -> 10
 
 location_index :: Location -> Int
-location_index l = case l of Up -> 0; Right -> 1; Down -> 2; Left -> 3
+location_index l = case l of
+  Up -> 0; Right -> 1; Down -> 2; Left -> 3
+  Heat -> 0; Cool -> 1; Check -> 2
 
 kind_index :: Kind -> Int
 kind_index Cont = 0; kind_index Disc = 1
