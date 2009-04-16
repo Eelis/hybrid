@@ -125,7 +125,13 @@ Definition clock_flow_inv (l: Location) (a b: OpenRange): OpenRange :=
     _ (c_flow.positive_linear.inv_correct 1) (c_flow.positive_linear.mono 1) a b.
 
 Lemma half_pos: '0 < '(1#2).
-Proof. apply CRlt_Qlt. reflexivity. Qed.
+Proof.
+  exists ((1#2)%Qpos).
+  rewrite CRminus_Qminus.
+  apply (CRle_Qle (QposAsQ (1#2)) ((1#2)-0)%Q).
+  firstorder.
+Defined.
+(* simpler but too opaque: apply CRlt_Qlt. reflexivity.*)
 
 Definition temp_flow_inv (l: Location) (a b: OpenRange): OpenRange :=
   match l with
@@ -349,7 +355,4 @@ Definition vs := abstract_as_graph.vertices abs_sys.
 Definition g := abstract_as_graph.g abs_sys.
 Definition graph := flat_map (@digraph.edges g) vs.
 
-(* Eval vm_compute in vs. *)
-Eval vm_compute in (List.length graph).
-  (* causes an assertion failure in this version of Coq.. *)
-
+Time Eval vm_compute in (List.length graph).
