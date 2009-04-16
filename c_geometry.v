@@ -33,18 +33,18 @@ Section option_setoid.
     apply Build_is_CSetoid; intro.
           destruct x.
             simpl.
-            apply (ax_ap_irreflexive cs_crr cs_eq cs_ap cs_proof).
+            apply (ax_ap_irreflexive cs_crr _ _ cs_proof).
           repeat intro...
         destruct x; destruct y; simpl; auto.
-        apply (ax_ap_symmetric cs_crr cs_eq cs_ap cs_proof).
+        apply (ax_ap_symmetric cs_crr _ cs_ap cs_proof).
       destruct x; destruct y; destruct z; simpl; auto.
-      apply (ax_ap_cotransitive cs_crr cs_eq cs_ap cs_proof)...
+      apply (ax_ap_cotransitive cs_crr _ cs_ap cs_proof)...
     repeat intro.
     split; intro.
       destruct x; destruct y; simpl in *; auto.
-      apply (ax_ap_tight cs_crr cs_eq cs_ap cs_proof c c0)...
+      apply (ax_ap_tight cs_crr _ cs_ap cs_proof s0 s1)...
     destruct x; destruct y; simpl in *; try intro; auto.
-    apply (ax_ap_tight cs_crr cs_eq cs_ap cs_proof c c0)...
+    apply (ax_ap_tight cs_crr _ cs_ap cs_proof s0 s1)...
   Qed.
 
   Definition option_setoid: CSetoid := Build_CSetoid (option s) cmp ap is.
@@ -107,14 +107,14 @@ Proof with auto.
   destruct x0.
   simpl @fst in *. simpl @snd in *.
   split.
-    destruct c1...
+    destruct s1...
     rewrite <- H1.
-    destruct c; [| simpl in H; tauto].
+    destruct s; [| simpl in H; tauto].
     simpl in H.
     rewrite <- H...
-  destruct c2...
+  destruct s2...
   rewrite <- H1.
-  destruct c0; [| simpl in H0; tauto].
+  destruct s0; [| simpl in H0; tauto].
   simpl in H0.
   rewrite <- H0...
 Qed.
@@ -230,12 +230,12 @@ Proof with auto.
   simpl @fst in *. simpl @snd in *.
   destruct a.
     destruct c; [| eauto].
-    exists (CRmax c c0).
+    exists (CRmax s s0).
     destruct e; destruct f...
   destruct c. eauto.
   destruct e.
     destruct f; [| eauto].
-    exists (CRmin c c0)...
+    exists (CRmin s s0)...
   destruct f. eauto.
   exists ('0)...
 Qed.
@@ -360,7 +360,7 @@ Proof with simpl; auto.
   intros.
   exists (option_map f (fst (`r)), option_map f (snd (`r))).
   destruct r. destruct x.
-  destruct c... destruct c0...
+  destruct s... destruct s0...
 Defined.
 
 Definition in_map_range p r (f: CR -> CR) (i: increasing f): in_range r p ->
@@ -377,7 +377,7 @@ Proof.
   destruct r.
   unfold in_orange, orange_left, orange_right in *.
   destruct x. destruct H.
-  destruct c; destruct c0; simpl; auto.
+  destruct s; destruct s0; simpl; auto.
 Qed.
 
 Section scaling.
@@ -404,7 +404,7 @@ Hint Resolve CRle_mult.
     destruct x.
     simpl in *.
     destruct H0.
-    destruct c; destruct c0...
+    destruct s0; destruct s1...
   Qed.
 
 End scaling.

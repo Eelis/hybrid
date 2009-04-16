@@ -50,12 +50,12 @@ Lemma diff_zero_eq x y: x - y == '0 -> x == y.
 Proof.
   intros.
   set (add_both_sides H y).
-  rewrite (Radd_0_l CR_ring_theory) in m.
-  rewrite <- (Radd_assoc CR_ring_theory) in m.
-  rewrite (Radd_comm CR_ring_theory (-y)) in m.
-  rewrite (Ropp_def CR_ring_theory) in m.
-  rewrite (Radd_comm CR_ring_theory) in m.
-  rewrite (Radd_0_l CR_ring_theory) in m.
+  rewrite (Radd_0_l CR_ring_theory) in s.
+  rewrite <- (Radd_assoc CR_ring_theory) in s.
+  rewrite (Radd_comm CR_ring_theory (-y)) in s.
+  rewrite (Ropp_def CR_ring_theory) in s.
+  rewrite (Radd_comm CR_ring_theory) in s.
+  rewrite (Radd_0_l CR_ring_theory) in s.
   assumption.
 Qed.
 
@@ -108,7 +108,7 @@ Proof. apply (CRnonNeg_le_zero ('0)). apply CRle_refl. Qed.
   (* a much more direct proof should be possible, but we don't care,
    because this is in Prop, anyway. *)
 
-Lemma t3: Setoid_Theory CR (@ms_eq _).
+Lemma t3: Setoid_Theory CR (@st_eq _).
   unfold Setoid_Theory.
   apply (CSetoid_eq_Setoid (csg_crr CRasCField)).
 Qed.
@@ -116,9 +116,9 @@ Qed.
 Lemma diff_opp x y: x - y == -(y - x).
   set (@Ropp_add _ _ _ _ _ _ _ _ t3 CR_ring_eq_ext CR_ring_theory ).
   intros.
-  rewrite m.
+  rewrite s.
   set (@Ropp_opp _ _ _ _ _ _ _ _ t3 CR_ring_eq_ext CR_ring_theory).
-  rewrite m0.
+  rewrite s0.
   apply (Radd_comm CR_ring_theory).
 Qed.
 
@@ -144,7 +144,7 @@ Proof with auto.
   clear c. clear H0.
   symmetry.
   apply diff_zero_eq.
-  unfold ms_eq.
+  unfold st_eq.
   simpl.
   apply regFunEq_e.
   unfold CRnonNeg in H. unfold CRnonPos in H1.
@@ -160,7 +160,7 @@ Proof with auto.
   set (H e). set (H1 e). clearbody q q0. clear H H1.
   unfold AbsSmall.
   set (@approximate Qmetric.Q_as_MetricSpace (y - x)%CR e) in *.
-  clearbody m.
+  clearbody s.
   simpl.
   assert ((e <= (e + e)%Qpos)%Q).
     rewrite QposAsQ_Qpos_plus.
@@ -237,7 +237,6 @@ Admitted.
 
 Lemma Qbla4 (x: positive): (x # x == 1)%Q.
   intros.
-  unfold pos2Z.
   rewrite Qmake_Qdiv.
   apply Qmult_inv_r.
   apply Qpositive_ne_0.
@@ -302,11 +301,11 @@ Proof.
   unfold CRle.
   intros.
   set (@Ropp_add CR ('0) ('1) (ucFun2 CRplus)
-    CRmult (fun x y : CR => x - y) CRopp (@ms_eq CR) t3
+    CRmult (fun x y : CR => x - y) CRopp (@st_eq CR) t3
     CR_ring_eq_ext CR_ring_theory ).
   rewrite <- (Radd_assoc CR_ring_theory y).
   rewrite (Radd_comm CR_ring_theory x).
-  rewrite m.
+  rewrite s.
   rewrite (Radd_assoc CR_ring_theory z).
   rewrite (Ropp_def CR_ring_theory).
   rewrite (Radd_0_l CR_ring_theory).
@@ -318,7 +317,7 @@ Proof.
   unfold CRle.
   intros.
   set (@Ropp_opp _ _ _ _ _ _ _ _ t3 CR_ring_eq_ext CR_ring_theory).
-  rewrite m.
+  rewrite s.
   rewrite (Radd_comm CR_ring_theory).
   assumption.
 Qed.
@@ -393,7 +392,7 @@ Lemma t12 x y: -x <= y -> -y <= x.
 Proof.
   intros.
   set (@Ropp_opp _ _ _ _ _ _ _ _ t3 CR_ring_eq_ext CR_ring_theory x).
-  rewrite <- m.
+  rewrite <- s.
   apply t8.
   assumption.
 Qed.
@@ -650,7 +649,7 @@ Axiom CR_lt_eq_dec: forall (x y: CR), sum (x==y) (sum (x<y) (y<x)).
 Lemma CR_le_le_dec x y: {x<=y}+{y<=x}.
   intros.
   destruct (CR_lt_eq_dec x y).
-    left. rewrite m. apply CRle_refl.
+    left. rewrite s. apply CRle_refl.
   destruct s; [left | right]; apply CRlt_le; assumption.
 Defined.
 
@@ -678,7 +677,7 @@ Section function_properties.
       elimtype False.
       destruct (def_leEq _ _ _ _ _ CRisCOrdField (f x') (f x)).
       apply H0...
-      rewrite (f_wd m).
+      rewrite (f_wd s).
       apply CRle_refl.
     destruct s...
     destruct (ax_less_strorder _ _  _ _ _ CRisCOrdField).
@@ -693,7 +692,7 @@ Section function_properties.
     unfold strongly_increasing.
     intros.
     destruct (CR_lt_eq_dec x x').
-      rewrite m.
+      rewrite s.
       apply CRle_refl.
     destruct s.
       apply CRlt_le...
@@ -712,7 +711,7 @@ Section function_properties.
       elimtype False.
       destruct (def_leEq _ _ _ _ _ CRisCOrdField (f x') (f x)).
       apply H0...
-      rewrite (f_wd m).
+      rewrite (f_wd s).
       apply CRle_refl.
     destruct s...
     destruct (ax_less_strorder _ _  _ _ _ CRisCOrdField).
@@ -727,7 +726,7 @@ Section function_properties.
     unfold strongly_increasing.
     intros.
     destruct (CR_lt_eq_dec x x').
-      rewrite m.
+      rewrite s.
       apply CRle_refl.
     destruct s.
       elimtype False.
@@ -742,7 +741,7 @@ Section function_properties.
   Proof with auto.
     intros.
     destruct (CR_lt_eq_dec x x').
-      rewrite (f_wd m).
+      rewrite (f_wd s).
       apply CRle_refl.
     destruct s.
       apply CRlt_le...
@@ -756,7 +755,7 @@ Section function_properties.
   Proof with auto.
     intros.
     destruct (CR_lt_eq_dec x x').
-      rewrite (f_wd m).
+      rewrite (f_wd s).
       apply CRle_refl.
     destruct s.
       apply CRlt_le...

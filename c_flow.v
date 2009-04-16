@@ -387,10 +387,8 @@ of course, we can't determine that. we can determine:
     (* what is the minimum duration that goes from (a, ...) to (..., b) ? *)
   Proof with auto.
     intros a b.
-    destruct a.
-      rename m into a.
-      destruct b.
-        rename m into b.
+    destruct a as [a |].
+      destruct b as [b |].
         destruct (dus eps a).
           destruct (dus eps b).
             apply Some.
@@ -446,10 +444,8 @@ of course, we can't determine that. we can determine:
     (* what is the maximum duration that goes from (..., a) to (b, ...) ? *)
   Proof with auto.
     intros a b.
-    destruct a.
-      rename m into a.
-      destruct b.
-        rename m into b.
+    destruct a as [a |].
+      destruct b as [b |].
         destruct (dus eps a).
           destruct (dus eps b).
             apply Some.

@@ -95,7 +95,6 @@ Section transitions_and_reachability.
       intros.
       assert (t [=] '0).
         destruct (CRle_def t ('0))...
-        apply H3...
       rewrite curry_inv.
       rewrite H2.
       rewrite flow_zero...
@@ -117,9 +116,9 @@ Section transitions_and_reachability.
       intros.
       destruct (CR_lt_eq_dec t x).
         apply H1...
-        rewrite m.
+        rewrite s2.
         apply CRle_refl.
-      destruct s.
+      destruct s2.
         apply H1...
         apply CRlt_le...
       rewrite curry_inv.

@@ -36,17 +36,17 @@ Definition x: State -> CR := fst ∘ point.
 Definition y: State -> CR := snd ∘ point.
 
 Definition r05: Range. exists ('0, '5); CRle_constants. Defined.
-Definition r_1: OpenRange. exists (None, Some ('1)). simpl. auto. Defined.
+Definition r_1: OpenRange. exists (@None CR, Some ('1)). simpl. auto. Defined.
 Definition r01: Range. exists ('0, '1); CRle_constants. Defined.
 Definition r12: Range. exists ('1, '2); CRle_constants. Defined.
 Definition r23: Range. exists ('2, '3); CRle_constants. Defined.
 Definition r34: Range. exists ('3, '4); CRle_constants. Defined.
 Definition r45: Range. exists ('4, '5); CRle_constants. Defined.
-Definition r4_: OpenRange. exists (Some ('4), None). simpl. trivial. Defined.
+Definition r4_: OpenRange. exists (Some ('4), @None CR). simpl. trivial. Defined.
 Definition r009: Range. exists ('0, '(9#10)); CRle_constants. Defined.
-Definition r_09: OpenRange. exists (None, Some ('(9#10))). simpl. trivial. Defined.
+Definition r_09: OpenRange. exists (@None CR, Some ('(9#10))). simpl. trivial. Defined.
 Definition r415: Range. exists ('(41#10), '5); CRle_constants. Defined.
-Definition r41_: OpenRange. exists (Some ('(41#10)), None). simpl. trivial. Defined.
+Definition r41_: OpenRange. exists (Some ('(41#10)), @None CR). simpl. trivial. Defined.
 
 (* Our invariant: *)
 
@@ -237,7 +237,7 @@ Proof with auto.
   unfold c_square_abstraction.absInterval.
   simpl.
   unfold absInterval.
-  destruct (s_absInterval c). destruct (s_absInterval c0). simpl.
+  destruct (s_absInterval s). destruct (s_absInterval s0). simpl.
   split...
 Qed.
 

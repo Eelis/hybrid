@@ -71,7 +71,7 @@ Proof with auto.
   intros l l' le. subst.
   intros [x y] [x' y'] pe.
   inversion_clear pe.
-  simpl loc. unfold temp, clock. unfold compose. simpl @fst. simpl @snd.
+  simpl loc. unfold temp, clock. unfold Basics.compose. simpl @fst. simpl @snd.
   destruct l'; try rewrite H; try rewrite H0; split...
 Qed.
 
@@ -279,7 +279,7 @@ Proof with auto.
   unfold c_square_abstraction.absInterval.
   simpl.
   unfold absClockInterval, absTempInterval.
-  destruct (s_absClockInterval c). destruct (s_absTempInterval c0). simpl.
+  destruct (s_absClockInterval s). destruct (s_absTempInterval s0). simpl.
   split...
 Qed.
 

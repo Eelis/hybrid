@@ -104,10 +104,10 @@ Definition opt_prop A (o: option A) (f: A -> Prop): Prop :=
   end.
 
 Lemma unsumbool_true (P Q: Prop) (sb: {P}+{Q}): unsumbool sb = true -> P.
-Proof. destruct sb. auto. discriminate. Qed.
+Proof. destruct sb. auto. intro. discriminate. Qed.
 Lemma decision_true (P: Prop) (sb: decision P): unsumbool sb = true -> P.
-Proof. destruct sb. auto. discriminate. Qed.
+Proof. destruct sb. auto. intro. discriminate. Qed.
 Lemma decision_false (P: Prop) (sb: decision P): unsumbool sb = false -> ~P.
-Proof. destruct sb. discriminate. auto. Qed.
+Proof. destruct sb. intro. discriminate. auto. Qed.
 Lemma semidec_true (P: Prop) (o: option P): opt_to_bool o = true -> P.
-Proof. destruct o. auto. discriminate. Qed.
+Proof. destruct o. auto. intro. discriminate. Qed.
