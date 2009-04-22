@@ -5,6 +5,7 @@ Require Import CRreal.
 Require Export c_flow.
 Set Implicit Arguments.
 Open Local Scope CR_scope.
+Require EquivDec.
 
 (* We require CR because we use it for Time. 
  Todo: Take an arbitrary (C)Ring/(C)Field for Time, so that
@@ -14,9 +15,8 @@ Record System: Type :=
   { Point: CSetoid
 
   ; Location: Set
-  ; Location_eq_dec: forall l l': Location, decision (l = l')
-  ; locations: list Location
-  ; locations_exhaustive: forall l, In l locations
+  ; Location_eq_dec: EquivDec.EqDec Location eq
+  ; locations: ExhaustiveList Location
   ; NoDup_locations: NoDup locations
 
   ; initial: (Location * Point) -> Prop
@@ -34,6 +34,7 @@ Record System: Type :=
     some (l', x'), because you can have different transitions. we only allow one! *)
   }.
 
+Hint Resolve Location_eq_dec locations: typeclass_instances.
 Implicit Arguments initial [s].
 Implicit Arguments invariant [s].
 

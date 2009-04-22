@@ -3,21 +3,21 @@ Require Import util.
 Require Import list_util.
 Require reachability.
 Require Import Program.
+Require EquivDec.
 
 Set Implicit Arguments.
 
 Record DiGraph: Type := Build
   { Vertex: Set
-  ; Vertex_eq_dec: forall (v v': Vertex), decision (v = v')
-  ; vertices: list Vertex
-  ; vertices_exhaustive: forall v, In v vertices
+  ; Vertex_eq_dec: EquivDec.EqDec Vertex eq
+  ; vertices: ExhaustiveList Vertex
   ; edges: Vertex -> list Vertex
   ; edges_NoDup: forall v, NoDup (edges v)
   }.
 
+Hint Resolve Vertex_eq_dec vertices: typeclass_instances.
 Hint Resolve edges_NoDup.
 Hint Immediate edges_NoDup.
-Hint Immediate vertices_exhaustive.
 
 Implicit Arguments edges [d].
 
@@ -101,7 +101,7 @@ Section reachability.
           destruct (H1 _ H10 _ H8 H7)...
           firstorder.
         destruct (ved h v); [idtac | discriminate].
-        clear H10. subst v.
+        clear H10. unfold Equivalence.equiv in e. subst v.
         destruct (In_dec ved w t)...
         apply in_or_app...
       (* things not in the new unvisited are still reachable *)
@@ -243,7 +243,7 @@ Section reachability.
         destruct (H _ H5 _ H3 H2)...
         firstorder.
       destruct (ved h v); [idtac | discriminate].
-      clear H5. subst v.
+      clear H5. unfold Equivalence.equiv in e. subst v.
       destruct (In_dec ved w t)...
       apply in_or_app...
     split...
@@ -318,9 +318,7 @@ Section reachability.
     { l: list (Vertex g) | forall w, ~ In w l <-> reachable w }
     := @result_rel_exists (vertices g) start.
 
-  Next Obligation. Proof with auto.
-    split... repeat intro. apply vertices_exhaustive.
-  Qed.
+  Next Obligation. Proof with auto. split... repeat intro... Qed.
 
   Next Obligation. Proof with auto.
     destruct (result_rel_exists

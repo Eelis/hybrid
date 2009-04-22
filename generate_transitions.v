@@ -12,13 +12,13 @@ Require c_abstract.
 Let abs_state: Set := @c_abstract.State conc_sys (c_abstract.Region abs_sys).
 
 Definition initstate: abs_state
-  := (thermostat.Heat, (thermostat.CI_15, thermostat.TI6_9)).
+  := (thermostat.Heat, (thermostat.CI0_12, thermostat.TI6_9)).
 
 Definition all_transitions: list (abs_state * abs_state) :=
   flat_map (fun s: abs_state =>
     map (pair s) (map (pair (fst s)) (c_abstract.cont_trans conc_sys s) ++ 
     c_abstract.disc_trans conc_sys s))
-   (@c_abstract.states conc_sys _ (c_abstract.regions abs_sys)).
+   (@c_abstract.states conc_sys _ _ (c_abstract.regions abs_sys)).
 
 Let graph := abstract_as_graph.g abs_sys.
 

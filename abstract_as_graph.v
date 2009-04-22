@@ -15,8 +15,12 @@ Section using_duplication.
 
   Inductive TransKind := Cont | Disc.
 
-  Lemma TransKind_eq_dec (k k': TransKind) : decision (k = k').
-  Proof. dec_eq. Defined.
+  Instance transKinds: ExhaustiveList TransKind :=
+    { exhaustive_list := Cont :: Disc :: [] }.
+  Proof. destruct x; firstorder. Defined.
+
+  Instance TransKind_eq_dec: EquivDec.EqDec TransKind eq.
+  Proof. repeat intro. cut (decision (x = y)). auto. dec_eq. Defined.
 
   Definition flip (k: TransKind) :=
     match k with Cont => Disc | Disc => Cont end.
@@ -25,24 +29,12 @@ Section using_duplication.
 
   Let V := (TransKind * a_State)%type.
 
-  Definition all_abstract_states := c_abstract.states chs (c_abstract.regions ahs).
+  Definition all_abstract_states := @c_abstract.states chs _ _ (c_abstract.regions ahs).
 
   Definition states_to_verts (s : list a_State) := map (pair Cont) s ++ map (pair Disc) s.
 
-  Definition vertices : list V := states_to_verts all_abstract_states.
-
-  Definition vertices_exhaustive: forall v, In v vertices.
-  Proof.
-    destruct v.
-    apply in_or_app.
-    destruct t; [left | right]; apply in_map;
-      apply c_abstract.states_exhaustive;
-      apply c_abstract.regions_exhaustive.
-  Qed.
-
-  Definition eq_dec :=
-    pair_eq_dec TransKind_eq_dec (@c_abstract.State_eq_dec chs
-     (c_abstract.Region ahs) (c_abstract.Region_eq_dec ahs)).
+  Instance vertices: ExhaustiveList V := { exhaustive_list := states_to_verts all_abstract_states }.
+  Proof. intro v. destruct v. apply in_or_app. destruct t; auto. Defined.
 
   Definition tr (k : TransKind) (s: a_State) : list a_State :=
     match k with
@@ -72,7 +64,7 @@ Section using_duplication.
   Qed.
 
   Definition g : digraph.DiGraph :=
-    digraph.Build eq_dec vertices vertices_exhaustive next NoDup_next.
+    @digraph.Build (TransKind * c_abstract.State chs (c_abstract.Region ahs)) _ _ _ NoDup_next.
 
   Lemma respect (s : a_State) : 
     c_abstract.reachable _ s ->
@@ -126,7 +118,7 @@ Section using_duplication.
   Lemma init_verts_eq  :
     init_verts = 
     filter (fun s => c_abstract.initial_dec chs (snd s)) 
-    (states_to_verts all_abstract_states).
+    vertices.
   Proof.
     unfold init_verts, states_to_verts.
     do 2 rewrite init_verts_eq_aux. 
@@ -154,13 +146,14 @@ Section using_duplication.
     let (vr, _) := @digraph.reachables g init_verts NoDup_init_verts in
       vr.
 
+Hint Resolve in_filter.
+
   Lemma over_abstract_reachable : 
     state_reachable reachable_verts >=> c_abstract.reachable ahs.
   Proof with auto.
     intros s sur. apply respect_inv. intros v init_t.
     unfold state_reachable, reachable_verts in sur.
-    assert (In v init_verts).
-    rewrite init_verts_eq. apply in_filter... apply vertices_exhaustive.
+    assert (In v init_verts). rewrite init_verts_eq...
     destruct (@digraph.reachables g init_verts). 
     destruct (In_dec (digraph.Vertex_eq_dec g) (Cont, s) x);
     destruct (In_dec (digraph.Vertex_eq_dec g) (Disc, s) x); 

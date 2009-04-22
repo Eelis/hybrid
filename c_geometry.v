@@ -8,6 +8,7 @@ Open Local Scope CR_scope.
 
 Definition Range: Type := { r: CR * CR | fst r <= snd r }.
 
+Definition unit_range (c: CR): Range := existT _ (c, c) (CRle_refl c).
 
 Section option_setoid.
 

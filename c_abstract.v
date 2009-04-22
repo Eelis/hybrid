@@ -3,6 +3,7 @@ Require Import List.
 Require Import dec_overestimator.
 Require Import list_util.
 Set Implicit Arguments.
+Require EquivDec.
 Require c_concrete.
 
 Section contents.
@@ -11,35 +12,21 @@ Section contents.
 
   Section pre.
 
-    Variables
-      (Region : Set)
-      (regions : list Region)
-      (Region_eq_dec : forall r r': Region, decision (r=r'))
-      (regions_exhaustive : forall r, In r regions)
-      (NoDup_regions : NoDup regions).
-    
+    Context {Region: Set}.
+
     Definition State := (c_concrete.Location chs * Region)%type.
 
-    Definition State_eq_dec (s s' : State) : decision (s = s').
-    Proof.
-      dec_eq. apply Region_eq_dec. apply c_concrete.Location_eq_dec.
-    Defined.
+    Context
+      {Region_eq_dec: EquivDec.EqDec Region eq}
+      {regions: ExhaustiveList Region}.
 
-    Definition states : list State :=
-      flat_map (fun l => map (pair l) regions) (c_concrete.locations chs).
+    Hypothesis NoDup_regions: NoDup regions.
 
-    Lemma states_exhaustive s : List.In s states.
-    Proof with auto.
-      destruct s.
-      unfold states.
-      destruct (in_flat_map (fun l => map (pair l) regions)
-        (c_concrete.locations chs) (l, r)).
-      apply H0. exists l. split. apply c_concrete.locations_exhaustive.
-      apply in_map. apply regions_exhaustive.
-    Qed.
+    Definition states := @ExhaustivePairList (c_concrete.Location chs) Region _ _.
 
     Lemma NoDup_states : NoDup states.
     Proof with auto.
+      unfold exhaustive_list. simpl.
       apply NoDup_flat_map; intros.
           destruct (fst (in_map_iff (pair a) regions x) H1).
           destruct (fst (in_map_iff (pair b) regions x) H2).
@@ -52,11 +39,12 @@ Section contents.
 
   End pre.
 
+  Implicit Arguments State [].
+
   Record System: Type :=
     { Region: Set
-    ; Region_eq_dec: forall r r': Region, decision (r=r')
-    ; regions: list Region
-    ; regions_exhaustive: forall r, In r regions
+    ; Region_eq_dec: EquivDec.EqDec Region eq
+    ; regions: ExhaustiveList Region
     ; NoDup_regions: NoDup regions
     ; select_region: c_concrete.Point chs -> Region
     ; initial_dec: State Region -> bool
@@ -126,6 +114,8 @@ Section contents.
 
 End contents.
 
+Hint Resolve Region_eq_dec regions: typeclass_instances.
+Implicit Arguments State [].
 Implicit Arguments initial_dec [s].
 Implicit Arguments cont_trans [s].
 Implicit Arguments disc_trans [s].

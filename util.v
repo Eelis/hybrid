@@ -1,6 +1,7 @@
 Require Import Coq.Reals.Reals.
 Require Import Fourier.
 Require Import List.
+Require Import Bool.
 Require Export Program.
 Set Implicit Arguments.
 Open Local Scope R_scope.
@@ -26,7 +27,7 @@ Ltac dec_eq := unfold decision; decide equality.
 Implicit Arguments fst [[A] [B]].
 Implicit Arguments snd [[A] [B]].
 
-Notation " g \u2218 f " := (compose g f) (at level 40, left associativity).
+Notation "g ∘ f" := (compose g f) (at level 40, left associativity).
 
 Definition conj_pair {A B: Prop} (P: A /\ B): A * B :=
   match P with conj a b => (a, b) end.
@@ -36,14 +37,14 @@ Coercion conj_pair: and >-> prod.
 Definition opt_neg_conj (A B: Prop)
   (oa: option (~ A)) (ob: option (~ B)): option (~ (A /\ B)) :=
     match oa, ob with
-    | Some na, _ => Some (na \u2218 fst \u2218 conj_pair)
-    | _, Some nb => Some (nb \u2218 snd \u2218 conj_pair)
+    | Some na, _ => Some (na ∘ fst ∘ conj_pair)
+    | _, Some nb => Some (nb ∘ snd ∘ conj_pair)
     | None, None => None
     end.
 
 Definition opt_neg_impl (P Q: Prop) (i: P -> Q):
   option (~ Q) -> option (~ P) :=
-    option_map (fun x => x \u2218 i).
+    option_map (fun x => x ∘ i).
 
 Definition pair_eq_dec (X Y: Type)
   (X_eq_dec: forall x x': X, {x=x'}+{x<>x'})
@@ -59,7 +60,7 @@ Hint Unfold decision.
 
 Definition and_dec (P Q: Prop) (Pdec: decision P) (Qdec: decision Q):
   decision (P/\Q).
-Proof. unfold decision. tauto. Qed.
+Proof. unfold decision. tauto. Defined.
 
 Hint Resolve and_dec.
 
@@ -88,7 +89,7 @@ Proof with auto.
   intros. unfold Rmin. destruct (Rle_dec x y)...
 Qed.
 
-Definition opt_to_bool A (o: option A): bool :=
+Coercion opt_to_bool A (o: option A): bool :=
   match o with Some _ => true | None => false end.
 
 Definition opt {A R}: (A -> R) -> R -> option A -> R :=
@@ -111,3 +112,30 @@ Lemma decision_false (P: Prop) (sb: decision P): unsumbool sb = false -> ~P.
 Proof. destruct sb. intro. discriminate. auto. Qed.
 Lemma semidec_true (P: Prop) (o: option P): opt_to_bool o = true -> P.
 Proof. destruct o. auto. intro. discriminate. Qed.
+
+Lemma show_unsumbool A (b: decision A) (c: bool): (if c then A else ~A) -> unsumbool b = c.
+Proof. destruct b; destruct c; intuition. Qed.
+
+Class ExhaustiveList (T: Type): Type :=
+  { exhaustive_list: list T
+  ; list_exhaustive: forall x, In x exhaustive_list }.
+
+Hint Resolve @list_exhaustive.
+Coercion exhaustive_list: ExhaustiveList >-> list.
+
+Hint Resolve in_map.
+
+Instance ExhaustivePairList {A B} {EA: ExhaustiveList A} {EB: ExhaustiveList B}:
+   ExhaustiveList (A*B)
+    := { exhaustive_list := flat_map (fun i => map (pair i) EB) EA }.
+Proof with auto.
+  intros [a b].
+  destruct (in_flat_map (fun i => map (pair i) EB) EA (a, b)).
+  eauto.
+Defined.
+
+Lemma negb_inv b c: b = negb c -> negb b = c.
+Proof. intros. subst. apply negb_involutive. Qed.
+
+Definition prod_map A B C D (f: A -> B) (g: C -> D) (p: A*C): B*D :=
+  (f (fst p), g (snd p)).
