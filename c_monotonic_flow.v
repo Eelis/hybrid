@@ -234,7 +234,7 @@ Section single_inverses.
   Proof.
     intros.
     set (inv_very_correct (inv y x) y).
-    clearbody m. rewrite <- m.
+    clearbody s. rewrite <- s.
     rewrite inv_correct.
     reflexivity.
   Qed.
