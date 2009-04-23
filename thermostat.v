@@ -8,8 +8,8 @@ Require abstract.
 Require abstraction.
 Require square_abstraction.
 Require abstract_as_graph.
-Require Import CRln.
-Require Import CRexp.
+Require CRln.
+Require CRexp.
 Require EquivDec.
 Set Implicit Arguments.
 
@@ -156,6 +156,8 @@ Definition temp_flow (l: Location): Flow CRasCSetoid :=
   | Check => flow.scale.flow ('(1#100)) flow.decreasing_exponential.f
   end.
 
+Definition flow l := product_flow (clock_flow l) (temp_flow l).
+
 (* Flow inverses *)
 
 Definition clock_flow_inv (l: Location) (a b: OpenRange): OpenRange :=
@@ -218,17 +220,16 @@ Definition guard (s: State) (l: Location): Prop :=
   | Some q => in_osquare (snd s) q
   end.
 
+(* Concrete system *)
+
 Definition concrete_system: concrete.System :=
-  @concrete.Build_System PointCSetoid Location Location_eq_dec
-  locations NoDup_locations initial invariant
-  initial_invariant invariant_wd
-  (fun l => product_flow (clock_flow l) (temp_flow l)) guard reset.
+  concrete.Build_System _ _ NoDup_locations initial invariant
+  initial_invariant invariant_wd flow guard reset.
 
 (* intervals *)
 
 Inductive ClockInterval: Set := CI0_12 | CI12_1 | CI1_2 | CI2_3 | CI3_.
-Inductive TempInterval: Set
-  := TIC_45 | TI45_5 | TI5_6 | TI6_9 | TI9_10 | TI10_.
+Inductive TempInterval: Set := TIC_45 | TI45_5 | TI5_6 | TI6_9 | TI9_10 | TI10_.
 
 Definition ClockInterval_bounds (i: ClockInterval): OpenRange :=
   match i with
@@ -255,39 +256,52 @@ Instance temp_intervals: ExhaustiveList TempInterval
   := { exhaustive_list := TIC_45 :: TI45_5 :: TI5_6 :: TI6_9 :: TI9_10 :: TI10_ :: nil }.
 Proof. intro i. destruct i; compute; tauto. Defined.
 
-Definition s_absClockInterval (r: CR):
-  { i: ClockInterval | '0 <= r -> in_orange (ClockInterval_bounds i) r }.
-Proof with auto.
-  intro.
-  unfold in_orange, orange_left, orange_right.
-  destruct (CR_le_le_dec r ('(1#2))). exists CI0_12. simpl...
-  destruct (CR_le_le_dec r ('1)). exists CI12_1...
-  destruct (CR_le_le_dec r ('2)). exists CI1_2...
-  destruct (CR_le_le_dec r ('3)). exists CI2_3...
-  exists CI3_. simpl...
-Defined.
+Program Definition s_absClockInterval (r: CR):
+    { i | '0 <= r -> in_orange (ClockInterval_bounds i) r } :=
+  if CR_le_le_dec r ('(1#2)) then CI0_12 else
+  if CR_le_le_dec r ('1) then CI12_1 else
+  if CR_le_le_dec r ('2) then CI1_2 else
+  if CR_le_le_dec r ('3) then CI2_3 else CI3_.
 
-Definition s_absTempInterval (r: CR):
-  { i: TempInterval | 'deci <= r -> in_orange (TempInterval_bounds i) r }.
-Proof with auto.
-  intro.
-  unfold in_orange, orange_left, orange_right.
-  destruct (CR_le_le_dec r ('(9#2))). exists TIC_45. simpl...
-  destruct (CR_le_le_dec r ('5)). exists TI45_5...
-  destruct (CR_le_le_dec r ('6)). exists TI5_6...
-  destruct (CR_le_le_dec r ('9)). exists TI6_9...
-  destruct (CR_le_le_dec r ('10)). exists TI9_10...
-  exists TI10_. simpl...
-Defined.
+Solve Obligations using
+  unfold in_orange, orange_left, orange_right; simpl; auto.
+
+Program Definition s_absTempInterval (r: CR):
+    { i | 'deci <= r -> in_orange (TempInterval_bounds i) r } :=
+  if CR_le_le_dec r ('(9#2)) then TIC_45 else
+  if CR_le_le_dec r ('5) then TI45_5 else
+  if CR_le_le_dec r ('6) then TI5_6 else
+  if CR_le_le_dec r ('9) then TI6_9 else
+  if CR_le_le_dec r ('10) then TI9_10 else TI10_.
+
+Solve Obligations using
+  unfold in_orange, orange_left, orange_right; simpl; auto.
 
 Definition absClockInterval (r: CR): ClockInterval := proj1_sig (s_absClockInterval r).
 Definition absTempInterval (r: CR): TempInterval := proj1_sig (s_absTempInterval r).
 
+Ltac absInterval_wd_helper r r' H v :=
+  set (e := @CR_le_le_dec_wd r r' v v H (genericSetoid_Reflexive _ _)); clearbody e;
+  destruct (CR_le_le_dec r v) in *; destruct (CR_le_le_dec r' v) in *; auto; try discriminate; clear e.
+
 Lemma absClockInterval_wd: forall (r r': CR), st_eq r r' -> absClockInterval r = absClockInterval r'.
-Admitted.
+Proof.
+  unfold absClockInterval, s_absClockInterval. intros.
+  absInterval_wd_helper r r' H ('(1#2)).
+  absInterval_wd_helper r r' H ('1).
+  absInterval_wd_helper r r' H ('2).
+  absInterval_wd_helper r r' H ('3).
+Qed.
 
 Lemma absTempInterval_wd: forall (r r': CR), st_eq r r' -> absTempInterval r = absTempInterval r'.
-Admitted.
+Proof.
+  unfold absTempInterval, s_absTempInterval. intros.
+  absInterval_wd_helper r r' H ('(9#2)).
+  absInterval_wd_helper r r' H ('5).
+  absInterval_wd_helper r r' H ('6).
+  absInterval_wd_helper r r' H ('9).
+  absInterval_wd_helper r r' H ('10).
+Qed.
 
 Instance ClockInterval_eq_dec: EquivDec.EqDec ClockInterval eq.
 Proof. repeat intro. cut (decision (x=y)). auto. dec_eq. Defined.
@@ -355,8 +369,28 @@ Proof.
   apply square_abstraction.over_initial. intros [a b]. auto.
 Qed.
 
-Lemma lin_dus a b p t: a <= b -> positive_linear.raw p b t <= a -> t [=] '0.
-Admitted.
+Hint Immediate positive_CRpos.
+Hint Resolve CRpos_nonNeg.
+
+Lemma lin_dus a b p t: a <= b -> positive_linear.raw p b t <= a -> t <= '0.
+Proof with auto.
+  unfold positive_linear.raw.
+  intros.
+  assert (b + 'p * t <= b).
+    apply CRle_trans with a...
+  set (t2 (-b) H1).
+  assert ('p * t <= '0).
+    rewrite (Ropp_def CR_ring_theory) in c.
+    rewrite <- (Radd_assoc CR_ring_theory) in c.
+    rewrite <- t11 in c...
+  unfold CRle.
+  unfold CRle in H2.
+  rewrite (Radd_0_l CR_ring_theory) in *.
+  apply CRnonPos_nonNeg.
+  set (CRnonNeg_nonPos H2).
+  rewrite (Ropp_opp t3 CR_ring_eq_ext CR_ring_theory) in c0.
+  apply CRnonNeg_nonPos_mult_inv with ('p)...
+Qed.
 
 Definition hints (l: Location) (r r': Region): option
   (r <> r' /\
@@ -365,7 +399,7 @@ Definition hints (l: Location) (r r': Region): option
      r ->
    forall t: Time,
    square_abstraction.in_region ClockInterval_bounds TempInterval_bounds
-     (concrete.flow concrete_system l p t) r' -> t[=]' 0)).
+     (concrete.flow concrete_system l p t) r' -> t <= '0)).
   intros.
   destruct r. destruct r'.
   destruct (and_dec (ClockInterval_eq_dec c CI12_1) (ClockInterval_eq_dec c0 CI0_12)).

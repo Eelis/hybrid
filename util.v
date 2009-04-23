@@ -76,7 +76,7 @@ Proof with auto.
   right...
 Defined.
 
-Definition unsumbool (A B: Prop) (sb: {A}+{B}): bool :=
+Coercion unsumbool (A B: Prop) (sb: {A}+{B}): bool :=
   if sb then true else false.
 
 Lemma Rmax_le x y z: x <= z -> y <= z -> Rmax x y <= z.

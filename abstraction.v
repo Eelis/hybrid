@@ -64,7 +64,7 @@ Section contents.
 
   Variable hint: forall (l: Location) (r r': Region),
     option (r <> r' /\ forall p, in_region p r ->
-     forall t, in_region (concrete.flow conc_sys l p t) r' -> t == '0).
+     forall t, in_region (concrete.flow conc_sys l p t) r' -> t <= '0).
 
   (* Using these, we can define the abstract transitions.. *)
 
@@ -185,7 +185,12 @@ Section contents.
       apply inv...
       destruct t...
       apply -> CRnonNeg_le_zero...
-    assert (`t [=] '0). apply H0 with s1...
+    assert (`t [=] '0).
+      apply <- CRle_def.
+      split. apply H0 with s1...
+      destruct t.
+      simpl proj1_sig.
+      apply -> CRnonNeg_le_zero...
     unfold concrete.flow in flow.
     clear H H0 H1 H2.
     clear inv select_region_correct.

@@ -264,6 +264,34 @@ Proof with auto.
   apply Qplus_le_compat...
 Qed.
 
+Lemma Zero_CRasIR: Zero [=] CRasIR ('0).
+  cut (Zero [=] CRasIR (IRasCR Zero)).
+    intro.
+    rewrite H.
+    apply CRasIR_wd, IR_Zero_as_CR.
+  symmetry. apply IRasCRasIR_id.
+Qed.
+
+Lemma CRnonNeg_mult x y: CRnonNeg x -> CRnonNeg y -> CRnonNeg (x * y).
+Proof with auto.
+  intros.
+  apply <- CRnonNeg_le_zero.
+  rewrite <- IR_Zero_as_CR.
+  rewrite <- (CRasIRasCR_id x).
+  rewrite <- (CRasIRasCR_id y).
+  rewrite <- IR_mult_as_CR.
+  apply -> IR_leEq_as_CR.
+  apply mult_resp_nonneg.
+    rewrite Zero_CRasIR.
+    apply <- IR_leEq_as_CR.
+    do 2 rewrite CRasIRasCR_id.
+    apply -> CRnonNeg_le_zero...
+  rewrite Zero_CRasIR.
+  apply <- IR_leEq_as_CR.
+  do 2 rewrite CRasIRasCR_id.
+  apply -> CRnonNeg_le_zero...
+Qed.
+
 Lemma t11 x y: y == x + (y - x).
   intros.
   rewrite (Radd_comm CR_ring_theory y).
@@ -608,21 +636,79 @@ Definition Qpos_div (a b: Qpos): Qpos :=
     QposMake (aNum * bDen) (aDen * bNum)
   end.
 
+Lemma CRln_le x y p q: x <= y -> CRln x p <= CRln y q.
+Proof with auto.
+  intros.
+  set (CRasIRasCR_id x). symmetry in s.
+  set (CRasIRasCR_id y). symmetry in s0.
+  assert ('0 < IRasCR (CRasIR x)).
+    apply CRlt_wd with ('0) x... reflexivity.
+  assert ('0 < IRasCR (CRasIR y)).
+    apply CRlt_wd with ('0) y... reflexivity.
+  rewrite (CRln_wd p H0 s).
+  rewrite (CRln_wd q H1 s0).
+  assert (Zero [<] CRasIR x).
+    apply CR_less_as_IR.
+    apply CRlt_wd with ('0) x...
+    symmetry. apply IR_Zero_as_CR.
+  assert (Zero [<] CRasIR y).
+    apply CR_less_as_IR.
+    apply CRlt_wd with ('0) y...
+    symmetry. apply IR_Zero_as_CR.
+  rewrite <- (CRln_correct _ X H0).
+  rewrite <- (CRln_correct _ X0 H1).
+  apply -> IR_leEq_as_CR.
+  apply Log_resp_leEq.
+  apply <- IR_leEq_as_CR.
+  do 2 rewrite CRasIRasCR_id.
+  assumption.
+Qed.
+
+Lemma CRle_mult x: '0 <= x -> forall a b, a <= b -> x * a <= x * b.
+Proof with auto.
+  intros.
+  unfold CRle in *.
+  rewrite (Rmul_comm CR_ring_theory x a).
+  rewrite CRopp_mult_l.
+  rewrite (Rmul_comm CR_ring_theory x b).
+  rewrite <- (Rdistr_l CR_ring_theory).
+  apply CRnonNeg_mult...
+  rewrite <- (CRminus_zero x)...
+Qed.
+
+Lemma bah: forall x y, '0 < x * y -> '0 < x -> '0 < y.
+Proof with auto.
+  intros.
+  apply (mult_cancel_less CRasCOrdField ('0) y x).
+    assumption.
+  simpl.
+  apply CRlt_wd with ('0) (x * y)...
+    apply (@Rmul_0_l _ _ _ _ _ _ _ _ t3 CR_ring_eq_ext CR_ring_theory x).
+  apply (Rmul_comm CR_ring_theory).
+Defined.
+
+Lemma CRle_opp_inv: forall x y, -x <= -y -> y <= x.
+  unfold CRle.
+  intros.
+  rewrite (@Ropp_opp _ _ _ _ _ _ _ _ t3 CR_ring_eq_ext CR_ring_theory) in H.
+  rewrite (Radd_comm CR_ring_theory).
+  assumption.
+Defined.
+
+Lemma CRlt_irrefl: forall x: CR, Not (x < x).
+Proof less_irreflexive_unfolded CRasCOrdField.
+
+Lemma CRlt_asym: forall x y: CR, x < y -> Not (y < x).
+Proof less_antisymmetric_unfolded CRasCOrdField.
+
   (* todo: *)
-Axiom bah: forall x y, '0 < x * y -> '0 < x -> '0 < y.
 Axiom exp_pos: forall x, '0 < exp x.
 Axiom CRinv_pos: forall x, '0 < x -> forall p: x >< '0, '0 < CRinv x p.
 Axiom CRinv_mult: forall x (p: x >< '0), x * CRinv x p == '1.
 Axiom exp_inc: forall x y, x < y -> exp x < exp y.
-Axiom exp_inc': forall x y, exp x < exp y -> x < y.
 Axiom exp_opp_ln: forall x xp, x * exp (- CRln x xp) == '1.
-Axiom CRln_le: forall x y (p: '0 < x) (q: '0 < y), x <= y -> CRln x p <= CRln y q.
-Axiom CRlt_irrefl: forall a,  a < a -> False.
-Axiom CRle_mult: forall x, '0 <= x -> forall a b, a <= b -> x * a <= x * b.
 Axiom CRmult_le_compat_r: forall x y, x <= y -> forall z, CRnonNeg z -> z * x <= z * y.
 Axiom CRmult_le_inv: forall x, CRnonNeg x -> forall a b, x * a <= x * b -> a <= b.
-Axiom CRle_opp_inv: forall x y, -x <= -y -> y <= x.
-
 
 Definition weak_CRlt_decision (f: (CR -> CR -> Set) -> Set): Set :=
   option (sum (f CRlt) (f (fun x y => y < x))).
@@ -641,6 +727,18 @@ Qed.
 
 Definition NonNegCR_zero: NonNegCR := exist _ _ CRnonNeg_zero.
 
+Lemma CRnonPos_nonNeg x: CRnonPos x -> CRnonNeg (-x).
+  unfold CRnonPos, CRnonNeg.
+  intros. simpl. apply Qopp_le_compat. auto.
+Qed.
+
+Lemma CRnonNeg_nonPos_mult_inv: forall x (p: CRnonNeg x) y,
+  CRnonPos (x * y) -> CRnonPos y.
+Proof with auto.
+  unfold CRnonNeg, CRnonPos.
+  intros.
+Admitted.
+
 Axiom CR_lt_eq_dec: forall (x y: CR), sum (x==y) (sum (x<y) (y<x)).
 (* hm, if we make this a {x<=y}+{y<=x} axiom, we can be sure it won't be used in
  computation, because that's in prop, no? it may not be enough for
@@ -652,6 +750,27 @@ Lemma CR_le_le_dec x y: {x<=y}+{y<=x}.
     left. rewrite s. apply CRle_refl.
   destruct s; [left | right]; apply CRlt_le; assumption.
 Defined.
+
+Lemma CR_le_le_dec_wd: forall x x' y y', x == x' -> y == y' ->
+  unsumbool (CR_le_le_dec x y) =
+  unsumbool (CR_le_le_dec x' y').
+Proof with auto.
+  intros.
+  unfold CR_le_le_dec.
+  destruct (CR_lt_eq_dec x y) as [a | [b | c]];
+   destruct (CR_lt_eq_dec x' y') as [a' | [b' | c']]; auto; elimtype False.
+        apply CRlt_irrefl with y.
+        apply CRlt_wd with y' x'... symmetry...
+        rewrite <- H...
+      apply CRlt_asym with x y...
+      apply CRlt_wd with y' x'; auto; symmetry...
+    apply CRlt_irrefl with y.
+    apply CRlt_wd with y x...
+      reflexivity.
+    rewrite H. rewrite H0...
+  apply CRlt_asym with x y...
+  apply CRlt_wd with x' y'; auto; symmetry...
+Qed.
 
 Section function_properties.
 
