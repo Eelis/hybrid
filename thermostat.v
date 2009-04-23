@@ -15,44 +15,16 @@ Set Implicit Arguments.
 
 Open Local Scope CR_scope.
 
-Definition deci: Q := (1#10).
-Definition centi: Q := (1#100).
-
-Lemma deci_pos: '0 < '(1#10).
+Lemma half_pos: '0 < '(1#2).
 Proof.
-  exists ((1#10)%Qpos).
+  exists ((1#2)%Qpos).
   rewrite CRminus_Qminus.
-  apply (CRle_Qle (QposAsQ (1#10)) ((1#10)-0)%Q).
+  apply (CRle_Qle (QposAsQ (1#2)) ((1#2)-0)%Q).
   firstorder.
 Defined.
 
-Lemma centi_pos: '0 < '(1#100).
-Proof.
-  exists ((1#100)%Qpos).
-  rewrite CRminus_Qminus.
-  apply (CRle_Qle (QposAsQ (1#100)) ((1#100)-0)%Q).
-  firstorder.
-Defined.
-
-Definition r0_1: Range. exists ('0, '1); CRle_constants. Defined.
-Definition r0_12: Range. exists ('0, '(1#2)); CRle_constants. Defined.
-Definition r0_3: Range. exists ('0, '3); CRle_constants. Defined.
-Definition r12_1: Range. exists ('(1#2), '1); CRle_constants. Defined.
-Definition r1_2: Range. exists ('1, '2); CRle_constants. Defined.
-Definition r2_3: Range. exists ('2, '3); CRle_constants. Defined.
-
-Definition r45_5: Range. exists ('(9#2), '5); CRle_constants. Defined.
-Definition r3_45: Range. exists ('3, '(9#2)); CRle_constants. Defined.
-Definition r5_6: Range. exists ('5, '6); CRle_constants. Defined.
-Definition r6_9: Range. exists ('6, '9); CRle_constants. Defined.
-Definition r9_10: Range. exists ('9, '10); CRle_constants. Defined.
-Definition r5_10: Range. exists ('5, '10); CRle_constants. Defined.
-
-Definition r0_10: Range. exists ('0, '10); CRle_constants. Defined.
-Definition rC_45: Range. exists ('deci, '(9#2)); CRle_constants. Defined.
-
-Definition above (c: CR): OpenRange := existT OCRle (Some c, None) I.
-Definition below (c: CR): OpenRange := existT OCRle (None, Some c) I.
+Definition above (c: CR): OpenRange := exist OCRle (Some c, None) I.
+Definition below (c: CR): OpenRange := exist OCRle (None, Some c) I.
 
 Let PointCSetoid: CSetoid := ProdCSetoid CRasCSetoid CRasCSetoid.
 
@@ -84,7 +56,8 @@ Definition temp: State -> CR := snd ∘ point.
 (* Invariant *)
 
 Definition invariant (s: State): Prop :=
-  'deci <= temp s /\ '0 <= clock s /\
+  '(1#10) <= temp s /\ (* todo: get down to 0 *)
+  '0 <= clock s /\
   match loc s with
   | Heat => temp s <= '10 /\ clock s <= '3
   | Cool => '5 <= temp s
@@ -102,12 +75,14 @@ Proof with auto.
   destruct l'; try rewrite H; try rewrite H0; split...
 Qed.
 
-Definition invariant_squares (l: Location): OpenSquare :=
+Program Definition invariant_squares (l: Location): OpenSquare :=
   match l with
   | Cool => (above ('0), above ('5))
-  | Heat => (r0_3: OpenRange, r0_10: OpenRange)
-  | Check => (r0_1: OpenRange, above ('deci))
+  | Heat => (('0, '3), ('0, '10)): Square
+  | Check => (('0, '1): Range, above ('(1#10)))
   end.
+
+Solve Obligations using intros; CRle_constants.
 
 Lemma invariant_squares_correct (l : Location) (p : Point):
   invariant (l, p) -> in_osquare p (invariant_squares l).
@@ -116,13 +91,15 @@ Proof with auto.
   destruct l; simpl; intuition.
   unfold temp in *.
   unfold Basics.compose in *.
-  apply CRle_trans with ('deci)...
+  apply CRle_trans with ('(1#10))...
   CRle_constants.
 Qed.
 
 (* Initial state *)
 
-Definition initial_square: OpenSquare := (unit_range ('0): OpenRange, r5_10: OpenRange).
+Program Definition initial_square: OpenSquare := (('0, '0), ('5, '10)): Square.
+Solve Obligations using intros; CRle_constants.
+
 Definition initial_location := Heat.
 Definition initial (s: State): Prop :=
   loc s = initial_location /\ in_osquare (point s) initial_square.
@@ -147,13 +124,13 @@ Qed.
 
 (* Flow *)
 
-Definition clock_flow (l: Location): Flow CRasCSetoid := flow.positive_linear.f 1.
+Definition clock_flow (l: Location): Flow CRasCSetoid := flow.positive_linear.f (1#1).
 
 Definition temp_flow (l: Location): Flow CRasCSetoid :=
   match l with
-  | Heat => flow.positive_linear.f 2
+  | Heat => flow.positive_linear.f (5#2) (* todo: get this closer to 2 *)
   | Cool => flow.decreasing_exponential.f
-  | Check => flow.scale.flow ('(1#100)) flow.decreasing_exponential.f
+  | Check => flow.scale.flow ('(1#2)) flow.decreasing_exponential.f
   end.
 
 Definition flow l := product_flow (clock_flow l) (temp_flow l).
@@ -162,14 +139,14 @@ Definition flow l := product_flow (clock_flow l) (temp_flow l).
 
 Definition clock_flow_inv (l: Location) (a b: OpenRange): OpenRange :=
   square_flow_conditions.one_axis.flow_range
-    _ (flow.positive_linear.inv_correct 1) (flow.positive_linear.mono 1) a b.
+    _ (flow.positive_linear.inv_correct (1#1)) (flow.positive_linear.mono (1#1)) a b.
 
 Definition temp_flow_inv (l: Location) (a b: OpenRange): OpenRange :=
   match l with
   | Heat => square_flow_conditions.one_axis.flow_range
-    _ (flow.positive_linear.inv_correct 2) (flow.positive_linear.mono 2) a b
+    _ (flow.positive_linear.inv_correct (5#2)) (flow.positive_linear.mono _) a b
   | Cool => flow.decreasing_exponential.inv a b
-  | Check => flow.scale.inv centi_pos flow.decreasing_exponential.inv a b
+  | Check => flow.scale.inv half_pos flow.decreasing_exponential.inv a b
   end.
 
 Lemma clock_rfis l: range_flow_inv_spec (clock_flow l) (clock_flow_inv l).
@@ -209,7 +186,7 @@ Definition guard_square (l l': Location): option OpenSquare :=
   match l, l' with
   | Heat, Cool => Some (unbounded_range, above ('9))
   | Cool, Heat => Some (unbounded_range, below ('6))
-  | Heat, Check => Some (above ('2), unbounded_range)
+  | Heat, Check => Some (above ('(21#10)), unbounded_range)
   | Check, Heat => Some (above ('(1#2)), unbounded_range)
   | _, _ => None
   end.
@@ -228,28 +205,35 @@ Definition concrete_system: concrete.System :=
 
 (* intervals *)
 
-Inductive ClockInterval: Set := CI0_12 | CI12_1 | CI1_2 | CI2_3 | CI3_.
+Inductive ClockInterval: Set := CI0_D | CID_12 | CI12_1 | CI1_2 | CI2_3 | CI3_.
 Inductive TempInterval: Set := TIC_45 | TI45_5 | TI5_6 | TI6_9 | TI9_10 | TI10_.
 
-Definition ClockInterval_bounds (i: ClockInterval): OpenRange :=
+Program Definition ClockInterval_bounds (i: ClockInterval): OpenRange :=
   match i with
-  | CI0_12 => r0_12
-  | CI12_1 => r12_1 | CI1_2 => r1_2 | CI2_3 => r2_3
-  | CI3_ => above ('3)
+  | CI0_D => ('0, '(1#10)): Range
+  | CID_12 => ('(1#10), '(1#2)): Range
+  | CI12_1 => ('(1#2), '(11#10)): Range
+  | CI1_2 => ('(11#10), '2): Range
+  | CI2_3 => ('2, '3): Range
+  | CI3_ => (Some ('3), None)
   end.
 
-Definition TempInterval_bounds (i: TempInterval): OpenRange :=
+Solve Obligations using intros; CRle_constants.
+
+Program Definition TempInterval_bounds (i: TempInterval): OpenRange :=
   match i with
-  | TIC_45 => rC_45
-  | TI45_5 => r45_5
-  | TI5_6 => r5_6
-  | TI6_9 => r6_9
-  | TI9_10 => r9_10
-  | TI10_ => above ('10)
+  | TIC_45 => ('(1#10), '(9#2)): Range
+  | TI45_5 => ('(9#2), '5): Range
+  | TI5_6 => ('5, '6): Range
+  | TI6_9 => ('6, '9): Range
+  | TI9_10 => ('9, '10): Range
+  | TI10_ => (Some ('10), None)
   end.
+
+Solve Obligations using intros; CRle_constants.
 
 Instance clock_intervals: ExhaustiveList ClockInterval
-  := { exhaustive_list := CI0_12 :: CI12_1 :: CI1_2 :: CI2_3 :: CI3_ :: nil }.
+  := { exhaustive_list := CI0_D :: CID_12 :: CI12_1 :: CI1_2 :: CI2_3 :: CI3_ :: nil }.
 Proof. intro i. destruct i; compute; tauto. Defined.
 
 Instance temp_intervals: ExhaustiveList TempInterval
@@ -258,8 +242,9 @@ Proof. intro i. destruct i; compute; tauto. Defined.
 
 Program Definition s_absClockInterval (r: CR):
     { i | '0 <= r -> in_orange (ClockInterval_bounds i) r } :=
-  if CR_le_le_dec r ('(1#2)) then CI0_12 else
-  if CR_le_le_dec r ('1) then CI12_1 else
+  if CR_le_le_dec r ('(1#10)) then CI0_D else
+  if CR_le_le_dec r ('(1#2)) then CID_12 else
+  if CR_le_le_dec r ('(11#10)) then CI12_1 else
   if CR_le_le_dec r ('2) then CI1_2 else
   if CR_le_le_dec r ('3) then CI2_3 else CI3_.
 
@@ -267,7 +252,7 @@ Solve Obligations using
   unfold in_orange, orange_left, orange_right; simpl; auto.
 
 Program Definition s_absTempInterval (r: CR):
-    { i | 'deci <= r -> in_orange (TempInterval_bounds i) r } :=
+    { i | '(1#10) <= r -> in_orange (TempInterval_bounds i) r } :=
   if CR_le_le_dec r ('(9#2)) then TIC_45 else
   if CR_le_le_dec r ('5) then TI45_5 else
   if CR_le_le_dec r ('6) then TI5_6 else
@@ -284,16 +269,17 @@ Ltac absInterval_wd_helper r r' H v :=
   set (e := @CR_le_le_dec_wd r r' v v H (genericSetoid_Reflexive _ _)); clearbody e;
   destruct (CR_le_le_dec r v) in *; destruct (CR_le_le_dec r' v) in *; auto; try discriminate; clear e.
 
-Lemma absClockInterval_wd: forall (r r': CR), st_eq r r' -> absClockInterval r = absClockInterval r'.
+Lemma absClockInterval_wd (r r': CR): st_eq r r' -> absClockInterval r = absClockInterval r'.
 Proof.
   unfold absClockInterval, s_absClockInterval. intros.
+  absInterval_wd_helper r r' H ('(1#10)).
   absInterval_wd_helper r r' H ('(1#2)).
-  absInterval_wd_helper r r' H ('1).
+  absInterval_wd_helper r r' H ('(11#10)).
   absInterval_wd_helper r r' H ('2).
   absInterval_wd_helper r r' H ('3).
 Qed.
 
-Lemma absTempInterval_wd: forall (r r': CR), st_eq r r' -> absTempInterval r = absTempInterval r'.
+Lemma absTempInterval_wd (r r': CR): st_eq r r' -> absTempInterval r = absTempInterval r'.
 Proof.
   unfold absTempInterval, s_absTempInterval. intros.
   absInterval_wd_helper r r' H ('(9#2)).
@@ -390,6 +376,7 @@ Proof with auto.
   set (CRnonNeg_nonPos H2).
   rewrite (Ropp_opp t3 CR_ring_eq_ext CR_ring_theory) in c0.
   apply CRnonNeg_nonPos_mult_inv with ('p)...
+  apply CRpos_nonNeg. apply Qpos_CRpos.
 Qed.
 
 Definition hints (l: Location) (r r': Region): option
@@ -402,7 +389,17 @@ Definition hints (l: Location) (r r': Region): option
      (concrete.flow concrete_system l p t) r' -> t <= '0)).
   intros.
   destruct r. destruct r'.
-  destruct (and_dec (ClockInterval_eq_dec c CI12_1) (ClockInterval_eq_dec c0 CI0_12)).
+  destruct (and_dec (ClockInterval_eq_dec c CID_12) (ClockInterval_eq_dec c0 CI0_D)).
+    destruct a.
+    subst.
+    apply Some.
+    split. rewrite H, H0. intro. inversion_clear H1.
+    intros.
+    destruct p. 
+    unfold Equivalence.equiv in H, H0. subst.
+    destruct H2. destruct H1.
+    apply (lin_dus (fst H1) (snd H)).
+  destruct (and_dec (ClockInterval_eq_dec c CI12_1) (ClockInterval_eq_dec c0 CID_12)).
     destruct a.
     subst.
     apply Some.
@@ -451,6 +448,15 @@ Definition hints (l: Location) (r r': Region): option
         destruct p. destruct H. destruct H0.
         apply (lin_dus (fst H1) (snd H2)).
       destruct (and_dec (TempInterval_eq_dec t TI9_10) (TempInterval_eq_dec t0 TI6_9)).
+        destruct a.
+        unfold Equivalence.equiv in H0, H1.
+        subst.
+        apply Some.
+        split. intro. inversion_clear H.
+        intros.
+        destruct p. destruct H. destruct H0.
+        apply (lin_dus (fst H1) (snd H2)).
+      destruct (and_dec (TempInterval_eq_dec t TI10_) (TempInterval_eq_dec t0 TI9_10)).
         destruct a.
         unfold Equivalence.equiv in H0, H1.
         subst.

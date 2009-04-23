@@ -162,7 +162,7 @@ End scale.
 Module positive_linear.
 Section contents.
 
-  Variable r: positive. (* todo: generalize to Qpos, CRpos *)
+  Variable r: Qpos.
 
   Definition raw (x: CR) (t: Time): CR := x + 'r * t.
 
@@ -190,23 +190,27 @@ Section contents.
 
   Definition f: Flow CRasCSetoid := Build_Flow morphism A B.
 
-  Definition inv (x x': CR): Time := '(1#r) * (x' - x).
+  Definition inv (x x': CR): Time := '(Qinv r) * (x' - x).
 
   Lemma inv_correct x x': f x (inv x x') == x'.
+  Proof with auto.
     intros.
     unfold f, inv. simpl bsm. unfold raw.
     rewrite (Rmul_assoc CR_ring_theory).
     rewrite CRmult_Qmult.
-    rewrite Qmult_inv.
+    rewrite Qmult_inv_r.
       rewrite (Rmul_1_l CR_ring_theory).
       symmetry. apply t11.
-    reflexivity.
+    intro.
+    symmetry in H.
+    apply (Qlt_not_eq 0 r)...
+    apply Qpos_prf.
   Qed.
 
   Lemma increasing: forall x : CRasCSetoid, strongly_increasing (f x).
     repeat intro. simpl. unfold raw. apply t1_rev. 
     apply CRmult_lt_pos_r. assumption.
-    apply positive_CRpos.
+    apply Qpos_CRpos.
   Qed.
 
   Definition mono: mono f := inl increasing.

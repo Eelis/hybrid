@@ -735,8 +735,6 @@ Qed.
 Lemma CRnonNeg_nonPos_mult_inv: forall x (p: CRnonNeg x) y,
   CRnonPos (x * y) -> CRnonPos y.
 Proof with auto.
-  unfold CRnonNeg, CRnonPos.
-  intros.
 Admitted.
 
 Axiom CR_lt_eq_dec: forall (x y: CR), sum (x==y) (sum (x<y) (y<x)).

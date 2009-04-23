@@ -6,9 +6,11 @@ Require Export dec_overestimator.
 Set Implicit Arguments.
 Open Local Scope CR_scope.
 
-Definition Range: Type := { r: CR * CR | fst r <= snd r }.
+Definition Range: Type := sig (fun r: CR * CR => fst r <= snd r).
 
-Definition unit_range (c: CR): Range := existT _ (c, c) (CRle_refl c).
+Hint Immediate CRle_refl.
+
+Program Definition unit_range (c: CR): Range := (c, c).
 
 Section option_setoid.
 
@@ -67,15 +69,14 @@ Definition CRmin_of_upper_bounds (a b: option CR): option CR :=
   | Some a, Some b => Some (CRmin a b)
   end.
 
-
 Definition OpenRange: Type := sig OCRle.
 
 Coercion open_range (r: Range): OpenRange :=
   match r with
-  | existT (x, y) H => existT _ (Some x, Some y) H
+  | exist (x, y) H => exist _ (Some x, Some y) H
   end.
 
-Definition unbounded_range: OpenRange := existT _ (None, None) I.
+Program Definition unbounded_range: OpenRange := (None, None).
 
 Definition range_left (r: Range): CR := fst (proj1_sig r).
 Definition range_right (r: Range): CR := snd (proj1_sig r).
@@ -345,24 +346,15 @@ Proof.
   split; eapply oranges_share_point; eauto.
 Qed.
 
-Definition map_range (f: CR -> CR) (fi: increasing f) (r: Range): Range.
-  intros.
-  exists (f (fst (proj1_sig r)), f (snd (proj1_sig r))).
-  simpl.
-  apply fi.
-  destruct r.
-  assumption.
-Defined. (* for some reason Program Definition won't work here.. *)
-  (* i think it must be because CR is in Type *)
+Program Definition map_range (f: CR -> CR) (fi: increasing f) (r: Range): Range :=
+  (f (fst (proj1_sig r)), f (snd (proj1_sig r))).
 
-Definition map_orange (f: CR -> CR)
-  (fi: increasing f) (r: OpenRange): OpenRange.
-Proof with simpl; auto.
-  intros.
-  exists (option_map f (fst (`r)), option_map f (snd (`r))).
-  destruct r. destruct x.
-  destruct s... destruct s0...
-Defined.
+Next Obligation. destruct r. apply fi. assumption. Qed.
+
+Program Definition map_orange (f: CR -> CR) (fi: increasing f) (r: OpenRange): OpenRange
+  := (option_map f (fst (`r)), option_map f (snd (`r))).
+
+Next Obligation. destruct r as [[[a|] [b|]] m]; simpl; auto. Qed.
 
 Definition in_map_range p r (f: CR -> CR) (i: increasing f): in_range r p ->
   in_range (map_range i r) (f p).
@@ -385,15 +377,11 @@ Section scaling.
 
   Variables (s: CR) (H: '0 <= s).
 
+  Hint Resolve CRle_mult.
+
   Program Definition scale_orange (r: OpenRange): OpenRange :=
     (option_map (CRmult s) (fst (`r)), option_map (CRmult s) (snd (`r))) .
-  Next Obligation. Proof with auto.
-    destruct r as [[a b] h].
-    destruct a... destruct b...
-    simpl in *. apply CRle_mult...
-  Qed.
-
-Hint Resolve CRle_mult.
+  Next Obligation. destruct r as [[[a|] [b|]] h]; simpl; auto. Qed.
 
   Lemma in_scale_orange p r : in_orange r p ->
     in_orange (scale_orange r) (s * p).
