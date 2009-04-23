@@ -1,12 +1,12 @@
 Require Import List.
 Require Import util.
 Require Import list_util.
-Require Import c_geometry.
-Require Import c_monotonic_flow.
-Require c_concrete.
-Require c_abstract.
-Require c_abstraction.
-Require c_square_abstraction.
+Require Import geometry.
+Require Import monotonic_flow.
+Require concrete.
+Require abstract.
+Require abstraction.
+Require square_abstraction.
 Require abstract_as_graph.
 Require Import CRln.
 Require Import CRexp.
@@ -147,59 +147,59 @@ Qed.
 
 (* Flow *)
 
-Definition clock_flow (l: Location): Flow CRasCSetoid := c_flow.positive_linear.f 1.
+Definition clock_flow (l: Location): Flow CRasCSetoid := flow.positive_linear.f 1.
 
 Definition temp_flow (l: Location): Flow CRasCSetoid :=
   match l with
-  | Heat => c_flow.positive_linear.f 2
-  | Cool => c_flow.decreasing_exponential.f
-  | Check => c_flow.scale.flow ('(1#100)) c_flow.decreasing_exponential.f
+  | Heat => flow.positive_linear.f 2
+  | Cool => flow.decreasing_exponential.f
+  | Check => flow.scale.flow ('(1#100)) flow.decreasing_exponential.f
   end.
 
 (* Flow inverses *)
 
 Definition clock_flow_inv (l: Location) (a b: OpenRange): OpenRange :=
-  c_square_flow_conditions.one_axis.flow_range
-    _ (c_flow.positive_linear.inv_correct 1) (c_flow.positive_linear.mono 1) a b.
+  square_flow_conditions.one_axis.flow_range
+    _ (flow.positive_linear.inv_correct 1) (flow.positive_linear.mono 1) a b.
 
 Definition temp_flow_inv (l: Location) (a b: OpenRange): OpenRange :=
   match l with
-  | Heat => c_square_flow_conditions.one_axis.flow_range
-    _ (c_flow.positive_linear.inv_correct 2) (c_flow.positive_linear.mono 2) a b
-  | Cool => c_flow.decreasing_exponential.inv a b
-  | Check => c_flow.scale.inv centi_pos c_flow.decreasing_exponential.inv a b
+  | Heat => square_flow_conditions.one_axis.flow_range
+    _ (flow.positive_linear.inv_correct 2) (flow.positive_linear.mono 2) a b
+  | Cool => flow.decreasing_exponential.inv a b
+  | Check => flow.scale.inv centi_pos flow.decreasing_exponential.inv a b
   end.
 
 Lemma clock_rfis l: range_flow_inv_spec (clock_flow l) (clock_flow_inv l).
 Proof with auto.
   intro.
   unfold range_flow_inv_spec. intros.
-  apply c_square_flow_conditions.one_axis.flow_range_covers with p...
+  apply square_flow_conditions.one_axis.flow_range_covers with p...
 Qed.
 
 Lemma temp_rfis l: range_flow_inv_spec (temp_flow l) (temp_flow_inv l).
 Proof with auto.
   destruct l; simpl temp_flow.
       unfold range_flow_inv_spec. intros.
-      apply c_square_flow_conditions.one_axis.flow_range_covers with p...
-    apply c_flow.decreasing_exponential.inv_correct.
-  apply c_flow.scale.inv_correct, c_flow.decreasing_exponential.inv_correct.
+      apply square_flow_conditions.one_axis.flow_range_covers with p...
+    apply flow.decreasing_exponential.inv_correct.
+  apply flow.scale.inv_correct, flow.decreasing_exponential.inv_correct.
 Qed.
 
 (* Reset *)
 
-Definition clock_reset (l l': Location): c_square_abstraction.Reset :=
+Definition clock_reset (l l': Location): square_abstraction.Reset :=
   match l, l' with
-  | Cool, Heat | Heat, Check | Check, Heat => c_square_abstraction.Reset_const ('0)
-  | _, _ => c_square_abstraction.Reset_id (* dummy *)
+  | Cool, Heat | Heat, Check | Check, Heat => square_abstraction.Reset_const ('0)
+  | _, _ => square_abstraction.Reset_id (* dummy *)
   end.
 
-Definition temp_reset (l l': Location): c_square_abstraction.Reset :=
-  c_square_abstraction.Reset_id. (* dummy *)
+Definition temp_reset (l l': Location): square_abstraction.Reset :=
+  square_abstraction.Reset_id. (* dummy *)
 
 Definition reset (l l': Location) (p: Point): Point :=
-  (c_square_abstraction.apply_Reset (clock_reset l l') (fst p)
-  , c_square_abstraction.apply_Reset (temp_reset l l') (snd p)).
+  (square_abstraction.apply_Reset (clock_reset l l') (fst p)
+  , square_abstraction.apply_Reset (temp_reset l l') (snd p)).
 
 (* Guards *)
 
@@ -218,8 +218,8 @@ Definition guard (s: State) (l: Location): Prop :=
   | Some q => in_osquare (snd s) q
   end.
 
-Definition concrete_system: c_concrete.System :=
-  @c_concrete.Build_System PointCSetoid Location Location_eq_dec
+Definition concrete_system: concrete.System :=
+  @concrete.Build_System PointCSetoid Location Location_eq_dec
   locations NoDup_locations initial invariant
   initial_invariant invariant_wd
   (fun l => product_flow (clock_flow l) (temp_flow l)) guard reset.
@@ -304,16 +304,16 @@ Lemma NoDup_temp_intervals: NoDup temp_intervals.
   vm_compute. ref.
 Qed.
 
-Lemma regions_cover_invariants l (p: c_concrete.Point concrete_system):
-  c_concrete.invariant (l, p) ->
-  c_square_abstraction.in_region ClockInterval_bounds TempInterval_bounds p
-    (c_square_abstraction.absInterval absClockInterval absTempInterval p).
+Lemma regions_cover_invariants l (p: concrete.Point concrete_system):
+  concrete.invariant (l, p) ->
+  square_abstraction.in_region ClockInterval_bounds TempInterval_bounds p
+    (square_abstraction.absInterval absClockInterval absTempInterval p).
 Proof with auto.
-  simpl c_concrete.invariant.
+  simpl concrete.invariant.
   destruct p.
   intros.
-  unfold c_square_abstraction.in_region.
-  unfold c_square_abstraction.absInterval.
+  unfold square_abstraction.in_region.
+  unfold square_abstraction.absInterval.
   simpl.
   unfold absClockInterval, absTempInterval.
   destruct (s_absClockInterval s). destruct (s_absTempInterval s0). simpl.
@@ -328,12 +328,12 @@ Definition guard_dec eps (ls : Location * Region * Location) :=
   let (l1, r) := lr in
     match guard_square l1 l2 with
     | Some s => osquares_overlap_dec eps
-      (s, c_square_abstraction.square ClockInterval_bounds TempInterval_bounds r)
+      (s, square_abstraction.square ClockInterval_bounds TempInterval_bounds r)
     | None => false
     end.
 
 Lemma over_guard eps : 
-  guard_dec eps >=> c_square_abstraction.abstract_guard ClockInterval_bounds TempInterval_bounds guard.
+  guard_dec eps >=> square_abstraction.abstract_guard ClockInterval_bounds TempInterval_bounds guard.
 Proof with auto.
   intros eps [[l r] l'] gf [p [in_p g]].
   unfold guard_dec in gf. unfold guard in g.
@@ -344,15 +344,15 @@ Proof with auto.
 Qed.
 
 Definition initial_dec eps :=
-  c_square_abstraction.initial_dec (Location:=Location) 
+  square_abstraction.initial_dec (Location:=Location)
     ClockInterval_bounds TempInterval_bounds
     initial_location initial_square eps.
 
 Lemma over_initial eps: initial_dec eps >=>
-  c_abstraction.initial_condition concrete_system
-  (c_square_abstraction.in_region ClockInterval_bounds TempInterval_bounds).
+  abstraction.initial_condition concrete_system
+  (square_abstraction.in_region ClockInterval_bounds TempInterval_bounds).
 Proof.
-  apply c_square_abstraction.over_initial. intros [a b]. auto.
+  apply square_abstraction.over_initial. intros [a b]. auto.
 Qed.
 
 Lemma lin_dus a b p t: a <= b -> positive_linear.raw p b t <= a -> t [=] '0.
@@ -361,11 +361,11 @@ Admitted.
 Definition hints (l: Location) (r r': Region): option
   (r <> r' /\
   (forall p: Point,
-   c_square_abstraction.in_region ClockInterval_bounds TempInterval_bounds p
+   square_abstraction.in_region ClockInterval_bounds TempInterval_bounds p
      r ->
    forall t: Time,
-   c_square_abstraction.in_region ClockInterval_bounds TempInterval_bounds
-     (c_concrete.flow concrete_system l p t) r' -> t[=]' 0)).
+   square_abstraction.in_region ClockInterval_bounds TempInterval_bounds
+     (concrete.flow concrete_system l p t) r' -> t[=]' 0)).
   intros.
   destruct r. destruct r'.
   destruct (and_dec (ClockInterval_eq_dec c CI12_1) (ClockInterval_eq_dec c0 CI0_12)).
@@ -431,10 +431,10 @@ Definition hints (l: Location) (r r': Region): option
 Defined.
   (* todo: this is awful. should be automatable if we lift monotonicity *)
 
-Lemma chicken: forall x : c_concrete.Location concrete_system * c_concrete.Point concrete_system,
-  c_concrete.invariant x ->
-  c_square_abstraction.in_region ClockInterval_bounds TempInterval_bounds
-    (snd x) (c_square_abstraction.absInterval absClockInterval absTempInterval (snd x)).
+Lemma chicken: forall x : concrete.Location concrete_system * concrete.Point concrete_system,
+  concrete.invariant x ->
+  square_abstraction.in_region ClockInterval_bounds TempInterval_bounds
+    (snd x) (square_abstraction.absInterval absClockInterval absTempInterval (snd x)).
 Proof with auto.
   intros.
   destruct x as [a [b c]]. simpl.
@@ -444,44 +444,44 @@ Proof with auto.
     simpl. destruct (s_absClockInterval b)...
   unfold absTempInterval.
   simpl. destruct (s_absTempInterval c)...
-      (* todo: this should be done generically by c_square_abstraction *)
+      (* todo: this should be done generically by square_abstraction *)
 Qed.
 
 Lemma cont_trans_dec (eps: Qpos): dec_overestimator
-  (c_abstraction.cont_trans_cond concrete_system
-     (c_square_abstraction.in_region ClockInterval_bounds TempInterval_bounds)).
+  (abstraction.cont_trans_cond concrete_system
+     (square_abstraction.in_region ClockInterval_bounds TempInterval_bounds)).
 Proof with auto.
   intros.
-  eapply (@c_square_abstraction.do_cont_trans _ _ _ _ _ _ _ _ _ ClockInterval_bounds TempInterval_bounds clock_flow temp_flow clock_flow_inv temp_flow_inv).
+  eapply (@square_abstraction.do_cont_trans _ _ _ _ _ _ _ _ _ ClockInterval_bounds TempInterval_bounds clock_flow temp_flow clock_flow_inv temp_flow_inv).
         apply clock_rfis.
       apply temp_rfis.
     eexact invariant_squares_correct.
   exact eps.
 Defined.
 
-Definition abstract_system (eps : Qpos) : c_abstract.System concrete_system.
+Definition abstract_system (eps : Qpos) : abstract.System concrete_system.
 Proof with auto.
   intro eps.
-  eapply (@c_abstraction.abstract_system' _ _ _ concrete_system _ 
-   (fun a b e r => @c_square_abstraction.in_region_wd _ _ Location
+  eapply (@abstraction.abstract_system' _ _ _ concrete_system _
+   (fun a b e r => @square_abstraction.in_region_wd _ _ Location
      _ _ _ _ _ _ ClockInterval_bounds TempInterval_bounds a b r e)
-  (c_square_abstraction.NoDup_squareIntervals NoDup_clock_intervals NoDup_temp_intervals)
+  (square_abstraction.NoDup_squareIntervals NoDup_clock_intervals NoDup_temp_intervals)
   _
-   (c_square_abstraction.absInterval_wd _ _  absClockInterval_wd absTempInterval_wd)
+   (square_abstraction.absInterval_wd _ _  absClockInterval_wd absTempInterval_wd)
    chicken (cont_trans_dec eps) (mk_DO (over_initial eps)) hints regions_cover_invariants).
-    apply (c_square_abstraction.NoDup_disc_trans
+    apply (square_abstraction.NoDup_disc_trans
       NoDup_clock_intervals NoDup_temp_intervals
-      (c_square_abstraction.do_invariant ClockInterval_bounds TempInterval_bounds _ _ invariant_squares_correct eps)
+      (square_abstraction.do_invariant ClockInterval_bounds TempInterval_bounds _ _ invariant_squares_correct eps)
       NoDup_locations
       clock_reset temp_reset (mk_DO (over_guard eps)) eps).
-  apply (@c_square_abstraction.respects_disc _ _ _ _ _ _ _ _ _ ClockInterval_bounds TempInterval_bounds)...
+  apply (@square_abstraction.respects_disc _ _ _ _ _ _ _ _ _ ClockInterval_bounds TempInterval_bounds)...
     unfold absClockInterval. intros.
     destruct (s_absClockInterval (fst p))... destruct H. destruct H0...
   unfold absTempInterval. intros.
   destruct (s_absTempInterval (snd p))... destruct H...
 Defined.
 
-Definition abs_sys: c_abstract.System concrete_system := abstract_system (1#100).
+Definition abs_sys: abstract.System concrete_system := abstract_system (1#100).
 
 Definition vs := abstract_as_graph.vertices abs_sys.
 Definition g := abstract_as_graph.g abs_sys.
@@ -491,11 +491,11 @@ Definition unsafe_abstract_states :=
   List.flat_map (fun l => map (fun ci => (l, (ci, TIC_45))) clock_intervals) locations.
 
 Definition thermo_is_safe := 
-  forall s : c_concrete.State concrete_system,
+  forall s : concrete.State concrete_system,
     let (l, p) := s in
     let (x, y) := p in
       List.In (l, (absClockInterval x, absTempInterval y)) unsafe_abstract_states ->
-      ~c_concrete.reachable s.
+      ~concrete.reachable s.
 
 Definition unsafe : bool :=
   abstract_as_graph.some_reachable abs_sys unsafe_abstract_states.

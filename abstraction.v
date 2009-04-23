@@ -1,240 +1,231 @@
 Require Import List.
-Require Import util.
+Require Import dec_overestimator.
+Require Import c_util.
+Require Import list_util.
+Require Import CSetoids.
+Require Import CRreal.
+Require Import flow.
 Require concrete.
 Require abstract.
-Require respect.
 Set Implicit Arguments.
+Open Local Scope CR_scope.
 
 Section contents.
 
-  (* Suppose we wish to abstract a concrete system.. *)
-
-  Variable concrete_system: concrete.System.
-
-  Let Location := concrete.Location concrete_system.
-  Let Point := concrete.Point concrete_system.
-    (* convenience *)
-
-  (* We will need decideable equality on the system's locations, as
-   well as a set of regions (which can contain Points), and
-   exhaustive lists of locations and regions. *)
+  Context
+    {Region: Set}
+    {Region_eq_dec: EquivDec.EqDec Region eq}
+    {regions: ExhaustiveList Region}.
 
   Variables
-    (Location_eq_dec: forall l l': Location, decision (l=l'))
-    (Region: Set) (Region_eq_dec: forall i i': Region, decision (i=i'))
-    (in_region: concrete.Point concrete_system -> Region -> Prop)
+    (conc_sys : concrete.System)
+    (in_region : concrete.Point conc_sys -> Region -> Prop)
+    (in_region_wd: forall x x', x [=] x' -> forall r, in_region x r -> in_region x' r)
+    (NoDup_regions : NoDup (@exhaustive_list _ regions)).
+
+  Let Location := concrete.Location conc_sys.
+  Let Point := concrete.Point conc_sys.
+  Let c_State := concrete.State conc_sys.
+  Let State := (Location * Region)%type.
+
+  Variables
     (select_region: Point -> Region)
-    (locations: list Location) (locations_complete: forall l, List.In l locations)
-    (regions: list Region) (regions_complete: forall i, List.In i regions).
+    (select_region_wd: forall x x', x [=] x' -> select_region x = select_region x')
+    (select_region_correct: forall x, concrete.invariant x -> in_region (snd x) (select_region (snd x))).
+      (* select_region does not have to be constructive, because it is only
+       used in the correctness proof. *)
 
-  (* We can now define the abstract states: *)
+  Hint Resolve select_region_correct.
 
-  Let State: Set := prod Location Region.
+  Definition initial_condition (s : State) : Prop :=
+    let (l, r) := s in
+      exists p, in_region p r /\ concrete.initial (l, p).
 
-  Definition State_eq_dec (s s': State): decision (s=s').
-    unfold State.
-    apply (pair_eq_dec Location_eq_dec Region_eq_dec).
-  Defined.
+  Definition cont_trans_cond (w : Location * (Region * Region)) : Prop :=
+    let (l, r) := w in
+    let (r1, r2) := r in
+      exists p, exists q,
+        in_region p r1 /\ in_region q r2 /\ concrete.cont_trans (l, p) (l, q).
 
-  Definition states: list State :=
-    flat_map (fun l => map (pair l) regions) locations.
+  Definition disc_trans_cond (s : State * State): Prop :=
+    let (s1, s2) := s in
+    let (l1, r1) := s1 in
+    let (l2, r2) := s2 in
+      exists p, exists q,
+        in_region p r1 /\ in_region q r2 /\ concrete.disc_trans (l1, p) (l2, q).
 
-  Lemma states_complete: forall s, List.In s states.
-  Proof with auto.
-    destruct s.
-    unfold states.
-    destruct (in_flat_map (fun l => map (pair l) regions) locations (l, r)).
-    apply H0.
-    exists l.
-    split...
-    apply in_map...
-  Qed.
-
-  (* Next, we define the "ideal" criteria for when there should be
-   transitions between abstract states, as well as for when
-   an abstract state should be initial. *)
-
-  Definition initial_condition (l: State): Prop :=
-    exists p, in_region p (snd l) /\
-    concrete.initial (fst l, p).
-
-  Definition continuous_transition_condition
-    (l: prod Location (prod Region Region)): Prop :=
-    exists p, exists q,
-      in_region p (fst (snd l)) /\ in_region q (snd (snd l)) /\
-      concrete.cont_trans (fst l, p) (fst l, q).
-
-  Definition discrete_transition_condition
-    (l: prod State State): Prop :=
-    exists p, exists q,
-      in_region p (snd (fst l)) /\ in_region q (snd (snd l)) /\
-      concrete.disc_trans (fst (fst l), p) (fst (snd l), q).
-
-  (* These are not decideable, however, so we'll let users specify
-   weak deciders for these conditions. *)
+  (* this condition is no good, because it forces transitions to adjacent
+   regions in reset=id cases *)
 
   Variables
-    (cont_decider: decideable_overestimator continuous_transition_condition)
-    (disc_decider: decideable_overestimator discrete_transition_condition)
-    (initial_decider: decideable_overestimator initial_condition).
+    (cont_do : dec_overestimator cont_trans_cond)
+    (disc_do : dec_overestimator disc_trans_cond)
+    (initial_do : dec_overestimator initial_condition).
+
+  Variable hint: forall (l: Location) (r r': Region),
+    option (r <> r' /\ forall p, in_region p r ->
+     forall t, in_region (concrete.flow conc_sys l p t) r' -> t == '0).
 
   (* Using these, we can define the abstract transitions.. *)
 
-  Definition canContTrans (l: Location) (s s': Region): bool :=
-    unsumbool (doe_dec cont_decider (l, (s, s'))).
-  Definition canDiscTrans (s s': State): bool :=
-    unsumbool (doe_dec disc_decider (s, s')).
+  Let cont_trans_b (s : State) (r_dst : Region) : bool :=
+    let (l, r_src) := s in
+    (do_pred cont_do) (l, (r_src, r_dst)) &&
+    negb (hint (fst s) (snd s) r_dst).
 
-  Definition contTrans (s: State): list State :=
-    map (pair (fst s)) (filter (canContTrans (fst s) (snd s)) regions).
-  Definition discreteTrans (s: State): list State :=
-    filter (canDiscTrans s) states.
+  Let disc_trans_b (s1 s2 : State): bool :=
+    (do_pred disc_do) (s1, s2).
+
+  Definition RegionsCoverInvariants : Prop :=
+    forall l p, concrete.invariant (l, p) ->
+      in_region p (select_region p).
+
+  Variable regions_cover_invariants : RegionsCoverInvariants.
+
+  Definition initial_prop (s : State) :=
+    let (l, r) := s in
+      exists p, select_region p = r /\ concrete.initial (l, p).
+
+  Definition initial_dec (s : State) :=
+    let (l, r) := s in
+      do_pred initial_do (l, r).
+
+  Lemma over_initial : initial_dec >=> initial_prop.
+  Proof with auto.
+    intros s init ips. destruct s.
+    apply (do_correct initial_do (l, r))...
+    destruct ips as [p [pr lp]].
+    exists p. split...
+    subst. apply (regions_cover_invariants l).
+    apply concrete.invariant_initial. hyp.
+  Qed.
+
+  Definition disc_trans (s : State) : list State :=
+    filter (disc_trans_b s) (abstract.states conc_sys).
       (* a more efficient implementation would grow the graph *)
 
-  Definition initial (s: State): bool :=
-    unsumbool (doe_dec initial_decider s).
-
-  (* .. and the abstract system itself: *)
-
-  Definition abstract_system: abstract.System :=
-    abstract.Build_System State_eq_dec states states_complete initial contTrans discreteTrans.
-
-  (* Next, we will show that this abstract system respects the concrete
-   system by the following abstraction function: *)
-
-  Definition absFunc (s: concrete.State concrete_system):
-     abstract.State abstract_system :=
-    match s with
-    | pair l p => pair l (select_region p)
-    end.
-
-  Lemma fst_absFunc s: fst (absFunc s) = fst s.
-  Proof. destruct s. reflexivity. Qed.
-
-  Hypothesis regions_cover_invariants: forall l p,
-    concrete.invariant (l, p) -> in_region p (select_region p).
-
-  Lemma respectsInit
-    (s: concrete.Location concrete_system * concrete.Point concrete_system):
-    concrete.initial s -> abstract.initial (absFunc s) = true.
+  Lemma NoDup_disc_trans s : NoDup (disc_trans s).
   Proof with auto.
-    intros.
-    destruct s.
-    unfold absFunc.
-    simpl.
-    unfold initial.
-    destruct (doe_dec initial_decider (l, select_region p))...
-    elimtype False. apply n. clear n.
-    apply doe_correct.
-    unfold initial_condition.
-    exists p.
-    split...
-    simpl snd.
-    apply regions_cover_invariants with l.
-    apply concrete.invariant_initial...
+    intro. apply NoDup_filter. apply abstract.NoDup_states...
   Qed.
 
-  Lemma respectsDisc (s1 s2: concrete.State concrete_system):
+  Lemma respects_disc (s1 s2 : c_State) :
+    let (l1, p1) := s1 in
+    let (l2, p2) := s2 in
     concrete.disc_trans s1 s2 ->
-    In (absFunc s2) (abstract.disc_trans (absFunc s1)).
+    In (l2, select_region p2) (disc_trans (l1, select_region p1)).
+
   Proof with auto.
-    intros.
-    unfold abstract.disc_trans, abstract_system, discreteTrans.
-    destruct (filter_In (canDiscTrans (absFunc s1)) (absFunc s2) states).
-    apply H1.
-    split.
-      apply states_complete.
-    unfold canDiscTrans.
-    destruct (@doe_dec (prod State State) discrete_transition_condition disc_decider
-        (@pair State State (absFunc s1) (absFunc s2)))...
-    elimtype False.
-    apply n.
-    clear n H0 H1.
-    apply doe_correct.
-    unfold discrete_transition_condition.
-    simpl fst. simpl snd.
-    destruct H.
-    destruct H0.
-    destruct H1.
-    exists (snd s1).
-    exists (snd s2).
-    simpl snd.
-    repeat rewrite fst_absFunc.
-    simpl in H0.
-    simpl concrete.Location. simpl concrete.Point.
-    split.
-      destruct s1. simpl.
-      apply regions_cover_invariants with l...
-    split.
-      destruct s2. simpl.
-      apply regions_cover_invariants with l...
-    unfold concrete.disc_trans.
-    simpl fst. simpl snd.
-    destruct s1.
-    split...
-    split...
-    split...
-    destruct s2...
+    intros [l1 p1] [l2 p2] dt.
+    apply in_filter...
+    set (s1 := (l1, select_region p1)). set (s2 := (l2, select_region p2)).
+    apply do_over_true.
+    destruct dt as [guard [reset [inv1 inv2]]].
+    exists p1. exists p2. 
+    repeat split; solve 
+      [ hyp 
+      | simpl; eapply regions_cover_invariants; eassumption].
   Qed.
 
-  Lemma respectsCont s1 s2: (concrete.cont_trans s1 s2) ->
-    In (absFunc s2) (abstract.cont_trans (absFunc s1)).
-  Proof with auto with real.
-    intros.
-    unfold abstract_system.
-    simpl abstract.cont_trans.
-    destruct s1. destruct s2.
-    unfold concrete.cont_trans in H.
-    unfold contTrans.
-    destruct H. destruct H0. destruct H0. simpl in * |-. subst.
-    rewrite fst_absFunc.
-    simpl fst.
-    rename l0 into l.
-    simpl absFunc.
-    apply in_map.
-    simpl fst. simpl snd.
-    destruct (filter_In
-      (canContTrans l (select_region p)) (select_region (concrete.flow concrete_system l p (proj1_sig x))) regions).
-    clear H. apply H1. clear H1.
-    split.
-      apply regions_complete.
-    unfold canContTrans.
-    destruct (@doe_dec (prod Location (prod Region Region))
-        continuous_transition_condition cont_decider
-        (@pair Location (prod Region Region) l
-           (@pair Region Region (select_region p)
-              (select_region (concrete.flow concrete_system l p (proj1_sig x))))))...
-    elimtype False. apply n. clear n.
-    apply doe_correct.
-    unfold continuous_transition_condition.
-    simpl fst. simpl snd.
-    exists p. exists (concrete.flow concrete_system l p (proj1_sig x)).
-    split.
-      apply regions_cover_invariants with l.
-      rewrite <- (flow.flow_zero (concrete.flow concrete_system l)) with p.
-      destruct x...
-    split.
-      apply regions_cover_invariants with l.
-      destruct x...
-    unfold concrete.cont_trans.
-    simpl fst. simpl snd.
-    split...
-    exists x...
-  Qed.
-
-  (* Et voila: *)
-
-  Theorem respect: respect.Respects abstract_system absFunc.
-  Proof respect.Build_Respects abstract_system absFunc respectsInit respectsDisc respectsCont.
-
-  Lemma result:
-    { abstract_system: abstract.System &
-    { f: concrete.State concrete_system -> abstract.State abstract_system
-    | respect.Respects abstract_system f } }.
+  Add Morphism (concrete.inv_curried conc_sys)
+    with signature (@eq _) ==> (@cs_eq _) ==> iff
+    as inv_mor.
   Proof.
-    exists abstract_system.
-    exists absFunc.
-    apply respect.
-  Defined.
+    intros. apply concrete.invariant_wd; trivial.
+  Qed.
+
+  Definition cont_trans (s : State) : list Region :=
+    filter (cont_trans_b s) regions.
+
+  Hint Immediate CRle_refl : real.
+
+  Lemma respects_cont l s1 s2 : 
+    concrete.cont_trans' _ l s1 s2 ->
+    In (select_region s2) (cont_trans (l, select_region s1)).
+  Proof with auto with real.
+    intros l s1 s2 [t [inv flow]].
+    apply in_filter...
+    unfold cont_trans_b.
+    apply andb_true_intro.
+    split.
+      apply do_over_true.
+      exists s1. exists s2.
+      repeat split.
+          apply regions_cover_invariants with l. rewrite concrete.curry_inv.
+          rewrite <- (flow_zero (concrete.flow conc_sys l) s1).
+          apply inv... destruct t. simpl. apply (CRnonNeg_le_zero x). hyp.
+        apply regions_cover_invariants with l. rewrite concrete.curry_inv.
+        rewrite <- flow. apply inv...
+        destruct t. simpl. apply (CRnonNeg_le_zero x)...
+      exists t...
+    apply negb_inv.
+    simpl negb.
+    unfold opt_to_bool.
+    simpl @fst. simpl @snd.
+    destruct (hint l (select_region s1) (select_region s2))...
+    destruct a.
+    elimtype False. apply H.
+    apply select_region_wd.
+    assert (in_region s1 (select_region s1))...
+      apply (select_region_correct (l, s1)).
+      cut (concrete.invariant (l, concrete.flow conc_sys l s1 ('0))).
+        intro.
+        apply -> (@concrete.invariant_wd conc_sys l l (refl_equal _) (concrete.flow conc_sys l s1 ('0)))...
+        apply flow_zero.
+      apply inv...
+      destruct t...
+      apply -> CRnonNeg_le_zero...
+    assert (in_region (concrete.flow conc_sys l s1 (`t)) (select_region s2)).
+      apply in_region_wd with s2...
+        symmetry. assumption.
+      apply (select_region_correct (l, s2)).
+      cut (concrete.invariant (l, concrete.flow conc_sys l s1 (`t))).
+        intro.
+        apply -> (@concrete.invariant_wd conc_sys l l (refl_equal _) (concrete.flow conc_sys l s1 (`t)))...
+      apply inv...
+      destruct t...
+      apply -> CRnonNeg_le_zero...
+    assert (`t [=] '0). apply H0 with s1...
+    unfold concrete.flow in flow.
+    clear H H0 H1 H2.
+    clear inv select_region_correct.
+    clear select_region_wd cont_trans_b disc_trans_b.
+    clear in_region_wd. clear regions_cover_invariants.
+    clear disc_do initial_do State.
+    clear hint.
+    clear cont_do Location.
+    destruct conc_sys.
+    rewrite <- flow.
+    symmetry.
+    set (flow_zero (flow0 l) s1).
+    clearbody s.
+    destruct (flow0 l).
+    simpl in *.
+    destruct flow_morphism.
+    simpl c_util.bsm in *.
+    assert (s1 [=] s1). reflexivity.
+    rewrite (bsm_wd s1 s1 H (`t) ('0))...
+  Qed.
+
+  Lemma NoDup_cont_trans s : NoDup (cont_trans s).
+  Proof. unfold cont_trans. auto. Qed.
+
+  Program Definition abstract_system : abstract.System conc_sys :=
+    abstract.Build_System Region_eq_dec regions
+     NoDup_regions select_region over_initial disc_trans
+     NoDup_disc_trans respects_disc cont_trans NoDup_cont_trans respects_cont.
+
+  Variable disc_trans': @abstract.State conc_sys Region -> list (@abstract.State conc_sys Region).
+  Variable NoDup_disc_trans': forall s : @abstract.State conc_sys Region, NoDup (disc_trans' s).
+  Variable respects_disc': forall s1 s2 : concrete.State conc_sys,
+    let (l1, p1) := s1 in
+    let (l2, p2) := s2 in
+      concrete.disc_trans s1 s2 ->
+      In (l2, select_region p2) (disc_trans' (l1, select_region p1)).
+
+  Program Definition abstract_system': abstract.System conc_sys :=
+    abstract.Build_System Region_eq_dec regions
+     NoDup_regions select_region over_initial disc_trans' NoDup_disc_trans'
+     respects_disc' cont_trans NoDup_cont_trans respects_cont.
 
 End contents.

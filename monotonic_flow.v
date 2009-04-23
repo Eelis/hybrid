@@ -1,88 +1,14 @@
 Require Import util.
-Require Import Fourier.
+Require Import c_util.
 Require Export flow.
 Set Implicit Arguments.
-Open Local Scope R_scope.
-
-Require Import Coq.Reals.Reals.
-
-Section function_properties.
-
-  Variable f: R -> R.
-
-  Definition strongly_increasing: Prop :=
-    forall x x', x < x' -> f x < f x'.
-  Definition strongly_decreasing: Prop :=
-    forall x x', x < x' -> f x' < f x.
-
-  Lemma mildly_increasing:
-    strongly_increasing -> forall x x', x <= x' -> f x <= f x'.
-  Proof with auto with real.
-    intros.
-    destruct H0...
-    subst...
-  Qed.
-
-  Lemma mildly_decreasing:
-    strongly_decreasing -> forall x x', x <= x' -> f x' <= f x.
-  Proof with auto with real.
-    intros.
-    destruct H0...
-    subst...
-  Qed.
-
-  Lemma strongly_increasing_rev: strongly_increasing -> forall x x', f x < f x' -> x < x'.
-  Proof with auto with real.
-    unfold strongly_increasing.
-    intros.
-    destruct (Rlt_le_dec x x')...
-    destruct (Rle_lt_or_eq_dec x' x r).
-      elimtype False...
-      apply (Rlt_asym _ _  H0)...
-    subst.
-    elimtype False.
-    apply (Rlt_irrefl _ H0).
-  Qed.
-
-  Lemma strongly_decreasing_rev: strongly_decreasing -> forall x x', f x < f x' -> x' < x.
-  Proof with auto with real.
-    unfold strongly_decreasing.
-    intros.
-    destruct (Rlt_le_dec x x').
-      elimtype False...
-      apply (Rlt_asym _ _  H0)...
-    destruct (Rle_lt_or_eq_dec x' x r)...
-    subst.
-    elimtype False.
-    apply (Rlt_irrefl _ H0).
-  Qed.
-
-  Definition monotonic: Set := { strongly_increasing } + { strongly_decreasing }.
-
-  Lemma mono_eq: monotonic -> forall x x', f x = f x' <-> x = x'.
-  Proof with auto.
-    split.
-      intros.
-      destruct (Rle_lt_dec x x').
-        destruct r...
-        elimtype False.
-        destruct H; set (s _ _ H1); rewrite H0 in r; apply Rlt_irrefl with (f x')...
-      elimtype False.
-      destruct H; set (s _ _ r); rewrite H0 in r0; apply Rlt_irrefl with (f x')...
-    intros. subst...
-  Qed.
-
-End function_properties.
+Open Local Scope CR_scope.
 
 Section single_inverses.
 
-  Variable f: Flow R.
+  Variable f: Flow CRasCSetoid.
 
-  Definition mono: Set :=
-    { forall x, strongly_increasing (f x) } +
-    { forall x, strongly_decreasing (f x) }.
-
-  Variable fmono: mono.
+  Variable fmono: mono f.
 
   Lemma purify_mono: forall x, monotonic (f x).
   Proof.
@@ -91,21 +17,48 @@ Section single_inverses.
     destruct fmono; set (s x); [left | right]; assumption.
   Qed.
 
-  Definition mle (x x': R): Prop := if fmono then x <= x' else x' <= x.
-  Definition mlt (x x': R): Prop := if fmono then x < x' else x' < x.
+  Definition mle (x x': CR): Prop := if fmono then x <= x' else x' <= x.
+  Definition mlt (x x': CR): CProp := if fmono then x < x' else x' < x.
 
   Lemma mle_refl x: mle x x.
-  Proof. unfold mle. destruct fmono; simpl; auto with real. Qed.
+  Proof. unfold mle. destruct fmono; intros; apply CRle_refl. Qed.
 
   Lemma mle_trans x y z: mle x y -> mle y z -> mle x z.
   Proof.
     unfold mle.
-    destruct fmono; simpl; intros; apply Rle_trans with y; assumption.
+    destruct fmono; intros; apply CRle_trans with y; assumption.
   Qed.
 
   Lemma mlt_le x x': mlt x x' -> mle x x'.
-  Proof. unfold mlt, mle. destruct fmono; simpl; auto with real. Qed.
+  Proof.
+    unfold mlt, mle. destruct fmono; intros; apply CRlt_le; assumption.
+  Qed.
 
+  Lemma mono_le_opp v t t': t' < t -> mlt (f v t') (f v t).
+  Proof.
+    unfold mlt.
+    destruct fmono;intros; apply s; assumption.
+  Qed.
+
+  Add Morphism (@bsm CRasCSetoid CRasCSetoid CRasCSetoid)
+    with signature (@eq _) ==> (@cs_eq _) ==> (@cs_eq _) ==> (@cs_eq _)
+    as gh_mor.
+  Proof with auto.
+    intro.
+    exact (@bsm_mor _ _ _ y y (refl_equal _)).
+  Qed.
+
+  Lemma mono_opp v t t': t' <= t -> mle (f v t') (f v t).
+  Proof with auto.
+    unfold mle.
+    destruct fmono; intros.
+      apply mildly_increasing...
+      intros. rewrite H0. reflexivity.
+    apply mildly_decreasing...
+    intros. rewrite H0. reflexivity.
+  Qed.
+
+(*
   Lemma mle_lt_or_eq_dec x x':
     mle x x' -> { mlt x x' } + { x = x' }.
   Proof with auto with real.
@@ -114,31 +67,23 @@ Section single_inverses.
       apply Rle_lt_or_eq_dec...
     destruct (Rle_lt_or_eq_dec _ _ H)...
   Qed.
-
-  Lemma mono_opp v t t': t' <= t -> mle (f v t') (f v t).
-  Proof with auto with real.
-    unfold mle.
-    destruct fmono.
-      intros.
-      set (s v).
-      unfold strongly_increasing in s0.
-      destruct H...
-      subst...
-    intros.
-    set (s v).
-    unfold strongly_increasing in s0.
-    destruct H...
-    subst...
-  Qed.
+*)
 
   Variables
-    (inv: R -> R -> Time)
-    (inv_correct: forall x x', f x (inv x x') = x').
+    (inv: CR -> CR -> Time)
+    (inv_correct: forall x x', f x (inv x x') == x').
 
-  Definition f_eq x t t': f x t = f x t' <-> t = t'
-    := mono_eq (purify_mono x) t t'.
+  Definition f_eq x t t': f x t == f x t' <-> t == t'.
+  Proof.
+    intros.
+    apply mono_eq.
+      intros.
+      rewrite H.
+      reflexivity.
+    apply purify_mono.
+  Qed.
 
-  Lemma inv_correct' x t: inv x (f x t) = t.
+  Lemma inv_correct' x t: inv x (f x t) == t.
   Proof.
     intros.
     destruct (f_eq x (inv x (f x t)) t).
@@ -146,98 +91,160 @@ Section single_inverses.
     rewrite inv_correct. reflexivity.
   Qed.
 
+  Add Morphism inv with signature (@cs_eq _) ==> (@cs_eq _) ==> (@cs_eq _)
+    as inv_wd.
+  Proof with auto.
+    intros.
+    destruct (f_eq x (inv x x0) (inv y y0)).
+    apply H1.
+    rewrite inv_correct.
+    rewrite H.
+    rewrite inv_correct...
+  Qed.
 
-  Lemma inv_plus x y z: inv x z = inv x y + inv y z.
+  Lemma inv_plus x y z: inv x z == inv x y + inv y z.
   Proof with auto.
     intros. destruct (f_eq x (inv x z) (inv x y + inv y z)).
     clear H0. apply H.
     rewrite flow_additive...
-    repeat rewrite inv_correct...
+    repeat rewrite inv_correct.
+    reflexivity.
   Qed.
 
-  Lemma inv_refl x: inv x x = 0.
+  Lemma inv_refl x: inv x x == '0.
   Proof with auto.
-    intros. destruct (f_eq x (inv x x) 0).
+    intros. destruct (f_eq x (inv x x) ('0)).
     clear H0. apply H.
     repeat rewrite inv_correct...
     rewrite flow_zero...
+    reflexivity.
   Qed.
 
   Lemma f_lt x t t': mlt (f x t) (f x t') -> t < t'.
-  Proof with auto with real.
-    unfold mlt.
-    destruct fmono; intros.
-      apply strongly_increasing_rev with (f x)...
-    apply strongly_decreasing_rev with (f x)...
+  Proof with auto.
+    unfold mlt. destruct fmono; intros.
+      apply strongly_increasing_inv with (f x)...
+      intros. rewrite H0. reflexivity.
+    apply strongly_decreasing_inv with (f x)...
+    intros. rewrite H0. reflexivity.
   Qed.
 
   Lemma f_le x t t': mle (f x t) (f x t') -> t <= t'.
-  Proof with auto with real.
-    unfold mle.
-    intros.
-    set (f_lt x t t'). clearbody r.
-    unfold mlt in r.
-    destruct fmono; destruct H.
-          apply Rlt_le...
-        right. destruct (f_eq x t t')...
-      apply Rlt_le...
-    right. destruct (f_eq x t t')...
+  Proof with auto.
+    unfold mle. intros. destruct fmono.
+      apply strongly_increasing_inv_mild with (f x)...
+    apply strongly_decreasing_inv_mild with (f x)...
   Qed.
 
-  Lemma inv_lt_right a x x': inv a x < inv a x' <-> mlt x x'.
+  Lemma inv_lt_right a x x': inv a x < inv a x' IFF mlt x x'.
   Proof with auto.
     unfold mlt.
-    split; intros.
-      replace x with (f a (inv a x))...
-      replace x' with (f a (inv a x'))...
-      destruct fmono; apply s...
-    set f_lt. clearbody r.
-    unfold mlt in r.
-    destruct fmono; apply r with a; repeat rewrite inv_correct...
+    split.
+      intros.
+      destruct fmono.
+        assert (x' == x') by reflexivity.
+        apply (CRlt_wd (inv_correct a x) H0).
+        assert (f a (inv a x) == f a (inv a x)) by reflexivity.
+        apply (CRlt_wd H1 (inv_correct a x')).
+        apply s...
+      assert (x' == x') by reflexivity.
+      apply (CRlt_wd H0 (inv_correct a x)).
+      assert (f a (inv a x) == f a (inv a x)) by reflexivity.
+      apply (CRlt_wd (inv_correct a x') H1).
+      apply s...
+    set f_lt. unfold mlt in c. clearbody c.
+    destruct fmono.
+      intros.
+      apply c with a.
+      assert (f a (inv a x) == x) by apply inv_correct.
+      assert (f a (inv a x') == x') by apply inv_correct.
+      symmetry in H0, H1.
+      apply (CRlt_wd H0 H1)...
+    (* todo: use morphisms to make this much nicer *)
+    intros.
+    apply c with a.
+    assert (f a (inv a x) == x) by apply inv_correct.
+    assert (f a (inv a x') == x') by apply inv_correct.
+    symmetry in H0, H1.
+    apply (CRlt_wd H1 H0)...
   Qed.
 
-  Lemma inv_pos x x': 0 < inv x x' <-> mlt x x'.
+  Lemma inv_le_right a x x': inv a x <= inv a x' <-> mle x x'.
+  Proof with auto.
+    unfold mle.
+    split.
+      intros.
+      destruct fmono.
+        rewrite <- (inv_correct a x).
+        rewrite <- (inv_correct a x').
+        apply mildly_increasing...
+        intros. rewrite H0. reflexivity. (* hm *)
+      rewrite <- (inv_correct a x).
+      rewrite <- (inv_correct a x').
+      apply mildly_decreasing...
+      intros. rewrite H0. reflexivity. (* hm *)
+    set f_le. unfold mle in c. clearbody c.
+    intros.
+    apply c with a.
+    destruct fmono; repeat rewrite inv_correct...
+  Qed.
+(*
+  Lemma inv_pos x x': '0 < inv x x' IFF mlt x x'.
   Proof with auto with real.
     unfold mlt.
     split; intros.
-      set f_lt. clearbody r.
+      admit.
+      (*
+      set f_lt. clearbody c.
       intros.
-      replace x with (f x 0)...
-        replace x' with (f x (inv x x'))...
-        destruct fmono; apply s...
-      rewrite flow_zero...
-    rewrite <- inv_refl with x.
-    destruct (inv_lt_right x x x')...
+      destruct f_flows...
+      replace x with (f x ('0))...
+      destruct fmono.
+        set (inv_correct x x').
+        assert (forall h h', h == h' -> f x h == f x h').
+          intros.
+          apply f_wd...
+          reflexivity.
+        clearbody m.
+        rewrite <- m.
+      replace x' with (f x (inv x x'))...
+      destruct fmono; apply s...
+      *)
+    Check (inv_refl).
   Qed.
-
-  Lemma inv_very_correct t x: inv (f x t) x = -t.
+*)
+  Lemma inv_very_correct t x: inv (f x t) x == -t.
   Proof with auto with real.
     intros.
-    assert (inv x x = 0).
+    assert (inv x x == '0).
       apply inv_refl.
     rewrite (inv_plus x (f x t) x) in H.
     rewrite inv_correct' in H.
-    replace (-t) with (0-t)...
+    rewrite <- (Radd_0_l CR_ring_theory (-t)).
     rewrite <- H.
-    unfold Rminus.
-    rewrite Rplus_comm.
-    rewrite <- Rplus_assoc.
-    rewrite Rplus_opp_l...
+    rewrite (Radd_comm CR_ring_theory).
+    rewrite (Radd_assoc CR_ring_theory).
+    rewrite (Radd_comm CR_ring_theory (-t)).
+    rewrite (Ropp_def CR_ring_theory).
+    rewrite (Radd_0_l CR_ring_theory).
+    reflexivity.
   Qed.
 
-  Lemma inv_inv x y: inv x y = - inv y x.
-  Proof with auto with real.
-    intros.
-    set (inv_very_correct (inv y x) y).
-    rewrite inv_correct in e...
-  Qed.
-
-  Lemma inv_uniq_0 x x': inv x x' = - inv 0 x + inv 0 x'.
+  Lemma inv_inv x y: inv x y == - inv y x.
   Proof.
     intros.
-    rewrite (inv_plus x 0 x').
-    rewrite (inv_inv x 0).
-    auto with real.
+    set (inv_very_correct (inv y x) y).
+    clearbody s. rewrite <- s.
+    rewrite inv_correct.
+    reflexivity.
+  Qed.
+
+  Lemma inv_uniq_0 x x': inv x x' == - inv ('0) x + inv ('0) x'.
+  Proof.
+    intros.
+    rewrite (inv_plus x ('0) x').
+    rewrite (inv_inv x ('0)).
+    reflexivity.
   Qed.
     (* hm, this shows that inv is uniquely determined by the values it
       takes with 0 as first argument. perhaps the reason we don't
@@ -247,41 +254,51 @@ Section single_inverses.
   Lemma inv_le a x x': mle x x' -> inv a x <= inv a x'.
   Proof with auto.
     intros.
-    set f_le. clearbody r.
-    apply r with a.
-    do 2 rewrite inv_correct...
+    set f_le. clearbody c.
+    apply c with a.
+    unfold mle in *.
+    destruct fmono; do 2 rewrite inv_correct...
   Qed.
 
-  Lemma inv_nonneg x x': 0 <= inv x x' <-> mle x x'.
-  Proof with auto with real.
+  Lemma inv_nonneg x x': '0 <= inv x x' <-> mle x x'.
+  Proof with auto.
     unfold mle.
     split; intros.
-      set f_le. clearbody r.
-      intros.
-      replace x with (f x 0)...
-        replace x' with (f x (inv x x'))...
-        apply mono_opp...
-      apply flow_zero.
-    rewrite <- inv_refl with x.
-    apply inv_le...
+      destruct fmono.
+        rewrite <- (flow_zero f x).
+        rewrite <- (inv_correct x x').
+        apply mildly_increasing...
+        intros. rewrite H0. reflexivity. (* hm *)
+      rewrite <- (flow_zero f x).
+      rewrite <- (inv_correct x x').
+      apply mildly_decreasing...
+      intros. rewrite H0. reflexivity. (* hm *)
+    rewrite <- (inv_refl x).
+    apply inv_le.
+    assumption.
   Qed.
 
-  Lemma inv_zero x x': inv x x' = 0 <-> x = x'.
+  Lemma inv_zero x x': inv x x' == '0 <-> x == x'.
   Proof with auto.
     split; intros.
-      replace x' with (f x (inv x x'))...
+      rewrite <- (inv_correct x x').
       rewrite H.
-      rewrite flow_zero...
-    subst.
-    rewrite inv_refl...
+      rewrite flow_zero.
+      reflexivity.
+    rewrite H.
+    apply inv_refl.
   Qed.
 
-  Lemma f_lt_left x x' t: x < x' <-> f x t < f x' t.
+
+(*
+  Lemma f_lt_left x x' t: (x < x') IFF (f x t < f x' t).
   Proof with auto with real.
+  Admitted.
+
     split.
       intros.
       replace x' with (f x (inv x x'))...
-      rewrite <- flow_additive...
+      rewrite <- concrete.flow_additive...
       destruct (inv_pos x x').
       destruct (inv_pos x' x).
       unfold mlt in *.
@@ -294,26 +311,31 @@ Section single_inverses.
       set (H3 H).
       fourier.
     set f_lt. set inv_pos. clearbody r i.
+    destruct f_flows.
     unfold mlt in r, i.
     destruct fmono; intros.
       replace (f x' t) with (f (f x (inv x x')) t) in H...
-        rewrite <- flow_additive in H...
+        rewrite <- concrete.flow_additive in H...
         set (r _ _ _ H).
         assert (0 < inv x x') by fourier.
         destruct (i x x').
         apply H1...
       rewrite inv_correct...
     replace (f x t) with (f (f x' (inv x' x)) t) in H...
-      rewrite <- flow_additive in H...
+      rewrite <- (concrete.flow_additive f_flows) in H...
       set (r _ _ _ H).
       assert (0 < inv x' x) by fourier.
       destruct (i x' x).
       apply H1...
+    destruct f_flows...
     rewrite inv_correct...
   Qed.
-
-  Lemma f_eq_left x x' t: f x t = f x' t <-> x = x'.
+*)
+(*
+  Lemma f_eq_left x x' t: f x t == f x' t <-> x == x'.
   Proof with auto with real.
+  Admitted.
+
     intros.
     split; intros.
       intros.
@@ -331,22 +353,52 @@ Section single_inverses.
       apply (Rlt_asym _ _ r1)...
     subst...
   Qed.
+*)
 
-  Lemma f_le_left x x' t: x <= x' <-> f x t <= f x' t.
+  Lemma f_le_left x x' t: x <= x' -> f x t <= f x' t.
   Proof with auto with real.
     intros.
-    destruct (f_lt_left x x' t).
-    split; intro.
-      destruct H1...
-      subst...
-    destruct H1.
-      destruct (f_lt_left x x' t)...
-    replace x' with x...
-    destruct (f_eq_left x x' t)...
+    set (inv_nonneg x x').
+    set (inv_nonneg x' x).
+    clearbody i i0.
+    unfold mle in *.
+    destruct fmono; clear fmono; destruct f.
+      simpl strongly_increasing in s.
+      simpl. clear f. rename flow_morphism into f.
+      rewrite <- (inv_correct x x').
+      simpl.
+      rewrite <- flow_additive.
+      apply mildly_increasing...
+        intros. rewrite H0. reflexivity. (* hm *)
+      rewrite <- (Radd_0_l CR_ring_theory t) at 1.
+      apply t9.
+        apply i...
+      apply CRle_refl.
+    simpl strongly_decreasing in s.
+    simpl. clear f. rename flow_morphism into f.
+    rewrite <- (inv_correct x x').
+    simpl.
+    rewrite <- flow_additive.
+    apply mildly_decreasing...
+      intros. rewrite H0. reflexivity. (* hm *)
+    rewrite <- (Radd_0_l CR_ring_theory t) at 2.
+    apply t9.
+      rewrite inv_inv.
+      assert ('0 == -'0).
+        rewrite CRopp_Qopp.
+        apply inject_Q_wd.
+        reflexivity.
+      rewrite H0.
+      apply t8.
+      apply i0...
+    apply CRle_refl.
   Qed.
 
-  Lemma inv_lt_left a x x': mlt x x' <-> inv x' a < inv x a.
+(*
+  Lemma inv_lt_left a x x': mlt x x' IFF inv x' a < inv x a.
   Proof with auto with real.
+  Admitted.
+
     unfold mlt.
     intros.
     rewrite (inv_inv x' a).
@@ -356,44 +408,35 @@ Section single_inverses.
     intros.
     apply H...
   Qed.
-
+*)
   Lemma inv_le_left a x x': mle x x' -> inv x' a <= inv x a.
-  Proof with auto with real.
-    unfold mle. intros.
-    destruct (inv_lt_left a x x').
-    unfold mlt in *.
-    destruct fmono; intros; destruct H; subst...
+  Proof with auto.
+    intros.
+    rewrite (inv_inv x'). rewrite (inv_inv x).
+    apply t8. apply inv_le...
   Qed.
 
+(*
   Lemma inv_eq_right a x x': inv a x = inv a x' <-> x = x'.
   Proof with auto with real.
+  Admitted.
+
     split.
       intros.
       replace x with (f a (inv a x))...
       replace x' with (f a (inv a x'))...
     intros...
   Qed.
+*)
 
-  Lemma inv_le_right a x x': inv a x <= inv a x' <-> mle x x'.
-  Proof with auto with real.
-    intros.
-    destruct (inv_lt_right a x x').
-    split; intro.
-      destruct H1.
-        apply mlt_le...
-      rewrite (conj_fst (inv_eq_right a x x') H1).
-      apply mle_refl.
-    destruct (mle_lt_or_eq_dec _ _ H1)...
-    subst...
-  Qed.
-
-  Lemma mle_flow t x: 0 <= t -> mle x (f x t).
+  Lemma mle_flow t x: '0 <= t -> mle x (f x t).
   Proof with auto.
     intros.
-    apply mle_trans with (f x 0).
-      rewrite flow_zero...
-      apply mle_refl.
+    apply mle_trans with (f x ('0)).
+      unfold mle.
+      destruct fmono; rewrite flow_zero; apply CRle_refl.
     apply mono_opp...
   Qed.
 
 End single_inverses.
+

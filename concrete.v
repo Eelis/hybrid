@@ -1,70 +1,104 @@
 Require Import util.
-Require Import Fourier.
+Require Import c_util.
 Require Import reachability.
+Require Import CRreal.
 Require Export flow.
-Require Import List.
 Set Implicit Arguments.
-Open Local Scope R_scope.
+Open Local Scope CR_scope.
+Require EquivDec.
+
+(* We require CR because we use it for Time. 
+ Todo: Take an arbitrary (C)Ring/(C)Field for Time, so that
+ the classical development does not need a separate concrete module. *)
 
 Record System: Type :=
-  { Point: Set
+  { Point: CSetoid
 
   ; Location: Set
-  ; Location_eq_dec: forall l l': Location, decision (l = l')
-  ; locations: list Location
-  ; locations_exhaustive: forall l, In l locations
+  ; Location_eq_dec: EquivDec.EqDec Location eq
+  ; locations: ExhaustiveList Location
+  ; NoDup_locations: NoDup locations
 
-  ; initial: (Location * Point)%type -> Prop
-  ; invariant: (Location * Point)%type -> Prop
-  ; invariant_initial: forall p, initial p -> invariant p
+  ; initial: (Location * Point) -> Prop
+  ; invariant: (Location * Point) -> Prop
+  ; invariant_initial: forall s, initial s -> invariant s
+  ; invariant_wd: forall l l', l = l' -> forall p p', cs_eq p p' ->
+      (invariant (l, p) <-> invariant (l', p'))
 
   ; flow: Location -> Flow Point
 
-  ; guard : (Location * Point)%type -> Location -> Prop (* When true discrete step is allowed *)
-  ; reset: Location -> Location -> Point -> Point (* reset maps *)
-  (* this separation of guard and reset seems to cause a problem:
-  the paper allows having different transitions from a given (l, x) to
-  some (l', x'), because you can have different transitions. we only allow one! *)
+  ; guard : (Location * Point) -> Location -> Prop
+  ; reset: Location -> Location -> Point -> Point
+    (* this separation of guard and reset seems to cause a problem:
+    the paper allows having different transitions from a given (l, x) to
+    some (l', x'), because you can have different transitions. we only allow one! *)
   }.
 
+Hint Resolve Location_eq_dec locations: typeclass_instances.
 Implicit Arguments initial [s].
 Implicit Arguments invariant [s].
 
-Section contents.
+Section transitions_and_reachability.
 
   Variable system: System.
 
-  Definition State: Set := (Location system * Point system)%type.
+  Definition State: Type := (Location system * Point system)%type.
+
+  Definition cont_trans' l (p p': Point system) : Prop :=
+    exists d:Duration,
+      (forall t, '0 <= t -> t <= proj1_sig d ->
+        invariant (l, flow system l p t))
+      /\ flow system l p (proj1_sig d) [=] p'.
 
   Definition cont_trans (s s': State) : Prop :=
-    fst s = fst s' /\ exists d:Duration,
-      (forall t, 0 <= t <= proj1_sig d ->
-        invariant (fst s, flow system (fst s) (snd s) t))
-      /\ flow system (fst s') (snd s) (proj1_sig d) = (snd s').
+    fst s = fst s' /\ cont_trans' (fst s) (snd s) (snd s').
 
   Definition disc_trans (s s': State) : Prop :=
     guard system s (fst s') /\
-     reset system (fst s) (fst s') (snd s) = (snd s') /\
+     reset system (fst s) (fst s') (snd s) = snd s' /\
       invariant s /\ invariant s'.
 
   Definition trans (s s': State): Prop := disc_trans s s' \/ cont_trans s s'.
 
   Notation "s ->_C s'" := (cont_trans s s') (at level 70).
   Notation "s ->_D s'" := (disc_trans s s') (at level 70).
-  Notation "s --> s'" := (trans s s') (at level 90).
+  Notation "s ->_T s'" := (trans s s') (at level 90).
+
+  Definition inv_curried (l: Location system) (p: Point system): Prop :=
+    invariant (l, p).
+
+  Definition curry_inv l p: invariant (l, p) = inv_curried l p.
+  Proof. reflexivity. Qed.
+
+  Add Morphism inv_curried
+    with signature (@eq _) ==> (@cs_eq _) ==> iff
+    as inv_mor.
+  Proof with auto.
+    intros.
+    unfold inv_curried.
+    apply invariant_wd...
+  Qed.
+
+  Add Morphism (@bsm (Point system) CRasCSetoid (Point system))
+    with signature (@eq _) ==> (@cs_eq _) ==> (@cs_eq _) ==> (@cs_eq _)
+    as gh_mor.
+  Proof with auto.
+    intro.
+    exact (@bsm_mor (Point system) CRasCSetoid (Point system) y y (refl_equal _)).
+  Qed.
 
   Lemma cont_trans_refl s: invariant s -> s ->_C s.
   Proof with auto.
     intros. unfold cont_trans. destruct s.
     split...
-    exists immediately.
-    unfold immediately. simpl.
+    exists NonNegCR_zero.
     split.
       intros.
-      replace t with 0.
-        rewrite flow_zero...
-      destruct H0.
-      apply Rle_antisym...
+      assert (t [=] '0).
+        destruct (CRle_def t ('0))...
+      rewrite curry_inv.
+      rewrite H2.
+      rewrite flow_zero...
     apply flow_zero.
   Qed.
 
@@ -74,106 +108,98 @@ Section contents.
     unfold cont_trans.
     intros. destruct s. destruct s'. destruct s''.
     simpl in *.
-    destruct H. destruct H1. destruct H1. subst.
-    destruct H0. destruct H0. destruct H0. subst.
+    destruct H. destruct H1. destruct H1.
+    destruct H0. destruct H3. destruct H3. subst.
     split...
-    exists (duration_plus x x0).
+    exists (NonNegCR_plus x x0).
+    destruct x. destruct x0. simpl in *.
     split.
-      simpl.
       intros.
-      destruct x. destruct x0.
-      simpl in *.
-      assert (forall t, 0 <= t <= x0 -> invariant (l1, flow system l1 p (x + t))).
-        intros.
-        rewrite flow_additive...
-      clear H0.
-      set (Rge_le _ _ r).
-      set (Rge_le _ _ r0).
-      destruct H.
-      destruct (Rle_lt_dec t x)...
-      set (H2 (t - x)).
-      rewrite Rplus_minus in i.
-      apply i.
-      split; fourier.
-    rewrite <- flow_additive...
+      destruct (CR_lt_eq_dec t x).
+        apply H1...
+        rewrite s2.
+        apply CRle_refl.
+      destruct s2.
+        apply H1...
+        apply CRlt_le...
+      rewrite curry_inv.
+      rewrite (t11 x t).
+      rewrite flow_additive.
+      rewrite H2.
+      apply H3.
+        apply (CRnonNeg_le_zero (t-x)).
+        apply CRpos_nonNeg...
+      rewrite (t11 x x0).
+      rewrite (Radd_assoc CR_ring_theory).
+      apply (t2 (-x) H0).
+    rewrite flow_additive.
+    rewrite H2...
   Qed.
 
-  Lemma cont_trans_preserves_location s s':
-    s ->_C s' -> fst s = fst s'.
-  Proof. firstorder. Qed.
+  Lemma cont_trans_preserves_location s s': s ->_C s' -> fst s = fst s'.
+  Proof. intros. destruct H; auto... Qed.
 
-  (* eelis: hm, the paper distinguishes between R^n and the
+  (* hm, the paper distinguishes between R^n and the
   subset that is the continuous state space for the HS, and i
   seem to recall that flowing could actually end up outside the
   latter. i don't see any of this in our definition *)
 
   Definition reachable (s: State): Prop :=
-    exists i: State, initial i /\ reachable_from trans i s.
+    exists i: State, initial i /\ reachable trans i s.
 
-  Definition alternating_reachable (s: State): Prop :=
+  Definition reachable_alternating (s: State): Prop :=
     exists i: State, initial i /\
-      reachable_alternating i disc_trans cont_trans s.
+      reachable_alternating (fun b => if b then disc_trans else cont_trans) i s.
 
   Lemma reachable_invariant s: reachable s -> invariant s.
   Proof with auto with real.
     intros.
-    unfold reachable in H.
-    destruct H.
-    destruct H.
+    destruct H. destruct H.
     induction H0.
       apply invariant_initial...
     destruct H1.
-      firstorder.
-    destruct s. destruct s'.
+      destruct H1. destruct H2. destruct H3...
+    destruct b. destruct c.
     destruct H1. destruct H2. destruct H2.
     simpl in *. subst.
+    rewrite curry_inv.
+    rewrite <- H3.
     apply H2.
-    destruct x0...
+      destruct x...
+      simpl.
+      apply (CRnonNeg_le_zero x)...
+    apply CRle_refl.
   Qed.
 
-  Lemma reachable_alternating s: reachable s -> alternating_reachable s.
+  Lemma alternating_reachable s: reachable s -> reachable_alternating s.
   Proof with auto.
-    unfold reachable, alternating_reachable.
+    unfold reachable, reachable_alternating.
     intros.
-    destruct H.
-    exists x.
-    firstorder.
+    destruct H. destruct H.
+    exists x. split...
     induction H0.
-      apply reachable_alternating_A.
-      apply reachable_alternating_a_init.
-    destruct IHreachable_from.
-      destruct H1.
-        apply reachable_alternating_A.
-        apply reachable_alternating_a_next with s s...
-        apply cont_trans_refl.
-        apply reachable_invariant.
-        exists x...
-      apply reachable_alternating_B with s...
+      exists true.
+      apply end_with_refl.
+    destruct IHreachable...
     destruct H1.
-      apply reachable_alternating_A.
-      rename x into init.
-      apply reachable_alternating_a_next with s s'0...
-    apply reachable_alternating_B with s...
-    apply cont_trans_trans with s'0...
+      exists true.
+      apply end_with_next with b...
+      simpl.
+      destruct x...
+      apply end_with_next with b...
+      apply cont_trans_refl.
+      apply reachable_invariant.
+      unfold reachable.
+      exists a...
+    exists false.
+    destruct x.
+      apply end_with_next with b...
+    inversion_clear H2.
+      apply end_with_next with b...
+      apply end_with_refl.
+    simpl in H3.
+    apply end_with_next with y...
+    apply cont_trans_trans with b...
   Qed.
 
-  Definition Trace := nat -> State.
-    (* eelis: hm, this doesn't say what transitions were used. since
-    a HS can contain duplicate transitions (at least in the paper),
-    this means we cannot distinguish between traces those *)
-    (* eelis: hm, with this, you'd encode finite traces with a repeating
-    last trace? but that's indistinguishable from an infinite trace which
-    just happens to do lots of continuous transitions of duration 0 !
-    perhaps a coinductive type of _potentially_ infinite lists would
-    be better suited. or is the idea that there's no such thing as a
-    finite trace? *)
-
-  Definition Trans_prop (t:Trace): Prop :=
-    forall n:nat, t n --> t (S n).
-
-  CoInductive EelisTrace (start: State): Set :=
-    | empty_trace
-    | trace_trans next: (start --> next) -> EelisTrace next -> EelisTrace start.
-    (* just a thought.. *)
-
-End contents.
+End transitions_and_reachability.
