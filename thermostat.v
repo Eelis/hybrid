@@ -124,11 +124,11 @@ Qed.
 
 (* Flow *)
 
-Definition clock_flow (l: Location): Flow CRasCSetoid := flow.positive_linear.f (1#1).
+Definition clock_flow (l: Location): Flow CRasCSetoid := flow.positive_linear.f.
 
 Definition temp_flow (l: Location): Flow CRasCSetoid :=
   match l with
-  | Heat => flow.positive_linear.f (5#2) (* todo: get this closer to 2 *)
+  | Heat => flow.scale.flow ('(5#2)) flow.positive_linear.f (* todo: get this closer to 2 *)
   | Cool => flow.decreasing_exponential.f
   | Check => flow.scale.flow ('(1#2)) flow.decreasing_exponential.f
   end.
@@ -137,16 +137,24 @@ Definition flow l := product_flow (clock_flow l) (temp_flow l).
 
 (* Flow inverses *)
 
+Lemma meh: '0 < '(5#2).
+Proof.
+  exists ((5#2)%Qpos).
+  rewrite CRminus_Qminus.
+  apply (CRle_Qle (QposAsQ (1#2)) ((1#2)-0)%Q).
+  firstorder.
+Defined.
+
 Definition clock_flow_inv (l: Location) (a b: OpenRange): OpenRange :=
   square_flow_conditions.one_axis.flow_range
-    _ (flow.positive_linear.inv_correct (1#1)) (flow.positive_linear.mono (1#1)) a b.
+    _ flow.positive_linear.inv_correct flow.positive_linear.mono a b.
 
-Definition temp_flow_inv (l: Location) (a b: OpenRange): OpenRange :=
+Definition temp_flow_inv (l: Location): OpenRange -> OpenRange -> OpenRange :=
   match l with
-  | Heat => square_flow_conditions.one_axis.flow_range
-    _ (flow.positive_linear.inv_correct (5#2)) (flow.positive_linear.mono _) a b
-  | Cool => flow.decreasing_exponential.inv a b
-  | Check => flow.scale.inv half_pos flow.decreasing_exponential.inv a b
+  | Heat => flow.scale.inv meh (square_flow_conditions.one_axis.flow_range
+    _ flow.positive_linear.inv_correct flow.positive_linear.mono)
+  | Cool => flow.decreasing_exponential.inv
+  | Check => flow.scale.inv half_pos flow.decreasing_exponential.inv
   end.
 
 Lemma clock_rfis l: range_flow_inv_spec (clock_flow l) (clock_flow_inv l).
@@ -159,6 +167,7 @@ Qed.
 Lemma temp_rfis l: range_flow_inv_spec (temp_flow l) (temp_flow_inv l).
 Proof with auto.
   destruct l; simpl temp_flow.
+      apply flow.scale.inv_correct.
       unfold range_flow_inv_spec. intros.
       apply square_flow_conditions.one_axis.flow_range_covers with p...
     apply flow.decreasing_exponential.inv_correct.
@@ -358,9 +367,28 @@ Qed.
 Hint Immediate positive_CRpos.
 Hint Resolve CRpos_nonNeg.
 
-Lemma lin_dus a b p t: a <= b -> positive_linear.raw p b t <= a -> t <= '0.
+Lemma lin_dus a b t: a <= b -> CRplus b t <= a -> t <= '0.
 Proof with auto.
-  unfold positive_linear.raw.
+  intros.
+  assert (b + t <= b).
+    apply CRle_trans with a...
+  set (t2 (-b) H1).
+  assert (t <= '0).
+    rewrite (Ropp_def CR_ring_theory) in c.
+    rewrite <- (Radd_assoc CR_ring_theory) in c.
+    rewrite <- t11 in c...
+  unfold CRle.
+  unfold CRle in H2.
+  rewrite (Radd_0_l CR_ring_theory) in *.
+  apply CRnonPos_nonNeg.
+  set (CRnonNeg_nonPos H2).
+  rewrite (Ropp_opp t3 CR_ring_eq_ext CR_ring_theory) in c0...
+Qed.
+
+Lemma lin_dus' a b (p: Qpos) t: a <= b -> scale.raw ('p) positive_linear.f b t <= a -> t <= '0.
+Proof with auto.
+  unfold scale.raw.
+  simpl bsm.
   intros.
   assert (b + 'p * t <= b).
     apply CRle_trans with a...
@@ -428,7 +456,8 @@ Definition hints (l: Location) (r r': Region): option
         split. intro. inversion_clear H.
         intros.
         destruct p. destruct H. destruct H0.
-        apply (lin_dus (fst H1) (snd H2)).
+        unfold in_orange in H2. simpl in H2.
+        apply (@lin_dus' ('(9#2)) s0 ((5#2)%Qpos) t (fst H1) (snd H2)).
       destruct (and_dec (TempInterval_eq_dec t TI5_6) (TempInterval_eq_dec t0 TI45_5)).
         destruct a.
         unfold Equivalence.equiv in H0, H1.
@@ -437,7 +466,7 @@ Definition hints (l: Location) (r r': Region): option
         split. intro. inversion_clear H.
         intros.
         destruct p. destruct H. destruct H0.
-        apply (lin_dus (fst H1) (snd H2)).
+        apply (@lin_dus' ('5) s0 ((5#2)%Qpos) t (fst H1) (snd H2)).
       destruct (and_dec (TempInterval_eq_dec t TI6_9) (TempInterval_eq_dec t0 TI5_6)).
         destruct a.
         unfold Equivalence.equiv in H0, H1.
@@ -446,7 +475,7 @@ Definition hints (l: Location) (r r': Region): option
         split. intro. inversion_clear H.
         intros.
         destruct p. destruct H. destruct H0.
-        apply (lin_dus (fst H1) (snd H2)).
+        apply (@lin_dus' ('6) s0 ((5#2)%Qpos) t (fst H1) (snd H2)).
       destruct (and_dec (TempInterval_eq_dec t TI9_10) (TempInterval_eq_dec t0 TI6_9)).
         destruct a.
         unfold Equivalence.equiv in H0, H1.
@@ -455,7 +484,7 @@ Definition hints (l: Location) (r r': Region): option
         split. intro. inversion_clear H.
         intros.
         destruct p. destruct H. destruct H0.
-        apply (lin_dus (fst H1) (snd H2)).
+        apply (@lin_dus' ('9) s0 ((5#2)%Qpos) t (fst H1) (snd H2)).
       destruct (and_dec (TempInterval_eq_dec t TI10_) (TempInterval_eq_dec t0 TI9_10)).
         destruct a.
         unfold Equivalence.equiv in H0, H1.
@@ -464,7 +493,7 @@ Definition hints (l: Location) (r r': Region): option
         split. intro. inversion_clear H.
         intros.
         destruct p. destruct H. destruct H0.
-        apply (lin_dus (fst H1) (snd H2)).
+        apply (@lin_dus' ('10) s0 ((5#2)%Qpos) t (fst H1) (snd H2)).
       exact None.
     exact None.
   exact None.

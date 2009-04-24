@@ -162,56 +162,21 @@ End scale.
 Module positive_linear.
 Section contents.
 
-  Variable r: Qpos.
-
-  Definition raw (x: CR) (t: Time): CR := x + 'r * t.
-
   Definition morphism: binary_setoid_morphism CRasCSetoid CRasCSetoid CRasCSetoid.
   Proof.
-    apply (Build_binary_setoid_morphism _ _ _ raw).
-    intros. unfold raw.
-    rewrite H. rewrite H0. reflexivity.
+    apply (Build_binary_setoid_morphism _ _ _ (ucFun2 CRplus)).
+    intros. rewrite H. rewrite H0. reflexivity.
   Defined.
 
-  Lemma A x: x + 'r * '0 == x.
-    intros.
-    rewrite CRmult_0_r.
-    apply CRadd_0_r.
-  Qed.
+  Definition f: Flow CRasCSetoid := Build_Flow morphism CRadd_0_r (Radd_assoc CR_ring_theory).
 
-  Lemma B x t t': x + 'r * (t + t') == x + 'r * t + 'r * t'.
-    intros.
-    rewrite (Rmul_comm CR_ring_theory).
-    rewrite (Rdistr_l CR_ring_theory).
-    rewrite (Radd_assoc CR_ring_theory).
-    repeat rewrite (Rmul_comm CR_ring_theory ('r)).
-    reflexivity.
-  Qed.
-
-  Definition f: Flow CRasCSetoid := Build_Flow morphism A B.
-
-  Definition inv (x x': CR): Time := '(Qinv r) * (x' - x).
+  Definition inv (x x': CR): Time := x' - x.
 
   Lemma inv_correct x x': f x (inv x x') == x'.
-  Proof with auto.
-    intros.
-    unfold f, inv. simpl bsm. unfold raw.
-    rewrite (Rmul_assoc CR_ring_theory).
-    rewrite CRmult_Qmult.
-    rewrite Qmult_inv_r.
-      rewrite (Rmul_1_l CR_ring_theory).
-      symmetry. apply t11.
-    intro.
-    symmetry in H.
-    apply (Qlt_not_eq 0 r)...
-    apply Qpos_prf.
-  Qed.
+  Proof. intros. symmetry. apply t11. Qed.
 
   Lemma increasing: forall x : CRasCSetoid, strongly_increasing (f x).
-    repeat intro. simpl. unfold raw. apply t1_rev. 
-    apply CRmult_lt_pos_r. assumption.
-    apply Qpos_CRpos.
-  Qed.
+  Proof. repeat intro. apply t1_rev. assumption. Qed.
 
   Definition mono: mono f := inl increasing.
 
@@ -221,9 +186,7 @@ End positive_linear.
 Module negative_linear.
 Section contents.
 
-  Variable r: positive. (* todo: generalize to Qpos, CRpos *)
-
-  Definition raw (x: CR) (t: Time): CR := x - 'r * t.
+  Definition raw (x: CR) (t: Time): CR := x - t.
 
   Definition morphism: binary_setoid_morphism CRasCSetoid CRasCSetoid CRasCSetoid.
   Proof.
@@ -232,43 +195,28 @@ Section contents.
     rewrite H. rewrite H0. reflexivity.
   Defined.
 
-  Lemma A x: x - 'r * '0 == x.
-  Proof. intros. rewrite CRmult_0_r. apply CRminus_zero. Qed.
-
-  Lemma B x t t': x - 'r * (t + t') == x - 'r * t - 'r * t'.
+  Lemma B x t t': x - (t + t') == x - t - t'.
     intros.    
-    rewrite (Rmul_comm CR_ring_theory).
-    rewrite (Rdistr_l CR_ring_theory).
-    rewrite (Rmul_comm CR_ring_theory t).
-    rewrite (Rmul_comm CR_ring_theory t').
     rewrite (@Ropp_add _ _ _ _ _ _ _ _ t3 CR_ring_eq_ext CR_ring_theory ).
-    rewrite (Radd_assoc CR_ring_theory).
-    reflexivity.
+    apply (Radd_assoc CR_ring_theory).
   Qed.
 
-  Definition f: Flow CRasCSetoid := Build_Flow morphism A B.
+  Definition f: Flow CRasCSetoid := Build_Flow morphism CRminus_zero B.
 
-  Definition inv (x x': CR): Time := '(1#r) * (x - x').
+  Definition inv (x x': CR): Time := x - x'.
 
   Lemma inv_correct x x': f x (inv x x') == x'.
     intros.
     unfold f, inv. simpl bsm. unfold raw.
-    rewrite (Rmul_assoc CR_ring_theory).
-    rewrite CRmult_Qmult.
-    rewrite Qmult_inv.
-      rewrite (Rmul_1_l CR_ring_theory).
-      rewrite <- diff_opp.
-      symmetry.
-      apply t11.
-    reflexivity.
+    rewrite <- diff_opp.
+    symmetry.
+    apply t11.
   Qed.
 
   Lemma decreasing: forall x : CRasCSetoid, strongly_decreasing (f x).
-    repeat intro. simpl. unfold raw. apply t1_rev.
-    apply CRlt_opp_compat.
-    apply CRmult_lt_pos_r.
-      assumption.
-    apply positive_CRpos.
+    repeat intro. simpl. unfold raw.
+    apply t1_rev, CRlt_opp_compat.
+    assumption.
   Qed.
 
   Definition mono: mono f := inr decreasing.
