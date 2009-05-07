@@ -435,7 +435,6 @@ of course, we can't determine that. we can determine:
       unfold raw in H1.
       assert ('0 < exp (-t) * p).
         apply CRlt_wd with ('0) (p * exp (-t))...
-          reflexivity.
         apply (Rmul_comm CR_ring_theory).
       apply (bah H2)...
     unfold part_inv.
@@ -446,8 +445,7 @@ of course, we can't determine that. we can determine:
       rewrite (CRln_mult H2 H3 H1).
       rewrite CRln_exp.
       rewrite <- diff_opp.
-      rewrite <- t11.
-      reflexivity.
+      rewrite <- t11...
     rewrite H3.
     apply t9...
     apply t8...

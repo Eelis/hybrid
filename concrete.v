@@ -121,7 +121,6 @@ Section transitions_and_reachability.
         apply CRle_refl.
       destruct s2.
         apply H1...
-        apply CRlt_le...
       rewrite curry_inv.
       rewrite (t11 x t).
       rewrite flow_additive.
@@ -195,11 +194,13 @@ Section transitions_and_reachability.
     destruct x.
       apply end_with_next with b...
     inversion_clear H2.
-      apply end_with_next with b...
-      apply end_with_refl.
+      eauto.
     simpl in H3.
     apply end_with_next with y...
     apply cont_trans_trans with b...
   Qed.
 
 End transitions_and_reachability.
+
+Hint Unfold cont_trans.
+Hint Unfold cont_trans'.

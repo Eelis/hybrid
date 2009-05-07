@@ -117,16 +117,15 @@ Section single_inverses.
     clear H0. apply H.
     repeat rewrite inv_correct...
     rewrite flow_zero...
-    reflexivity.
   Qed.
 
   Lemma f_lt x t t': mlt (f x t) (f x t') -> t < t'.
   Proof with auto.
     unfold mlt. destruct fmono; intros.
       apply strongly_increasing_inv with (f x)...
-      intros. rewrite H0. reflexivity.
+      intros. rewrite H0...
     apply strongly_decreasing_inv with (f x)...
-    intros. rewrite H0. reflexivity.
+    intros. rewrite H0...
   Qed.
 
   Lemma f_le x t t': mle (f x t) (f x t') -> t <= t'.
@@ -142,14 +141,14 @@ Section single_inverses.
     split.
       intros.
       destruct fmono.
-        assert (x' == x') by reflexivity.
+        assert (x' == x')...
         apply (CRlt_wd (inv_correct a x) H0).
-        assert (f a (inv a x) == f a (inv a x)) by reflexivity.
+        assert (f a (inv a x) == f a (inv a x))...
         apply (CRlt_wd H1 (inv_correct a x')).
         apply s...
-      assert (x' == x') by reflexivity.
+      assert (x' == x')...
       apply (CRlt_wd H0 (inv_correct a x)).
-      assert (f a (inv a x) == f a (inv a x)) by reflexivity.
+      assert (f a (inv a x) == f a (inv a x))...
       apply (CRlt_wd (inv_correct a x') H1).
       apply s...
     set f_lt. unfold mlt in c. clearbody c.
@@ -178,11 +177,11 @@ Section single_inverses.
         rewrite <- (inv_correct a x).
         rewrite <- (inv_correct a x').
         apply mildly_increasing...
-        intros. rewrite H0. reflexivity. (* hm *)
+        intros. rewrite H0...
       rewrite <- (inv_correct a x).
       rewrite <- (inv_correct a x').
       apply mildly_decreasing...
-      intros. rewrite H0. reflexivity. (* hm *)
+      intros. rewrite H0...
     set f_le. unfold mle in c. clearbody c.
     intros.
     apply c with a.
@@ -226,25 +225,22 @@ Section single_inverses.
     rewrite (Radd_assoc CR_ring_theory).
     rewrite (Radd_comm CR_ring_theory (-t)).
     rewrite (Ropp_def CR_ring_theory).
-    rewrite (Radd_0_l CR_ring_theory).
-    reflexivity.
+    rewrite (Radd_0_l CR_ring_theory)...
   Qed.
 
   Lemma inv_inv x y: inv x y == - inv y x.
-  Proof.
+  Proof with auto.
     intros.
     set (inv_very_correct (inv y x) y).
     clearbody s. rewrite <- s.
-    rewrite inv_correct.
-    reflexivity.
+    rewrite inv_correct...
   Qed.
 
   Lemma inv_uniq_0 x x': inv x x' == - inv ('0) x + inv ('0) x'.
-  Proof.
+  Proof with auto.
     intros.
     rewrite (inv_plus x ('0) x').
-    rewrite (inv_inv x ('0)).
-    reflexivity.
+    rewrite (inv_inv x ('0))...
   Qed.
     (* hm, this shows that inv is uniquely determined by the values it
       takes with 0 as first argument. perhaps the reason we don't
@@ -268,27 +264,23 @@ Section single_inverses.
         rewrite <- (flow_zero f x).
         rewrite <- (inv_correct x x').
         apply mildly_increasing...
-        intros. rewrite H0. reflexivity. (* hm *)
+        intros. rewrite H0...
       rewrite <- (flow_zero f x).
       rewrite <- (inv_correct x x').
       apply mildly_decreasing...
-      intros. rewrite H0. reflexivity. (* hm *)
+      intros. rewrite H0...
     rewrite <- (inv_refl x).
-    apply inv_le.
-    assumption.
+    apply inv_le...
   Qed.
 
   Lemma inv_zero x x': inv x x' == '0 <-> x == x'.
   Proof with auto.
     split; intros.
       rewrite <- (inv_correct x x').
-      rewrite H.
-      rewrite flow_zero.
-      reflexivity.
+      rewrite H, flow_zero...
     rewrite H.
     apply inv_refl.
   Qed.
-
 
 (*
   Lemma f_lt_left x x' t: (x < x') IFF (f x t < f x' t).
@@ -369,7 +361,7 @@ Section single_inverses.
       simpl.
       rewrite <- flow_additive.
       apply mildly_increasing...
-        intros. rewrite H0. reflexivity. (* hm *)
+        intros. rewrite H0...
       rewrite <- (Radd_0_l CR_ring_theory t) at 1.
       apply t9.
         apply i...
@@ -380,7 +372,7 @@ Section single_inverses.
     simpl.
     rewrite <- flow_additive.
     apply mildly_decreasing...
-      intros. rewrite H0. reflexivity. (* hm *)
+      intros. rewrite H0...
     rewrite <- (Radd_0_l CR_ring_theory t) at 2.
     apply t9.
       rewrite inv_inv.

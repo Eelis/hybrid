@@ -273,102 +273,116 @@ Ltac bool_contradict id :=
   Lemma respects_disc (eps: Qpos) (s1 s2 : concrete.State concrete_system):
     let (l1, p1) := s1 in
     let (l2, p2) := s2 in
-    concrete.disc_trans s1 s2 ->
-    In (l2, absInterval p2) (disc_trans eps (l1, absInterval p1)).
+    concrete.disc_trans s1 s2 -> forall i1, in_region p1 i1 ->
+    exists i2, in_region p2 i2 /\
+    In (l2, i2) (disc_trans eps (l1, i1)).
   Proof with simpl; auto.
     destruct s1. destruct s2.
     intros.
     unfold concrete.Point, concrete_system in s, s0.
     unfold concrete.Location, concrete_system in l, l0.
     unfold concrete.disc_trans in H.
-    destruct H. destruct H0. destruct H1.
+    destruct H. destruct H0. destruct H1. destruct H3.
+    simpl in H1.
+    subst s0.
+    simpl @fst in H.
     unfold disc_trans.
-    apply <- in_flat_map.
-    exists l0.
-    split...
-    apply in_map.
+    cut (exists i2: SquareInterval, in_region (reset l l0 s) i2 /\
+         In i2 (disc_trans_regions eps l l0 i1)).
+      intro.
+      destruct H1.
+      exists x.
+      destruct H1.
+      split...
+      apply <- in_flat_map.
+      exists l0...
+    rewrite reset_components.
+    set (xi := match reset_x l l0 with
+      | Reset_id => fst i1
+      | Reset_const c => absXinterval c
+      | Reset_map f => absXinterval (proj1_sigT _ _ f (fst s))
+      end).
+    set (yi := match reset_y l l0 with
+      | Reset_id => snd i1
+      | Reset_const c => absYinterval c
+      | Reset_map f => absYinterval (proj1_sigT _ _ f (snd s))
+      end).
+    exists (xi, yi).
+    rewrite reset_components in H4.
+    split.
+      split; simpl.
+        subst xi. clear yi.
+        destruct (reset_x l l0); auto; apply (absXinterval_correct H4).
+      subst yi. clear xi.
+      destruct (reset_y l l0); auto; apply (absYinterval_correct H4).
     unfold disc_trans_regions.
-    case_eq (do_pred guard_decider (l, absInterval s, l0)); intro.
-      case_eq (do_pred invariant_decider (l, absInterval s)); intro.
-        clear H3 H4.
-        simpl andb.
-        cbv iota.
+    case_eq (do_pred guard_decider (l, i1, l0)); intro.
+      case_eq (do_pred invariant_decider (l, i1)); intro.
+        simpl.
         apply <- in_flat_map.
-        exists (fst (absInterval s0)).
-        rewrite reset_components in H0.
-        simpl @fst in H0. simpl @snd in H0.
+        exists xi.
         split.
-          destruct (reset_x l l0).
-              left. inversion_clear H0...
-            simpl in H0.
+          clear yi.
+          subst xi.
+          destruct (reset_x l l0)...
             apply in_filter...
             apply not_false_is_true.
             intro.
-            apply (over_oranges_overlap eps H3).
-            apply oranges_share_point with (fst s0)...
-              inversion_clear H0.
+            apply (over_oranges_overlap eps H6).
+            apply oranges_share_point with c...
               simpl. split...
-            eauto.
+            apply (absXinterval_correct H4).
+          simpl in H4.
           apply in_filter...
           apply not_false_is_true.
           intro.
-          apply (over_oranges_overlap eps H3).
-          simpl in H0.
-          apply oranges_share_point with (fst s0)...
-            destruct s0.
-            inversion_clear H0.
-            simpl @fst.
+          apply (over_oranges_overlap eps H6).
+          apply oranges_share_point with (proj1_sigT _ _ m (fst s))...
             unfold map_orange'.
             destruct m.
-            simpl proj1_sigT.
-            eauto.
-          eauto.
-        unfold absInterval.
-        simpl.
+            apply in_map_orange...
+          apply (absXinterval_correct H4).
         apply in_filter.
           apply in_map.
-          destruct (reset_y l l0).
-              left. simpl in H0. inversion_clear H0...
+          subst yi.
+          destruct (reset_y l l0)...
             apply in_filter...
             apply not_false_is_true.
             intro.
-            apply (over_oranges_overlap eps H3).
-            apply oranges_share_point with (snd s0).
-              simpl in H0.
-              inversion_clear H0.
-              simpl @snd.
-              split...
-            eauto.
+            apply (over_oranges_overlap eps H6).
+            apply oranges_share_point with c...
+              simpl. split...
+            apply (absYinterval_correct H4).
+          simpl in H4.
           apply in_filter...
           apply not_false_is_true.
           intro.
-          apply (over_oranges_overlap eps H3).
-          apply oranges_share_point with (snd s0)...
-            destruct s0. destruct m.
-            inversion_clear H0.
-            simpl @snd.
+          apply (over_oranges_overlap eps H6).
+          apply oranges_share_point with (proj1_sigT _ _ m (snd s))...
             unfold map_orange'.
-            eauto.
-          eauto.
-        intros.
+            destruct m.
+            apply in_map_orange...
+          apply (absYinterval_correct H4).
         apply not_false_is_true.
         intro.
-        apply (do_correct invariant_decider _ H3).
+        apply (do_correct invariant_decider _ H6).
         unfold abstract_invariant.
         simpl.
-        exists s0.
+        exists (apply_Reset (reset_x l l0) (fst s), apply_Reset (reset_y l l0) (snd s)).
         split...
-        split... eauto.
-        eauto.
-      elimtype False.
-      apply (do_correct invariant_decider _ H4).
-      unfold abstract_invariant.
+        split; simpl.
+          subst xi.
+          destruct (reset_x l l0); auto; apply (absXinterval_correct H4).
+        subst yi.
+        destruct (reset_y l l0); auto; apply (absYinterval_correct H4).
       simpl.
-      exists s. split... split... eauto. eauto.
-      apply (do_correct guard_decider (l, absInterval s, l0) H3).
+      apply (do_correct invariant_decider _ H5).
+      unfold abstract_invariant.
+      simpl. exists s... split... split...
+    simpl.
+    apply (do_correct guard_decider _ H1).
     unfold abstract_guard.
-    simpl @fst. simpl @snd.
-    exists s... split... split... eauto. eauto.
+    simpl. exists s... split... split...
   Qed.
 
   Lemma over_cont_trans eps : 

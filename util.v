@@ -139,3 +139,9 @@ Proof. intros. subst. apply negb_involutive. Qed.
 
 Definition prod_map A B C D (f: A -> B) (g: C -> D) (p: A*C): B*D :=
   (f (fst p), g (snd p)).
+
+Definition flip (A B C: Type) (f: A -> B -> C) (b: B) (a: A): C := f a b.
+
+Hint Extern 4 => match goal with
+  |- ?P (@proj1_sig ?T ?P ?x) => destruct x; auto
+  end.

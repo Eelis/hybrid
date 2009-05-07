@@ -407,7 +407,44 @@ Proof with auto.
   apply CRpos_nonNeg. apply Qpos_CRpos.
 Qed.
 
-Definition hints (l: Location) (r r': Region): option
+Let in_region := square_abstraction.in_region ClockInterval_bounds TempInterval_bounds.
+
+Definition old_hint_new_hint (l: Location) (r r': Region):
+  (r <> r' /\
+  (forall p: Point,
+   square_abstraction.in_region ClockInterval_bounds TempInterval_bounds p
+     r ->
+   forall t: Time,
+   square_abstraction.in_region ClockInterval_bounds TempInterval_bounds
+     (concrete.flow concrete_system l p t) r' -> t <= '0)) ->
+  (r <> r' /\ forall p, in_region p r ->
+   forall t, '0 <= t -> in_region (concrete.flow concrete_system l p t) r' ->
+     in_region (concrete.flow concrete_system l p t) r).
+Proof with auto.
+  intros.
+  destruct H.
+  split...
+  intros.
+  set (H0 p H1 _ H3). clearbody c. clear H0.
+  set (snd (CRle_def t ('0)) (conj c H2)).
+  clearbody s.
+  apply square_abstraction.in_region_wd with p...
+  simpl bsm.
+  destruct p.
+  split.
+    rewrite s.
+    simpl @fst.
+    symmetry.
+    apply CRadd_0_r.
+  simpl bsm.
+  transitivity (temp_flow l s1 ('0)).
+    symmetry. apply flow_zero.
+  apply bsm_wd.
+    reflexivity.
+  symmetry...
+Qed.
+
+Definition old_hints (l: Location) (r r': Region): option
   (r <> r' /\
   (forall p: Point,
    square_abstraction.in_region ClockInterval_bounds TempInterval_bounds p
@@ -500,6 +537,12 @@ Definition hints (l: Location) (r r': Region): option
 Defined.
   (* todo: this is awful. should be automatable if we lift monotonicity *)
 
+Definition new_hints (l: Location) (r r': Region): option
+  (r <> r' /\ forall p, in_region p r ->
+   forall t, '0 <= t -> in_region (concrete.flow concrete_system l p t) r' ->
+     in_region (concrete.flow concrete_system l p t) r) :=
+  option_map (@old_hint_new_hint l r r' ) (old_hints l r r').
+
 Lemma chicken: forall x : concrete.Location concrete_system * concrete.Point concrete_system,
   concrete.invariant x ->
   square_abstraction.in_region ClockInterval_bounds TempInterval_bounds
@@ -531,19 +574,19 @@ Defined.
 Definition abstract_system (eps : Qpos) : abstract.System concrete_system.
 Proof with auto.
   intro eps.
-  eapply (@abstraction.abstract_system' _ _ _ concrete_system _
+  eapply (@abstraction.abstract_system' _ _ _ concrete_system in_region
    (fun a b e r => @square_abstraction.in_region_wd _ _ Location
      _ _ _ _ _ _ ClockInterval_bounds TempInterval_bounds a b r e)
   (square_abstraction.NoDup_squareIntervals NoDup_clock_intervals NoDup_temp_intervals)
   _
-   (square_abstraction.absInterval_wd _ _  absClockInterval_wd absTempInterval_wd)
-   chicken (cont_trans_dec eps) (mk_DO (over_initial eps)) hints regions_cover_invariants).
+  chicken
+    (cont_trans_dec eps) (mk_DO (over_initial eps)) new_hints regions_cover_invariants).
     apply (square_abstraction.NoDup_disc_trans
       NoDup_clock_intervals NoDup_temp_intervals
       (square_abstraction.do_invariant ClockInterval_bounds TempInterval_bounds _ _ invariant_squares_correct eps)
       NoDup_locations
       clock_reset temp_reset (mk_DO (over_guard eps)) eps).
-  apply (@square_abstraction.respects_disc _ _ _ _ _ _ _ _ _ ClockInterval_bounds TempInterval_bounds)...
+  apply (@square_abstraction.respects_disc _ _ _ _ _ _ _ _ _ ClockInterval_bounds TempInterval_bounds absClockInterval absTempInterval clock_flow temp_flow)...
     unfold absClockInterval. intros.
     destruct (s_absClockInterval (fst p))... destruct H. destruct H0...
   unfold absTempInterval. intros.
@@ -556,25 +599,41 @@ Definition vs := abstract_as_graph.vertices abs_sys.
 Definition g := abstract_as_graph.g abs_sys.
 Definition graph := flat_map (@digraph.edges g) vs.
 
-Definition unsafe_abstract_states :=
-  List.flat_map (fun l => map (fun ci => (l, (ci, TIC_45))) clock_intervals) locations.
+Definition concrete_state_unsafe (c: concrete.State concrete_system): Prop :=
+  temp c <= '4.
 
 Definition thermo_is_safe := 
   forall s : concrete.State concrete_system,
-    let (l, p) := s in
-    let (x, y) := p in
-      List.In (l, (absClockInterval x, absTempInterval y)) unsafe_abstract_states ->
-      ~concrete.reachable s.
+    concrete_state_unsafe s -> ~ concrete.reachable s.
+
+Definition unsafe_abstract_states :=
+  List.flat_map (fun l => map (fun ci => (l, (ci, TIC_45))) clock_intervals) locations.
 
 Definition unsafe : bool :=
   abstract_as_graph.some_reachable abs_sys unsafe_abstract_states.
 
-Theorem unsafe_correct : unsafe = false -> thermo_is_safe.
-Proof.
-  unfold unsafe, thermo_is_safe. intros srf [l [px py]] su.
-  apply abstract_as_graph.states_unreachable with 
-    abs_sys unsafe_abstract_states (l, (absClockInterval px, absTempInterval py)); 
-    trivial.
+Definition unsafe_abstracts_cover_unsafe_concretes:
+  forall s, concrete_state_unsafe s ->
+  forall r, abstract.abs abs_sys s r -> In r unsafe_abstract_states.
+Proof with auto.
+  intros [l [c t]] H [l' [ci ti]] [H0 [_ tin]].
+  subst.
+  apply <- in_flat_map.
+  exists l'. split...
+  simpl.
+  replace ti with TIC_45. destruct ci; auto 10.
+  destruct tin.
+  destruct ti; auto; elimtype False;
+    apply (util.flip (@CRlt_le_asym _ _) (CRle_trans H1 H)), CRlt_Qlt;
+    vm_compute...
+Qed.
+
+Theorem unsafe_correct: unsafe = false -> thermo_is_safe.
+Proof with auto.
+  unfold unsafe, thermo_is_safe.
+  intros srf [l [px py]] su.
+  apply (abstract_as_graph.states_unreachable (ahs:=abs_sys) concrete_state_unsafe unsafe_abstract_states)...
+  apply unsafe_abstracts_cover_unsafe_concretes.
 Qed.
 
 Theorem thermo_safe : thermo_is_safe.

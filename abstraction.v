@@ -64,7 +64,8 @@ Section contents.
 
   Variable hint: forall (l: Location) (r r': Region),
     option (r <> r' /\ forall p, in_region p r ->
-     forall t, in_region (concrete.flow conc_sys l p t) r' -> t <= '0).
+     forall t, '0 <= t -> in_region (concrete.flow conc_sys l p t) r' ->
+       in_region (concrete.flow conc_sys l p t) r).
 
   (* Using these, we can define the abstract transitions.. *)
 
@@ -84,7 +85,7 @@ Section contents.
 
   Definition initial_prop (s : State) :=
     let (l, r) := s in
-      exists p, select_region p = r /\ concrete.initial (l, p).
+      exists p, in_region p r /\ concrete.initial (l, p).
 
   Definition initial_dec (s : State) :=
     let (l, r) := s in
@@ -94,10 +95,6 @@ Section contents.
   Proof with auto.
     intros s init ips. destruct s.
     apply (do_correct initial_do (l, r))...
-    destruct ips as [p [pr lp]].
-    exists p. split...
-    subst. apply (regions_cover_invariants l).
-    apply concrete.invariant_initial. hyp.
   Qed.
 
   Definition disc_trans (s : State) : list State :=
@@ -113,10 +110,16 @@ Section contents.
     let (l1, p1) := s1 in
     let (l2, p2) := s2 in
     concrete.disc_trans s1 s2 ->
-    In (l2, select_region p2) (disc_trans (l1, select_region p1)).
-
+    forall r1, in_region p1 r1 ->
+    exists r2, in_region p2 r2 /\
+    In (l2, r2) (disc_trans (l1, r1)).
   Proof with auto.
-    intros [l1 p1] [l2 p2] dt.
+    intros [l1 p1] [l2 p2] dt r1 inr1.
+    exists (select_region p2).
+    split.
+      destruct dt.
+      apply (select_region_correct (l2, p2)).
+      intuition.
     apply in_filter...
     set (s1 := (l1, select_region p1)). set (s2 := (l2, select_region p2)).
     apply do_over_true.
@@ -137,87 +140,110 @@ Section contents.
   Definition cont_trans (s : State) : list Region :=
     filter (cont_trans_b s) regions.
 
-  Hint Immediate CRle_refl : real.
-
-  Lemma respects_cont l s1 s2 : 
-    concrete.cont_trans' _ l s1 s2 ->
-    In (select_region s2) (cont_trans (l, select_region s1)).
-  Proof with auto with real.
-    intros l s1 s2 [t [inv flow]].
+  Lemma cont_refl l r p: in_region p r -> concrete.invariant (l, p) -> In r (cont_trans (l, r)).
+  Proof with auto.
+    intros.
     apply in_filter...
-    unfold cont_trans_b.
+    apply andb_true_intro.
+    split.
+      apply do_over_true.
+      simpl.
+      exists p. exists p.
+      repeat split...
+      unfold concrete.cont_trans'.
+      exists NonNegCR_zero.
+      split.
+        intros.
+        simpl.
+        rewrite concrete.curry_inv.
+        assert (concrete.flow conc_sys l p t [=] p).
+          transitivity (concrete.flow conc_sys l p ('0))...
+            set (concrete.flow conc_sys l).
+            clearbody f .
+            destruct f.
+            simpl.
+            destruct flow_morphism.
+            simpl.
+            apply bsm_wd...
+            symmetry.
+            apply (snd (CRle_def ('0) t)).
+            split...
+          apply flow_zero.
+        rewrite H3...
+      simpl.
+      rewrite flow_zero...
+    simpl.
+    destruct (hint l r r)...
+    elimtype False.
+    intuition.
+  Qed.
+
+  Lemma respects_cont l s1 s2 :
+    concrete.cont_trans' _ l s1 s2 ->
+    forall r1, in_region s1 r1 ->
+    exists r2, in_region s2 r2 /\ In r2 (cont_trans (l, r1)).
+  Proof with auto with real.
+    intros l s1 s2 [t [inv flow]] r1 inr1.
+    set (r2 := select_region s2).
+    case_eq (hint l r1 r2); intros.
+      clear H.
+      destruct a.
+      exists r1.
+      split.
+        apply in_region_wd with (concrete.flow conc_sys l s1 (`t))...
+        apply H0...
+          apply -> CRnonNeg_le_zero...
+        subst r2.
+        apply in_region_wd with s2.
+          symmetry...
+        apply (select_region_correct (l, s2)).
+        rewrite concrete.curry_inv.
+        rewrite <- flow.
+        apply inv...
+        apply -> CRnonNeg_le_zero...
+      apply cont_refl with s1...
+      rewrite concrete.curry_inv.
+      rewrite <- (flow_zero (concrete.flow conc_sys l) s1).
+      apply inv...
+      apply -> CRnonNeg_le_zero...
+    exists r2.
+    split.
+      apply (select_region_correct (l, s2)).
+      rewrite concrete.curry_inv.
+      rewrite <- flow.
+      apply inv...
+      apply -> CRnonNeg_le_zero...
+    unfold cont_trans.
+    apply in_filter...
     apply andb_true_intro.
     split.
       apply do_over_true.
       exists s1. exists s2.
-      repeat split.
-          apply regions_cover_invariants with l. rewrite concrete.curry_inv.
-          rewrite <- (flow_zero (concrete.flow conc_sys l) s1).
-          apply inv... destruct t. simpl. apply (CRnonNeg_le_zero x). hyp.
-        apply regions_cover_invariants with l. rewrite concrete.curry_inv.
-        rewrite <- flow. apply inv...
-        destruct t. simpl. apply (CRnonNeg_le_zero x)...
-      exists t...
-    apply negb_inv.
-    simpl negb.
-    unfold opt_to_bool.
-    simpl @fst. simpl @snd.
-    destruct (hint l (select_region s1) (select_region s2))...
-    destruct a.
-    elimtype False. apply H.
-    apply select_region_wd.
-    assert (in_region s1 (select_region s1))...
-      apply (select_region_correct (l, s1)).
-      cut (concrete.invariant (l, concrete.flow conc_sys l s1 ('0))).
-        intro.
-        apply -> (@concrete.invariant_wd conc_sys l l (refl_equal _) (concrete.flow conc_sys l s1 ('0)))...
-        apply flow_zero.
-      apply inv...
-      destruct t...
-      apply -> CRnonNeg_le_zero...
-    assert (in_region (concrete.flow conc_sys l s1 (`t)) (select_region s2)).
-      apply in_region_wd with s2...
-        symmetry. assumption.
-      apply (select_region_correct (l, s2)).
-      cut (concrete.invariant (l, concrete.flow conc_sys l s1 (`t))).
-        intro.
-        apply -> (@concrete.invariant_wd conc_sys l l (refl_equal _) (concrete.flow conc_sys l s1 (`t)))...
-      apply inv...
-      destruct t...
-      apply -> CRnonNeg_le_zero...
-    assert (`t [=] '0).
-      apply <- CRle_def.
-      split. apply H0 with s1...
-      destruct t.
-      simpl proj1_sig.
-      apply -> CRnonNeg_le_zero...
-    unfold concrete.flow in flow.
-    clear H H0 H1 H2.
-    clear inv select_region_correct.
-    clear select_region_wd cont_trans_b disc_trans_b.
-    clear in_region_wd. clear regions_cover_invariants.
-    clear disc_do initial_do State.
-    clear hint.
-    clear cont_do Location.
-    destruct conc_sys.
-    rewrite <- flow.
-    symmetry.
-    set (flow_zero (flow0 l) s1).
-    clearbody s.
-    destruct (flow0 l).
-    simpl in *.
-    destruct flow_morphism.
-    simpl c_util.bsm in *.
-    assert (s1 [=] s1). reflexivity.
-    rewrite (bsm_wd s1 s1 H (`t) ('0))...
+      split...
+      split.
+        apply regions_cover_invariants with l.
+        rewrite concrete.curry_inv.
+        rewrite <- flow.
+        apply inv...
+        apply -> CRnonNeg_le_zero...
+      eauto 10.
+    simpl.
+    rewrite H...
   Qed.
 
   Lemma NoDup_cont_trans s : NoDup (cont_trans s).
   Proof. unfold cont_trans. auto. Qed.
 
+  Lemma regions_cover_invariant l p: concrete.invariant (l, p) -> exists r, in_region p r.
+  Proof with auto.
+    intros.
+    exists (select_region p).
+    apply (select_region_correct (l, p))...
+  Qed.
+
   Program Definition abstract_system : abstract.System conc_sys :=
     abstract.Build_System Region_eq_dec regions
-     NoDup_regions select_region over_initial disc_trans
+     NoDup_regions in_region regions_cover_invariant over_initial disc_trans
      NoDup_disc_trans respects_disc cont_trans NoDup_cont_trans respects_cont.
 
   Variable disc_trans': @abstract.State conc_sys Region -> list (@abstract.State conc_sys Region).
@@ -226,11 +252,13 @@ Section contents.
     let (l1, p1) := s1 in
     let (l2, p2) := s2 in
       concrete.disc_trans s1 s2 ->
-      In (l2, select_region p2) (disc_trans' (l1, select_region p1)).
+      forall r1, in_region p1 r1 ->
+      exists r2, in_region p2 r2 /\
+      In (l2, r2) (disc_trans' (l1, r1)).
 
   Program Definition abstract_system': abstract.System conc_sys :=
     abstract.Build_System Region_eq_dec regions
-     NoDup_regions select_region over_initial disc_trans' NoDup_disc_trans'
+     NoDup_regions in_region regions_cover_invariant over_initial disc_trans' NoDup_disc_trans'
      respects_disc' cont_trans NoDup_cont_trans respects_cont.
 
 End contents.

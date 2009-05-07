@@ -701,6 +701,18 @@ Proof less_irreflexive_unfolded CRasCOrdField.
 Lemma CRlt_asym: forall x y: CR, x < y -> Not (y < x).
 Proof less_antisymmetric_unfolded CRasCOrdField.
 
+Definition st_eq_refl X x: @st_eq X x x. reflexivity. Qed.
+Hint Immediate st_eq_refl.
+
+Hint Resolve CRlt_le.
+
+Lemma CRlt_le_asym x y: x < y -> y <= x -> False.
+Proof with auto.
+  repeat intro.
+  apply CRlt_irrefl with y, CRlt_wd with x y...
+  apply <- CRle_def...
+Qed.
+
   (* todo: *)
 Axiom exp_pos: forall x, '0 < exp x.
 Axiom CRinv_pos: forall x, '0 < x -> forall p: x >< '0, '0 < CRinv x p.
@@ -764,7 +776,6 @@ Proof with auto.
       apply CRlt_wd with y' x'; auto; symmetry...
     apply CRlt_irrefl with y.
     apply CRlt_wd with y x...
-      reflexivity.
     rewrite H. rewrite H0...
   apply CRlt_asym with x y...
   apply CRlt_wd with x' y'; auto; symmetry...

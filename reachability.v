@@ -60,3 +60,6 @@ Section definitions.
     exists b, end_with b s s'.
 
 End definitions.
+
+Hint Constructors end_with.
+Hint Unfold reachable_alternating.

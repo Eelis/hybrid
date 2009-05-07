@@ -165,18 +165,24 @@ Hint Resolve in_filter.
   Definition some_reachable ss : bool :=
     List.existsb (state_reachable reachable_verts) ss.
 
-  Lemma states_unreachable (ss : list a_State) :
+  Lemma states_unreachable (P: concrete.State chs -> Prop) (ss : list a_State):
+    (forall s, P s -> forall r, abstract.abs ahs s r -> In r ss) ->
     some_reachable ss = false ->
-    forall s cs, 
-      In s ss -> abstract.abs ahs cs = s -> ~concrete.reachable cs.
+    forall cs, P cs -> ~ concrete.reachable cs.
   Proof with auto.
-    intros. intro.
-    contradict H. apply not_false_true.
+    intros.
+    apply (@abstract.safe chs ahs).
+    unfold some_reachable in H0.
+    intros.
+    intro.
+    set (H cs H1 s' H2). clearbody i.
+    contradict H0.
+    apply not_false_true.
     apply (snd (existsb_exists (state_reachable reachable_verts) ss)).
-    exists s; split...
-    subst. apply over_true with a_State (abstract.reachable ahs).
+    exists s'.
+    split...
+    apply over_true with a_State (abstract.reachable ahs)...
     apply over_abstract_reachable.
-    apply abstract.reachable_concrete_abstract...
   Qed.
 
 End using_duplication.
