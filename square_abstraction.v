@@ -252,7 +252,7 @@ Ltac bool_contradict id :=
     destruct (reset_x l x)...
   Qed.
 
-  Lemma in_region_wd x x' r: x [=] x' -> in_region x r -> in_region x' r.
+  Lemma in_region_wd x x': x [=] x' -> forall r, in_region x r -> in_region x' r.
   Proof with auto.
     unfold in_region.
     intros.

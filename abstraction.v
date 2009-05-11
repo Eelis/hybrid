@@ -62,17 +62,53 @@ Section contents.
     (disc_do : dec_overestimator disc_trans_cond)
     (initial_do : dec_overestimator initial_condition).
 
-  Variable hint: forall (l: Location) (r r': Region),
-    option (r <> r' /\ forall p, in_region p r ->
+  Definition Hint (l: Location) (r r': Region): Set :=
+    forall p, in_region p r ->
+      forall t, '0 <= t -> in_region (concrete.flow conc_sys l p t) r' ->
+        in_region (concrete.flow conc_sys l p t) r.
+
+  Definition AltHint (l: Location) (r r': Region): Set :=
+    (forall p: Point,
+      in_region p r ->
+      forall t: Time,
+      in_region (concrete.flow conc_sys l p t) r' -> t <= '0).
+
+  Lemma dealt_hint l r r': AltHint l r r' -> Hint l r r'.
+  Proof with auto.
+    repeat intro.
+    set (H p H0 _ H2). clearbody c. clear H.
+    set (snd (CRle_def t ('0)) (conj c H1)). clearbody s.
+    apply in_region_wd with p...
+    simpl bsm.
+    transitivity (concrete.flow conc_sys l p ('0)).
+      symmetry.
+      apply flow_zero.
+    destruct (concrete.flow conc_sys l).
+    simpl.
+    apply bsm_wd...
+    symmetry...
+  Qed.
+
+  Variable hints: forall (l: Location) (r r': Region), r <> r' -> option (Hint l r r').
+
+  Definition dealt_hints (H: forall l r r', r <> r' -> option (AltHint l r r')) l r r' (E: r <> r'): option (Hint l r r') :=
+    option_map (@dealt_hint l r r') (H l r r' E).
+
+  Definition hints' (l: Location) (r r': Region):
+    option (forall p, in_region p r ->
      forall t, '0 <= t -> in_region (concrete.flow conc_sys l p t) r' ->
-       in_region (concrete.flow conc_sys l p t) r).
+       in_region (concrete.flow conc_sys l p t) r) :=
+    match Region_eq_dec r r' with
+    | left _ => None
+    | right E => hints l E
+    end.
 
   (* Using these, we can define the abstract transitions.. *)
 
   Let cont_trans_b (s : State) (r_dst : Region) : bool :=
     let (l, r_src) := s in
     (do_pred cont_do) (l, (r_src, r_dst)) &&
-    negb (hint (fst s) (snd s) r_dst).
+    negb (hints' l r_src r_dst).
 
   Let disc_trans_b (s1 s2 : State): bool :=
     (do_pred disc_do) (s1, s2).
@@ -173,7 +209,8 @@ Section contents.
       simpl.
       rewrite flow_zero...
     simpl.
-    destruct (hint l r r)...
+    unfold hints'.
+    destruct (Region_eq_dec r r)...
     elimtype False.
     intuition.
   Qed.
@@ -185,13 +222,12 @@ Section contents.
   Proof with auto with real.
     intros l s1 s2 [t [inv flow]] r1 inr1.
     set (r2 := select_region s2).
-    case_eq (hint l r1 r2); intros.
+    case_eq (hints' l r1 r2); intros.
       clear H.
-      destruct a.
       exists r1.
       split.
         apply in_region_wd with (concrete.flow conc_sys l s1 (`t))...
-        apply H0...
+        apply i...
           apply -> CRnonNeg_le_zero...
         subst r2.
         apply in_region_wd with s2.
@@ -227,7 +263,6 @@ Section contents.
         apply inv...
         apply -> CRnonNeg_le_zero...
       eauto 10.
-    simpl.
     rewrite H...
   Qed.
 

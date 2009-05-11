@@ -29,6 +29,8 @@ Implicit Arguments snd [[A] [B]].
 
 Notation "g ∘ f" := (compose g f) (at level 40, left associativity).
 
+Definition uncurry A B C (f: A -> B -> C) (ab: A * B): C := f (fst ab) (snd ab).
+
 Definition conj_pair {A B: Prop} (P: A /\ B): A * B :=
   match P with conj a b => (a, b) end.
 
@@ -89,6 +91,18 @@ Proof with auto.
   intros. unfold Rmin. destruct (Rle_dec x y)...
 Qed.
 
+Definition option_eq_dec A (Adec: forall a a': A, decision (a = a'))
+  (o o': option A): decision (o = o').
+Proof with auto.
+  intros.
+  destruct o; destruct o'...
+      destruct (Adec a a0).
+        subst...
+      right. intro. inversion H...
+    right. intro. discriminate.
+  right. intro. discriminate.
+Defined.
+
 Coercion opt_to_bool A (o: option A): bool :=
   match o with Some _ => true | None => false end.
 
@@ -102,6 +116,13 @@ Definition opt_prop A (o: option A) (f: A -> Prop): Prop :=
   match o with
   | None => True
   | Some v => f v
+  end.
+
+Definition options A (x y: option A): option A :=
+  match x, y with
+  | Some a, _ => Some a
+  | _, Some a => Some a
+  | None, None => None
   end.
 
 Lemma unsumbool_true (P Q: Prop) (sb: {P}+{Q}): unsumbool sb = true -> P.

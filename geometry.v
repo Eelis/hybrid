@@ -6,9 +6,20 @@ Require Export dec_overestimator.
 Set Implicit Arguments.
 Open Local Scope CR_scope.
 
+Definition QRange: Set := sig (uncurry Qle).
 Definition Range: Type := sig (fun r: CR * CR => fst r <= snd r).
 
+Program Coercion unqrange (r: QRange): Range := ('(fst r), '(snd r)).
+Next Obligation.
+  apply <- CRle_Qle.
+  destruct r.
+  assumption.
+Qed.
+
 Hint Immediate CRle_refl.
+
+Program Definition unit_qrange (c: Q): QRange := (c, c).
+Next Obligation. apply Qle_refl. Qed.
 
 Program Definition unit_range (c: CR): Range := (c, c).
 
@@ -62,6 +73,12 @@ Definition OCRle (r: optCR * optCR): Prop :=
   | _ => True
   end.
 
+Definition OQle (r: option Q * option Q): Prop :=
+  match r with
+  | (Some l, Some u) => (l <= u)%Q
+  | _ => True
+  end.
+
 Definition CRmin_of_upper_bounds (a b: option CR): option CR :=
   match a, b with
   | None, _ => b
@@ -69,17 +86,42 @@ Definition CRmin_of_upper_bounds (a b: option CR): option CR :=
   | Some a, Some b => Some (CRmin a b)
   end.
 
+Definition OpenQRange: Set := sig OQle.
 Definition OpenRange: Type := sig OCRle.
+
+Program Definition unoqrange (r: OpenQRange): OpenRange
+  := (option_map inject_Q (fst r), option_map inject_Q (snd r)).
+
+Next Obligation.
+  destruct r as [[[x|] [y|]] H]; auto.
+  simpl. apply <- CRle_Qle. assumption.
+Qed.
+
+Coercion unoqrange: OpenQRange >-> OpenRange.
+  (* Should  be a [Program Coercion], but that's broken in 8.2
+   (it has since been fixed). *)
 
 Coercion open_range (r: Range): OpenRange :=
   match r with
   | exist (x, y) H => exist _ (Some x, Some y) H
   end.
 
+Coercion open_qrange (r: QRange): OpenQRange :=
+  match r with
+  | exist (x, y) H => exist _ (Some x, Some y) H
+  end.
+
+Program Definition unbounded_qrange: OpenQRange := (None, None).
 Program Definition unbounded_range: OpenRange := (None, None).
+
+Definition qrange_left (r: QRange): Q := fst (proj1_sig r).
+Definition qrange_right (r: QRange): Q := snd (proj1_sig r).
 
 Definition range_left (r: Range): CR := fst (proj1_sig r).
 Definition range_right (r: Range): CR := snd (proj1_sig r).
+
+Definition oqrange_left (r: OpenQRange): option Q := fst (proj1_sig r).
+Definition oqrange_right (r: OpenQRange): option Q := snd (proj1_sig r).
 
 Definition orange_left (r: OpenRange): option CR := fst (proj1_sig r).
 Definition orange_right (r: OpenRange): option CR := snd (proj1_sig r).
@@ -155,10 +197,14 @@ Proof with auto.
 Qed.
 
 Definition Square: Type := (Range * Range)%type.
+Definition OpenQSquare: Set := (OpenQRange * OpenQRange)%type.
 Definition OpenSquare: Type := (OpenRange * OpenRange)%type.
 
 Coercion open_square (s: Square): OpenSquare
   := (fst s: OpenRange, snd s: OpenRange).
+
+Coercion unoqsquare (s: OpenQSquare): OpenSquare :=
+  (fst s: OpenRange, snd s: OpenRange).
 
 Definition unbounded_square: OpenSquare
   := (unbounded_range, unbounded_range).

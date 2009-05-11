@@ -217,29 +217,30 @@ Definition concrete_system: concrete.System :=
 Inductive ClockInterval: Set := CI0_D | CID_12 | CI12_1 | CI1_2 | CI2_3 | CI3_.
 Inductive TempInterval: Set := TIC_45 | TI45_5 | TI5_6 | TI6_9 | TI9_10 | TI10_.
 
-Program Definition ClockInterval_bounds (i: ClockInterval): OpenRange :=
+Program Definition ClockInterval_qbounds (i: ClockInterval): OpenQRange :=
   match i with
-  | CI0_D => ('0, '(1#10)): Range
-  | CID_12 => ('(1#10), '(1#2)): Range
-  | CI12_1 => ('(1#2), '(11#10)): Range
-  | CI1_2 => ('(11#10), '2): Range
-  | CI2_3 => ('2, '3): Range
-  | CI3_ => (Some ('3), None)
+  | CI0_D => (0, (1#10)): QRange
+  | CID_12 => ((1#10), (1#2)): QRange
+  | CI12_1 => ((1#2), (11#10)): QRange
+  | CI1_2 => ((11#10), 2): QRange
+  | CI2_3 => (2, 3): QRange
+  | CI3_ => (Some 3, None)
   end.
 
-Solve Obligations using intros; CRle_constants.
+Definition ClockInterval_bounds (i: ClockInterval): OpenRange := ClockInterval_qbounds i.
 
-Program Definition TempInterval_bounds (i: TempInterval): OpenRange :=
+Program Definition TempInterval_qbounds (i: TempInterval): OpenQRange :=
   match i with
-  | TIC_45 => ('(1#10), '(9#2)): Range
-  | TI45_5 => ('(9#2), '5): Range
-  | TI5_6 => ('5, '6): Range
-  | TI6_9 => ('6, '9): Range
-  | TI9_10 => ('9, '10): Range
-  | TI10_ => (Some ('10), None)
+  | TIC_45 => ((1#10), (9#2)): QRange
+  | TI45_5 => ((9#2), 5): QRange
+  | TI5_6 => (5, 6): QRange
+  | TI6_9 => (6, 9): QRange
+  | TI9_10 => (9, 10): QRange
+  | TI10_ => (Some 10, None)
   end.
 
-Solve Obligations using intros; CRle_constants.
+Definition TempInterval_bounds (i: TempInterval): OpenRange :=
+  TempInterval_qbounds i.
 
 Instance clock_intervals: ExhaustiveList ClockInterval
   := { exhaustive_list := CI0_D :: CID_12 :: CI12_1 :: CI1_2 :: CI2_3 :: CI3_ :: nil }.
@@ -367,181 +368,113 @@ Qed.
 Hint Immediate positive_CRpos.
 Hint Resolve CRpos_nonNeg.
 
-Lemma lin_dus a b t: a <= b -> CRplus b t <= a -> t <= '0.
-Proof with auto.
-  intros.
-  assert (b + t <= b).
-    apply CRle_trans with a...
-  set (t2 (-b) H1).
-  assert (t <= '0).
-    rewrite (Ropp_def CR_ring_theory) in c.
-    rewrite <- (Radd_assoc CR_ring_theory) in c.
-    rewrite <- t11 in c...
-  unfold CRle.
-  unfold CRle in H2.
-  rewrite (Radd_0_l CR_ring_theory) in *.
-  apply CRnonPos_nonNeg.
-  set (CRnonNeg_nonPos H2).
-  rewrite (Ropp_opp t3 CR_ring_eq_ext CR_ring_theory) in c0...
-Qed.
-
-Lemma lin_dus' a b (p: Qpos) t: a <= b -> scale.raw ('p) positive_linear.f b t <= a -> t <= '0.
-Proof with auto.
-  unfold scale.raw.
-  simpl bsm.
-  intros.
-  assert (b + 'p * t <= b).
-    apply CRle_trans with a...
-  set (t2 (-b) H1).
-  assert ('p * t <= '0).
-    rewrite (Ropp_def CR_ring_theory) in c.
-    rewrite <- (Radd_assoc CR_ring_theory) in c.
-    rewrite <- t11 in c...
-  unfold CRle.
-  unfold CRle in H2.
-  rewrite (Radd_0_l CR_ring_theory) in *.
-  apply CRnonPos_nonNeg.
-  set (CRnonNeg_nonPos H2).
-  rewrite (Ropp_opp t3 CR_ring_eq_ext CR_ring_theory) in c0.
-  apply CRnonNeg_nonPos_mult_inv with ('p)...
-  apply CRpos_nonNeg. apply Qpos_CRpos.
-Qed.
-
 Let in_region := square_abstraction.in_region ClockInterval_bounds TempInterval_bounds.
 
-Definition old_hint_new_hint (l: Location) (r r': Region):
-  (r <> r' /\
-  (forall p: Point,
-   square_abstraction.in_region ClockInterval_bounds TempInterval_bounds p
-     r ->
-   forall t: Time,
-   square_abstraction.in_region ClockInterval_bounds TempInterval_bounds
-     (concrete.flow concrete_system l p t) r' -> t <= '0)) ->
-  (r <> r' /\ forall p, in_region p r ->
-   forall t, '0 <= t -> in_region (concrete.flow concrete_system l p t) r' ->
-     in_region (concrete.flow concrete_system l p t) r).
+Definition he (f: Flow CRasCSetoid) (flow_inc: forall x, strongly_increasing (f x)) (t: Time) (x b: CR):
+  b <= x -> f x t <= b -> t <= '0.
 Proof with auto.
   intros.
-  destruct H.
-  split...
-  intros.
-  set (H0 p H1 _ H3). clearbody c. clear H0.
-  set (snd (CRle_def t ('0)) (conj c H2)).
-  clearbody s.
-  apply square_abstraction.in_region_wd with p...
-  simpl bsm.
-  destruct p.
-  split.
-    rewrite s.
-    simpl @fst.
-    symmetry.
-    apply CRadd_0_r.
-  simpl bsm.
-  transitivity (temp_flow l s1 ('0)).
-    symmetry. apply flow_zero.
-  apply bsm_wd.
-    reflexivity.
-  symmetry...
+  apply (@strongly_increasing_inv_mild (f x) (flow_inc x))...
+  rewrite (flow_zero f).
+  apply CRle_trans with b...
 Qed.
 
-Definition old_hints (l: Location) (r r': Region): option
-  (r <> r' /\
-  (forall p: Point,
-   square_abstraction.in_region ClockInterval_bounds TempInterval_bounds p
-     r ->
-   forall t: Time,
-   square_abstraction.in_region ClockInterval_bounds TempInterval_bounds
-     (concrete.flow concrete_system l p t) r' -> t <= '0)).
+Lemma heat_temp_flow_inc: (forall x : CRasCSetoid, strongly_increasing (temp_flow Heat x)).
+  repeat intro.
+  simpl.
+  unfold scale.raw.
+  unfold positive_linear.f.
+  simpl.
+  apply CRlt_wd with (' (5 # 2) * x0 + x) (' (5 # 2) * x' + x).
+      apply (Radd_comm CR_ring_theory).
+    apply (Radd_comm CR_ring_theory).
+  apply t1.
+  apply (CRmult_lt_pos_r H).
+  apply (Qpos_CRpos (5#2)).
+Qed.
+
+Lemma clock_flow_inc: forall l x, strongly_increasing (clock_flow l x).
+Proof with auto.
   intros.
+  unfold clock_flow.
+  repeat intro.
+  simpl.
+  apply CRlt_wd with (x0 + x) (x' + x).
+      apply (Radd_comm CR_ring_theory).
+    apply (Radd_comm CR_ring_theory).
+  apply t1.
+  assumption.
+Qed.
+
+Definition clock_hints (l: Location) (r r': Region): r <> r' -> option
+  (abstraction.AltHint concrete_system in_region l r r').
+Proof with auto.
+  intros.
+  unfold abstraction.AltHint, in_region, square_abstraction.in_region,
+    square_abstraction.square, in_osquare.
+  simpl.
   destruct r. destruct r'.
-  destruct (and_dec (ClockInterval_eq_dec c CID_12) (ClockInterval_eq_dec c0 CI0_D)).
-    destruct a.
-    subst.
-    apply Some.
-    split. rewrite H, H0. intro. inversion_clear H1.
-    intros.
-    destruct p. 
-    unfold Equivalence.equiv in H, H0. subst.
-    destruct H2. destruct H1.
-    apply (lin_dus (fst H1) (snd H)).
-  destruct (and_dec (ClockInterval_eq_dec c CI12_1) (ClockInterval_eq_dec c0 CID_12)).
-    destruct a.
-    subst.
-    apply Some.
-    split. rewrite H, H0. intro. inversion_clear H1.
-    intros.
-    destruct p. 
-    unfold Equivalence.equiv in H, H0. subst.
-    destruct H2. destruct H1.
-    apply (lin_dus (fst H1) (snd H)).
-  destruct (and_dec (ClockInterval_eq_dec c CI1_2) (ClockInterval_eq_dec c0 CI12_1)).
-    destruct a.
-    subst.
-    apply Some.
-    split. rewrite H, H0. intro. inversion_clear H1.
-    intros.
-    destruct p. 
-    unfold Equivalence.equiv in H, H0. subst.
-    destruct H2. destruct H1.
-    apply (lin_dus (fst H1) (snd H)).
-  case_eq l; intro.
-      destruct (and_dec (TempInterval_eq_dec t TI45_5) (TempInterval_eq_dec t0 TIC_45)).
-        destruct a.
-        unfold Equivalence.equiv in H0, H1.
-        subst.
-        apply Some.
-        split. intro. inversion_clear H.
+  unfold in_orange at 1 3.
+  unfold ClockInterval_bounds.
+  simpl.
+  destruct (ClockInterval_qbounds c).
+  destruct (ClockInterval_qbounds c0).
+  destruct x. destruct x0.
+  destruct o1. destruct o4.
+      simpl.
+      destruct (Qeq_dec q q0).
+        constructor.
         intros.
-        destruct p. destruct H. destruct H0.
-        unfold in_orange in H2. simpl in H2.
-        apply (@lin_dus' ('(9#2)) s0 ((5#2)%Qpos) t (fst H1) (snd H2)).
-      destruct (and_dec (TempInterval_eq_dec t TI5_6) (TempInterval_eq_dec t0 TI45_5)).
-        destruct a.
-        unfold Equivalence.equiv in H0, H1.
-        subst.
-        apply Some.
-        split. intro. inversion_clear H.
-        intros.
-        destruct p. destruct H. destruct H0.
-        apply (@lin_dus' ('5) s0 ((5#2)%Qpos) t (fst H1) (snd H2)).
-      destruct (and_dec (TempInterval_eq_dec t TI6_9) (TempInterval_eq_dec t0 TI5_6)).
-        destruct a.
-        unfold Equivalence.equiv in H0, H1.
-        subst.
-        apply Some.
-        split. intro. inversion_clear H.
-        intros.
-        destruct p. destruct H. destruct H0.
-        apply (@lin_dus' ('6) s0 ((5#2)%Qpos) t (fst H1) (snd H2)).
-      destruct (and_dec (TempInterval_eq_dec t TI9_10) (TempInterval_eq_dec t0 TI6_9)).
-        destruct a.
-        unfold Equivalence.equiv in H0, H1.
-        subst.
-        apply Some.
-        split. intro. inversion_clear H.
-        intros.
-        destruct p. destruct H. destruct H0.
-        apply (@lin_dus' ('9) s0 ((5#2)%Qpos) t (fst H1) (snd H2)).
-      destruct (and_dec (TempInterval_eq_dec t TI10_) (TempInterval_eq_dec t0 TI9_10)).
-        destruct a.
-        unfold Equivalence.equiv in H0, H1.
-        subst.
-        apply Some.
-        split. intro. inversion_clear H.
-        intros.
-        destruct p. destruct H. destruct H0.
-        apply (@lin_dus' ('10) s0 ((5#2)%Qpos) t (fst H1) (snd H2)).
+        destruct H0. destruct H1. destruct H0. destruct H1.
+        apply (@he (clock_flow l) ) with (fst p) ('q)...
+          apply clock_flow_inc.
+        simpl.
+        rewrite q1...
       exact None.
     exact None.
   exact None.
 Defined.
-  (* todo: this is awful. should be automatable if we lift monotonicity *)
 
-Definition new_hints (l: Location) (r r': Region): option
-  (r <> r' /\ forall p, in_region p r ->
-   forall t, '0 <= t -> in_region (concrete.flow concrete_system l p t) r' ->
-     in_region (concrete.flow concrete_system l p t) r) :=
-  option_map (@old_hint_new_hint l r r' ) (old_hints l r r').
+Definition temp_hints (l: Location) (r r': Region): r <> r' -> option
+  (abstraction.AltHint concrete_system in_region l r r').
+Proof with auto.
+  intros.
+  destruct r. destruct r'.
+  destruct l.
+      unfold abstraction.AltHint, in_region, square_abstraction.in_region,
+        square_abstraction.square, in_osquare.
+      simpl.
+      unfold in_orange at 2 4.
+      unfold orange_right at 1. unfold orange_left at 2.
+      unfold TempInterval_bounds.
+      destruct (TempInterval_qbounds t).
+      destruct (TempInterval_qbounds t0).
+      destruct x.
+      destruct x0.
+      destruct o1.
+        destruct o4.
+          simpl.
+          destruct (Qeq_dec q q0).
+            constructor.
+            intros.
+            destruct H0. destruct H1.
+            destruct H2. destruct H3.
+            apply (@he (temp_flow Heat) heat_temp_flow_inc t1 (snd p) ('q) H2).
+            rewrite q1...
+          exact None.
+        exact None.
+      exact None.
+    exact None.
+  exact None.
+Defined.
+
+Definition hints (l: Location) (r r': Region) (E: r <> r') :=
+  options (clock_hints l E) (temp_hints l E).
+
+Definition in_region_wd: forall (x x': concrete.Point concrete_system),
+  x[=]x' -> forall r, in_region x r -> in_region x' r
+  := @square_abstraction.in_region_wd ClockInterval TempInterval Location
+    _ _ _ _ _ _ ClockInterval_bounds TempInterval_bounds.
 
 Lemma chicken: forall x : concrete.Location concrete_system * concrete.Point concrete_system,
   concrete.invariant x ->
@@ -559,28 +492,17 @@ Proof with auto.
       (* todo: this should be done generically by square_abstraction *)
 Qed.
 
-Lemma cont_trans_dec (eps: Qpos): dec_overestimator
-  (abstraction.cont_trans_cond concrete_system
-     (square_abstraction.in_region ClockInterval_bounds TempInterval_bounds)).
-Proof with auto.
-  intros.
-  eapply (@square_abstraction.do_cont_trans _ _ _ _ _ _ _ _ _ ClockInterval_bounds TempInterval_bounds clock_flow temp_flow clock_flow_inv temp_flow_inv).
-        apply clock_rfis.
-      apply temp_rfis.
-    eexact invariant_squares_correct.
-  exact eps.
-Defined.
-
 Definition abstract_system (eps : Qpos) : abstract.System concrete_system.
 Proof with auto.
   intro eps.
   eapply (@abstraction.abstract_system' _ _ _ concrete_system in_region
-   (fun a b e r => @square_abstraction.in_region_wd _ _ Location
-     _ _ _ _ _ _ ClockInterval_bounds TempInterval_bounds a b r e)
-  (square_abstraction.NoDup_squareIntervals NoDup_clock_intervals NoDup_temp_intervals)
-  _
+   in_region_wd
+   (square_abstraction.NoDup_squareIntervals NoDup_clock_intervals NoDup_temp_intervals) _
   chicken
-    (cont_trans_dec eps) (mk_DO (over_initial eps)) new_hints regions_cover_invariants).
+    (@square_abstraction.do_cont_trans _ _ _ _ _ _ _ _ _
+    ClockInterval_bounds TempInterval_bounds clock_flow temp_flow
+    clock_flow_inv temp_flow_inv clock_rfis temp_rfis _ _ _ _ _ _ invariant_squares_correct _ _ eps)
+    (mk_DO (over_initial eps)) (abstraction.dealt_hints in_region_wd hints) regions_cover_invariants).
     apply (square_abstraction.NoDup_disc_trans
       NoDup_clock_intervals NoDup_temp_intervals
       (square_abstraction.do_invariant ClockInterval_bounds TempInterval_bounds _ _ invariant_squares_correct eps)
