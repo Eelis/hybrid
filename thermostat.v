@@ -122,7 +122,7 @@ Definition clock_flow (l: Location): Flow CRasCSetoid := flow.positive_linear.f.
 
 Definition temp_flow (l: Location): Flow CRasCSetoid :=
   match l with
-  | Heat => flow.scale.flow ('(5#2)) flow.positive_linear.f (* todo: get this closer to 2 *)
+  | Heat => flow.scale.flow ('2) flow.positive_linear.f
   | Cool => dec_exp_flow.f
   | Check => flow.scale.flow ('(1#2)) dec_exp_flow.f
   end.
@@ -131,9 +131,9 @@ Definition flow l := product_flow (clock_flow l) (temp_flow l).
 
 (* Flow inverses *)
 
-Lemma meh: '0 < '(5#2).
+Lemma meh: '0 < '2.
 Proof.
-  exists ((5#2)%Qpos).
+  exists ((2#1)%Qpos).
   rewrite CRminus_Qminus.
   apply (CRle_Qle (QposAsQ (1#2)) ((1#2)-0)%Q).
   firstorder.
@@ -211,7 +211,7 @@ Definition concrete_system: concrete.System :=
 (* intervals *)
 
 Inductive ClockInterval: Set := CI0_D | CID_12 | CI12_1 | CI1_2 | CI2_3 | CI3_.
-Inductive TempInterval: Set := TI_45 | TI45_5 | TI5_6 | TI6_9 | TI9_10 | TI10_.
+Inductive TempInterval: Set := TI_45 | TI45_5 | TI5_6 | TI6_8 | TI8_9 | TI9_10 | TI10_.
 
 Program Definition ClockInterval_qbounds (i: ClockInterval): OpenQRange :=
   match i with
@@ -230,7 +230,8 @@ Program Definition TempInterval_qbounds (i: TempInterval): OpenQRange :=
   | TI_45 => (None, Some (9#2))
   | TI45_5 => ((9#2), 5): QRange
   | TI5_6 => (5, 6): QRange
-  | TI6_9 => (6, 9): QRange
+  | TI6_8 => (6, 8): QRange
+  | TI8_9 => (8, 9): QRange
   | TI9_10 => (9, 10): QRange
   | TI10_ => (Some 10, None)
   end.
@@ -243,7 +244,7 @@ Instance clock_intervals: ExhaustiveList ClockInterval
 Proof. intro i. destruct i; compute; tauto. Defined.
 
 Instance temp_intervals: ExhaustiveList TempInterval
-  := { exhaustive_list := TI_45 :: TI45_5 :: TI5_6 :: TI6_9 :: TI9_10 :: TI10_ :: nil }.
+  := { exhaustive_list := TI_45 :: TI45_5 :: TI5_6 :: TI6_8 :: TI8_9 :: TI9_10 :: TI10_ :: nil }.
 Proof. intro i. destruct i; compute; tauto. Defined.
 
 Program Definition s_absClockInterval (r: CR):
@@ -262,7 +263,8 @@ Program Definition s_absTempInterval (r: CR):
   if CR_le_le_dec r ('(9#2)) then TI_45 else
   if CR_le_le_dec r ('5) then TI45_5 else
   if CR_le_le_dec r ('6) then TI5_6 else
-  if CR_le_le_dec r ('9) then TI6_9 else
+  if CR_le_le_dec r ('8) then TI6_8 else
+  if CR_le_le_dec r ('9) then TI8_9 else
   if CR_le_le_dec r ('10) then TI9_10 else TI10_.
 
 Solve Obligations using
@@ -291,6 +293,7 @@ Proof.
   absInterval_wd_helper r r' H ('(9#2)).
   absInterval_wd_helper r r' H ('5).
   absInterval_wd_helper r r' H ('6).
+  absInterval_wd_helper r r' H ('8).
   absInterval_wd_helper r r' H ('9).
   absInterval_wd_helper r r' H ('10).
 Qed.
@@ -381,12 +384,12 @@ Lemma heat_temp_flow_inc: (forall x : CRasCSetoid, strongly_increasing (temp_flo
   unfold scale.raw.
   unfold positive_linear.f.
   simpl.
-  apply CRlt_wd with (' (5 # 2) * x0 + x) (' (5 # 2) * x' + x).
+  apply CRlt_wd with (' 2 * x0 + x) (' 2 * x' + x).
       apply (Radd_comm CR_ring_theory).
     apply (Radd_comm CR_ring_theory).
   apply t1.
   apply (CRmult_lt_pos_r H).
-  apply (Qpos_CRpos (5#2)).
+  apply (Qpos_CRpos (2#1)%Qpos).
 Qed.
 
 Lemma clock_flow_inc: forall l x, strongly_increasing (clock_flow l x).

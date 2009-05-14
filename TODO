@@ -1,7 +1,6 @@
 get rid of dummy reset functions for unallowed discrete transitions.
 automate hints
 alternative to hints mechanism? named constants perhaps
-get thermostat heat rate down to 2 (not sure if this is possible completely)
 investigate just how badly we need the trichotomy axiom
 shorten thermostat development
 get rotators running again
