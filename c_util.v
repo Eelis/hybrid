@@ -2,6 +2,7 @@ Require Import util.
 Require Export CRsign.
 Require Export CRln.
 Require Import CRexp.
+Require Import QMinMax.
 
 Set Implicit Arguments.
 Open Local Scope CR_scope.
@@ -381,6 +382,24 @@ Lemma CRpos_lt_0 x: '0 < x -> CRpos x.
   assumption.
 Qed.
 
+Lemma CRneg_opp x: CRpos (-x) -> CRneg x.
+Proof.
+  intros.
+  destruct H.
+  exists x0.
+  unfold CRle in *.
+  apply (@CRnonNeg_wd _ (-x - 'x0)).
+    rewrite CRopp_Qopp.
+    apply (Radd_comm CR_ring_theory).
+  assumption.
+Defined.
+
+Lemma CRpos_le_trans: forall x, CRpos x -> forall y, x <= y -> CRpos y.
+Proof. intros x [e H] y E. exists e. apply (CRle_trans H E). Defined.
+
+Lemma CRneg_le_trans: forall x, CRneg x -> forall y, y <= x -> CRneg y.
+Proof. intros x [e H] y E. exists e. apply (CRle_trans E H). Defined.
+
 Lemma CRpos_lt_0_rev x: CRpos x -> '0 < x.
 Proof with auto.
   unfold CRlt.
@@ -713,14 +732,35 @@ Proof with auto.
   apply <- CRle_def...
 Qed.
 
+Lemma CRln_opp_mult x y P Q R (S: '0 < -x * y):
+  CRln (- (x * y)) P == CRln (-x) Q + CRln y R.
+Proof.
+  intros.
+  rewrite <- (@CRln_mult (-x) y Q R S).
+  apply CRln_wd, CRopp_mult_l.
+Qed.
+
+Definition CR_sign_dec (e: Qpos) (x: CR): option (CRpos x + CRneg x) :=
+  let a := approximate x e in
+  match Qle_total a (2 * e), Qle_total (- (2) * e) a with
+  | right q, _ => Some (inl (CRpos_char x q))
+  | _, right q => Some (inr (CRneg_char x q))
+  | left _, left _ => None
+  end.
+
   (* todo: *)
 Axiom exp_pos: forall x, '0 < exp x.
+Axiom CRpos_mult_inv: forall y, CRnonNeg y -> forall x, CRpos (x * y) -> CRpos x.
 Axiom CRinv_pos: forall x, '0 < x -> forall p: x >< '0, '0 < CRinv x p.
 Axiom CRinv_mult: forall x (p: x >< '0), x * CRinv x p == '1.
 Axiom exp_inc: forall x y, x < y -> exp x < exp y.
 Axiom exp_opp_ln: forall x xp, x * exp (- CRln x xp) == '1.
 Axiom CRmult_le_compat_r: forall x y, x <= y -> forall z, CRnonNeg z -> z * x <= z * y.
 Axiom CRmult_le_inv: forall x, CRnonNeg x -> forall a b, x * a <= x * b -> a <= b.
+
+Lemma exp_pos' x: CRpos (exp x).
+  intros. apply CRpos_lt_0, exp_pos.
+Defined.
 
 Definition weak_CRlt_decision (f: (CR -> CR -> Set) -> Set): Set :=
   option (sum (f CRlt) (f (fun x y => y < x))).
@@ -748,6 +788,37 @@ Lemma CRnonNeg_nonPos_mult_inv: forall x (p: CRnonNeg x) y,
   CRnonPos (x * y) -> CRnonPos y.
 Proof with auto.
 Admitted.
+
+Lemma CRnonPos_le_0 x: CRnonPos x -> x <= '0.
+Proof with auto.
+  intros.
+  apply (@CRnonNeg_wd ('0 - x) (-x)).
+    apply (Radd_0_l CR_ring_theory).
+  apply CRnonPos_nonNeg...
+Qed.
+
+Lemma CRnonPos_not_pos x: CRnonPos x -> CRpos x -> False.
+Proof with auto.
+  intros.
+  apply CRlt_le_asym with ('0) x.
+    apply CRpos_lt_0_rev...
+  apply CRnonPos_le_0...
+Qed.
+
+Lemma CRnonNeg_not_neg x: CRnonNeg x -> CRneg x -> False.
+Proof with auto.
+  intros.
+  apply CRnonPos_not_pos with (-x).
+    apply CRnonNeg_nonPos...
+  apply CRpos_opp...
+Qed.
+
+Lemma CRneg_pos_excl x: CRpos x -> CRneg x -> False.
+Proof with auto.
+  intros.
+  apply CRnonPos_not_pos with x...
+  apply CRneg_nonPos...
+Qed.
 
 Axiom CR_lt_eq_dec: forall (x y: CR), sum (x==y) (sum (x<y) (y<x)).
 (* hm, if we make this a {x<=y}+{y<=x} axiom, we can be sure it won't be used in
