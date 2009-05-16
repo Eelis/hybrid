@@ -18,13 +18,14 @@ Module dec_exp_flow := decreasing_exponential_flow.
 
 Open Local Scope CR_scope.
 
-Lemma half_pos: '0 < '(1#2).
-Proof.
-  exists ((1#2)%Qpos).
-  rewrite CRminus_Qminus.
-  apply (CRle_Qle (QposAsQ (1#2)) ((1#2)-0)%Q).
-  firstorder.
-Defined.
+Definition half_pos: '0 < '(1#2)
+  := CRpos_lt_0_rev (Qpos_CRpos (1#2)).
+Definition two_pos: '0 < '2
+  := CRpos_lt_0_rev (Qpos_CRpos (2#1)).
+
+Definition deci: Qpos := (1#10)%Qpos.
+Definition centi: Qpos := (1#100)%Qpos.
+Definition milli: Qpos := (1#1000)%Qpos.
 
 Definition above (c: CR): OpenRange := exist OCRle (Some c, None) I.
 Definition below (c: CR): OpenRange := exist OCRle (None, Some c) I.
@@ -131,23 +132,13 @@ Definition flow l := product_flow (clock_flow l) (temp_flow l).
 
 (* Flow inverses *)
 
-Lemma meh: '0 < '2.
-Proof.
-  exists ((2#1)%Qpos).
-  rewrite CRminus_Qminus.
-  apply (CRle_Qle (QposAsQ (1#2)) ((1#2)-0)%Q).
-  firstorder.
-Defined.
-
 Definition clock_flow_inv (l: Location) (a b: OpenRange): OpenRange :=
   square_flow_conditions.one_axis.flow_range
     _ flow.positive_linear.inv_correct flow.positive_linear.mono a b.
 
-Definition milli: Qpos := (1#1000)%Qpos.
-
 Definition temp_flow_inv (l: Location): OpenRange -> OpenRange -> OpenRange :=
   match l with
-  | Heat => flow.scale.inv meh (square_flow_conditions.one_axis.flow_range
+  | Heat => flow.scale.inv two_pos (square_flow_conditions.one_axis.flow_range
     _ flow.positive_linear.inv_correct flow.positive_linear.mono)
   | Cool => dec_exp_flow.inv milli
   | Check => flow.scale.inv half_pos (dec_exp_flow.inv milli)
@@ -191,7 +182,7 @@ Definition guard_square (l l': Location): option OpenSquare :=
   match l, l' with
   | Heat, Cool => Some (unbounded_range, above ('9))
   | Cool, Heat => Some (unbounded_range, below ('6))
-  | Heat, Check => Some (above ('(21#10)), unbounded_range)
+  | Heat, Check => Some (above ('2), unbounded_range)
   | Check, Heat => Some (above ('(1#2)), unbounded_range)
   | _, _ => None
   end.
@@ -208,51 +199,53 @@ Definition concrete_system: concrete.System :=
   concrete.Build_System _ _ NoDup_locations initial invariant
   initial_invariant invariant_wd flow guard reset.
 
+Definition concrete_state_unsafe (s: concrete.State concrete_system): Prop :=
+  temp s <= '(45#10).
+
 (* intervals *)
 
-Inductive ClockInterval: Set := CI0_D | CID_12 | CI12_1 | CI1_2 | CI2_3 | CI3_.
-Inductive TempInterval: Set := TI_45 | TI45_5 | TI5_6 | TI6_8 | TI8_9 | TI9_10 | TI10_.
+Inductive ClockInterval: Set := CI0_C | CIC_12 | CI12_1 | CI1_2 | CI2_3 | CI3_.
+Inductive TempInterval: Set := TI_5 | TI5_6 | TI6_8 | TI8_9 | TI9_10 | TI10_.
 
 Program Definition ClockInterval_qbounds (i: ClockInterval): OpenQRange :=
-  match i with
-  | CI0_D => (0, (1#10)): QRange
-  | CID_12 => ((1#10), (1#2)): QRange
-  | CI12_1 => ((1#2), (11#10)): QRange
-  | CI1_2 => ((11#10), 2): QRange
-  | CI2_3 => (2, 3): QRange
+  (match i with
+  | CI0_C => (0, centi): QRange
+  | CIC_12 => (centi, 1#2): QRange
+  | CI12_1 => (1#2, 1+centi): QRange
+  | CI1_2 => (1+centi, 2-centi): QRange
+  | CI2_3 => (2-centi, 3): QRange
   | CI3_ => (Some 3, None)
-  end.
+  end)%Q.
 
 Definition ClockInterval_bounds (i: ClockInterval): OpenRange := ClockInterval_qbounds i.
 
 Program Definition TempInterval_qbounds (i: TempInterval): OpenQRange :=
-  match i with
-  | TI_45 => (None, Some (9#2))
-  | TI45_5 => ((9#2), 5): QRange
-  | TI5_6 => (5, 6): QRange
+  (match i with
+  | TI_5 => (None, Some (5-centi))
+  | TI5_6 => (5-centi, 6): QRange
   | TI6_8 => (6, 8): QRange
-  | TI8_9 => (8, 9): QRange
-  | TI9_10 => (9, 10): QRange
+  | TI8_9 => (8, 9-deci): QRange
+  | TI9_10 => (9-deci, 10): QRange
   | TI10_ => (Some 10, None)
-  end.
+  end)%Q.
 
 Definition TempInterval_bounds (i: TempInterval): OpenRange :=
   TempInterval_qbounds i.
 
 Instance clock_intervals: ExhaustiveList ClockInterval
-  := { exhaustive_list := CI0_D :: CID_12 :: CI12_1 :: CI1_2 :: CI2_3 :: CI3_ :: nil }.
+  := { exhaustive_list := CI0_C :: CIC_12 :: CI12_1 :: CI1_2 :: CI2_3 :: CI3_ :: nil }.
 Proof. intro i. destruct i; compute; tauto. Defined.
 
 Instance temp_intervals: ExhaustiveList TempInterval
-  := { exhaustive_list := TI_45 :: TI45_5 :: TI5_6 :: TI6_8 :: TI8_9 :: TI9_10 :: TI10_ :: nil }.
+  := { exhaustive_list := TI_5 :: TI5_6 :: TI6_8 :: TI8_9 :: TI9_10 :: TI10_ :: nil }.
 Proof. intro i. destruct i; compute; tauto. Defined.
 
 Program Definition s_absClockInterval (r: CR):
     { i | '0 <= r -> in_orange (ClockInterval_bounds i) r } :=
-  if CR_le_le_dec r ('(1#10)) then CI0_D else
-  if CR_le_le_dec r ('(1#2)) then CID_12 else
-  if CR_le_le_dec r ('(11#10)) then CI12_1 else
-  if CR_le_le_dec r ('2) then CI1_2 else
+  if CR_le_le_dec r ('centi) then CI0_C else
+  if CR_le_le_dec r ('(1#2)) then CIC_12 else
+  if CR_le_le_dec r ('(1+centi)) then CI12_1 else
+  if CR_le_le_dec r ('(2-centi)) then CI1_2 else
   if CR_le_le_dec r ('3) then CI2_3 else CI3_.
 
 Solve Obligations using
@@ -260,11 +253,10 @@ Solve Obligations using
 
 Program Definition s_absTempInterval (r: CR):
     { i | in_orange (TempInterval_bounds i) r } :=
-  if CR_le_le_dec r ('(9#2)) then TI_45 else
-  if CR_le_le_dec r ('5) then TI45_5 else
+  if CR_le_le_dec r ('(5-centi)) then TI_5 else
   if CR_le_le_dec r ('6) then TI5_6 else
   if CR_le_le_dec r ('8) then TI6_8 else
-  if CR_le_le_dec r ('9) then TI8_9 else
+  if CR_le_le_dec r ('(9-deci)) then TI8_9 else
   if CR_le_le_dec r ('10) then TI9_10 else TI10_.
 
 Solve Obligations using
@@ -280,21 +272,20 @@ Ltac absInterval_wd_helper r r' H v :=
 Lemma absClockInterval_wd (r r': CR): st_eq r r' -> absClockInterval r = absClockInterval r'.
 Proof.
   unfold absClockInterval, s_absClockInterval. intros.
-  absInterval_wd_helper r r' H ('(1#10)).
+  absInterval_wd_helper r r' H ('centi).
   absInterval_wd_helper r r' H ('(1#2)).
-  absInterval_wd_helper r r' H ('(11#10)).
-  absInterval_wd_helper r r' H ('2).
+  absInterval_wd_helper r r' H ('(1+centi)).
+  absInterval_wd_helper r r' H ('(2-centi)).
   absInterval_wd_helper r r' H ('3).
 Qed.
 
 Lemma absTempInterval_wd (r r': CR): st_eq r r' -> absTempInterval r = absTempInterval r'.
 Proof.
   unfold absTempInterval, s_absTempInterval. intros.
-  absInterval_wd_helper r r' H ('(9#2)).
-  absInterval_wd_helper r r' H ('5).
+  absInterval_wd_helper r r' H ('(5-centi)).
   absInterval_wd_helper r r' H ('6).
   absInterval_wd_helper r r' H ('8).
-  absInterval_wd_helper r r' H ('9).
+  absInterval_wd_helper r r' H ('(9-deci)).
   absInterval_wd_helper r r' H ('10).
 Qed.
 
@@ -514,21 +505,18 @@ Proof with auto.
   destruct (s_absTempInterval (snd p))...
 Defined.
 
-Definition abs_sys: abstract.System concrete_system := abstract_system (1#100).
+Definition abs_sys: abstract.System concrete_system := abstract_system milli.
 
 Definition vs := abstract_as_graph.vertices abs_sys.
 Definition g := abstract_as_graph.g abs_sys.
 Definition graph := flat_map (@digraph.edges g) vs.
-
-Definition concrete_state_unsafe (c: concrete.State concrete_system): Prop :=
-  temp c <= '4.
 
 Definition thermo_is_safe := 
   forall s : concrete.State concrete_system,
     concrete_state_unsafe s -> ~ concrete.reachable s.
 
 Definition unsafe_abstract_states :=
-  List.flat_map (fun l => map (fun ci => (l, (ci, TI_45))) clock_intervals) locations.
+  List.flat_map (fun l => map (fun ci => (l, (ci, TI_5))) clock_intervals) locations.
 
 Definition unsafe : bool :=
   abstract_as_graph.some_reachable abs_sys unsafe_abstract_states.
@@ -542,7 +530,7 @@ Proof with auto.
   apply <- in_flat_map.
   exists l'. split...
   simpl.
-  replace ti with TI_45. destruct ci; auto 10.
+  replace ti with TI_5. destruct ci; auto 10.
   destruct tin.
   destruct ti; auto; elimtype False;
     apply (util.flip (@CRlt_le_asym _ _) (CRle_trans H1 H)), CRlt_Qlt;

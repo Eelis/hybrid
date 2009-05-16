@@ -7,8 +7,8 @@ range_coordinate :: Range -> Double
 range_coordinate r = case r of
   I01 -> 0; I12 -> 1; I23 -> 2; I34 -> 3; I45 -> 4
   OI_1 -> 0; OI12 -> 1; OI23 -> 2; OI34 -> 3; OI4_ -> 4
-  CI0_D -> 0; CID_12 -> 0.1; CI12_1 -> 0.5; CI1_2 -> 1; CI2_3 -> 2; CI3_ -> 3
-  TIC_45 -> 0; TI45_5 -> 4.5; TI5_6 -> 5; TI6_9 -> 6; TI9_10 -> 9; TI10_ -> 10
+  CI0_C -> 0; CIC_12 -> 0.1; CI12_1 -> 0.5; CI1_2 -> 1; CI2_3 -> 2; CI3_ -> 3
+  TI_5 -> 0; TI5_6 -> 5; TI6_8 -> 6; TI8_9 -> 8; TI9_10 -> 9; TI10_ -> 10
 
 location_index :: Location -> Int
 location_index l = case l of

@@ -81,12 +81,12 @@ Proof.
   unfold CRpos. intro. 
   exists (QposMake q 1). 
   apply CRle_refl.
-Qed.
+Defined.
 
 Lemma Qpos_CRpos (q: Qpos): CRpos ('q).
   unfold CRpos.
   intro. exists q. apply CRle_refl.
-Qed.
+Defined.
 
 Lemma CRnonNeg_nonPos x: CRnonNeg x -> CRnonPos (-x).
   unfold CRnonNeg.

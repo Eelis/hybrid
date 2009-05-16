@@ -3,8 +3,6 @@ Require abstract_as_graph.
 Require Import CRln.
 
 Let conc_sys := concrete_system.
-Let abs_sys := abstract_system (1#100).
-
 Let region: Set := abstract.Region abs_sys.
 
 Require abstract.
@@ -12,7 +10,7 @@ Require abstract.
 Let abs_state: Set := @abstract.State conc_sys (abstract.Region abs_sys).
 
 Definition initstate: abs_state
-  := (thermostat.Heat, (thermostat.CI0_D, thermostat.TI6_9)).
+  := (thermostat.Heat, (thermostat.CI0_C, thermostat.TI6_8)).
 
 Definition all_transitions: list (abs_state * abs_state) :=
   flat_map (fun s: abs_state =>
