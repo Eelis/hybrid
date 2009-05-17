@@ -1,0 +1,6 @@
+extraction: "out of the box" extraction compiled with optimizing compiler
+  of ocaml verifies Thermostat in ~1sec. on a machine where it takes Coq
+  ~10sec. Profiling extracted program reveals that most of the time is
+  spent in arithemetic operations from BinPos, so there seems no "cheap"
+  way to improve performance more (like getting rid of unneccessarily big
+  equalities on inductive types).

@@ -234,7 +234,9 @@ Lemma Qbla (x y: Q): (-(x * y) == -x * y)%Q.
 Qed.
 
 Lemma Qpositive_ne_0 (x: positive): ~(x == 0)%Q.
-Admitted.
+Proof.
+  intro. unfold Qeq. simpl. auto with qarith.
+Qed.
 
 Lemma Qbla4 (x: positive): (x # x == 1)%Q.
   intros.

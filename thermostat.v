@@ -3,6 +3,7 @@ Require Import util.
 Require Import list_util.
 Require Import geometry.
 Require Import monotonic_flow.
+Require Import hs_solver.
 Require decreasing_exponential_flow.
 Require concrete.
 Require abstract.
@@ -18,10 +19,9 @@ Module dec_exp_flow := decreasing_exponential_flow.
 
 Open Local Scope CR_scope.
 
-Definition half_pos: '0 < '(1#2)
-  := CRpos_lt_0_rev (Qpos_CRpos (1#2)).
-Definition two_pos: '0 < '2
-  := CRpos_lt_0_rev (Qpos_CRpos (2#1)).
+Program Definition half_pos : '0 < '(1#2) := _.
+
+Program Definition two_pos : '0 < '2 := _.
 
 Definition deci: Qpos := (1#10)%Qpos.
 Definition centi: Qpos := (1#100)%Qpos.
@@ -37,16 +37,14 @@ Let PointCSetoid: CSetoid := ProdCSetoid CRasCSetoid CRasCSetoid.
 Inductive Location: Set := Heat | Cool | Check.
 
 Instance Location_eq_dec: EquivDec.EqDec Location eq.
-Proof. repeat intro. cut (decision (x=y)). auto. dec_eq. Defined.
+Proof. hs_solver. Defined.
 
 Instance locations: ExhaustiveList Location :=
   { exhaustive_list := Heat :: Cool :: Check :: nil }.
-Proof. intro l. destruct l; compute; tauto. Defined.
+Proof. hs_solver. Defined.
 
 Lemma NoDup_locations: NoDup locations.
-  apply decision_true with (NoDup_dec Location_eq_dec locations).
-  vm_compute. reflexivity.
-Qed.
+Proof. hs_solver. Qed.
 
 (* States *)
 
@@ -69,13 +67,8 @@ Definition invariant (s: State): Prop :=
 
 Lemma invariant_wd: forall l l', l = l' ->
   forall (p p': PointCSetoid), p[=]p' -> (invariant (l, p) <-> invariant (l', p')).
-Proof with auto.
-  unfold invariant.
-  intros l l' le. subst.
-  intros [x y] [x' y'] pe.
-  inversion_clear pe.
-  simpl loc. unfold temp, clock. unfold Basics.compose. simpl @fst. simpl @snd.
-  destruct l'; try rewrite H; try rewrite H0; split...
+Proof.
+  unfold invariant. grind ltac:(destruct l').
 Qed.
 
 Program Definition invariant_squares (l: Location): OpenSquare :=
@@ -85,36 +78,24 @@ Program Definition invariant_squares (l: Location): OpenSquare :=
   | Check => (('0, '1): Range, unbounded_range)
   end.
 
-Solve Obligations using intros; CRle_constants.
-
 Lemma invariant_squares_correct (l : Location) (p : Point):
   invariant (l, p) -> in_osquare p (invariant_squares l).
-Proof with auto.
-  unfold invariant, in_osquare, in_orange, orange_left, orange_right.
-  destruct l; simpl; intuition.
+Proof.
+  unfold invariant. grind ltac:(destruct l).
 Qed.
 
 (* Initial state *)
 
 Program Definition initial_square: OpenSquare := (('0, '0), ('5, '10)): Square.
-Solve Obligations using intros; CRle_constants.
 
 Definition initial_location := Heat.
 Definition initial (s: State): Prop :=
   loc s = initial_location /\ in_osquare (point s) initial_square.
 
 Lemma initial_invariant (s: State): initial s -> invariant s.
-Proof with auto.
-  destruct s as [l [c t]].
-  unfold initial, invariant, initial_square.
-  simpl.
-  intros [H [[H0 H1] [H2 H3]]].
-  subst.
-  unfold initial_location, temp, clock, compose.
-  simpl in *.
-  split... split...
-  apply CRle_trans with ('0)...
-  CRle_constants.
+Proof.
+  unfold initial, invariant, initial_location, initial_square.
+  hs_solver.
 Qed.
 
 (* Flow *)
@@ -173,7 +154,7 @@ Definition temp_reset (l l': Location): square_abstraction.Reset :=
   square_abstraction.Reset_id. (* dummy *)
 
 Definition reset (l l': Location) (p: Point): Point :=
-  (square_abstraction.apply_Reset (clock_reset l l') (fst p)
+  ( square_abstraction.apply_Reset (clock_reset l l') (fst p)
   , square_abstraction.apply_Reset (temp_reset l l') (snd p)).
 
 (* Guards *)
@@ -234,11 +215,11 @@ Definition TempInterval_bounds (i: TempInterval): OpenRange :=
 
 Instance clock_intervals: ExhaustiveList ClockInterval
   := { exhaustive_list := CI0_C :: CIC_12 :: CI12_1 :: CI1_2 :: CI2_3 :: CI3_ :: nil }.
-Proof. intro i. destruct i; compute; tauto. Defined.
+Proof. hs_solver. Defined.
 
 Instance temp_intervals: ExhaustiveList TempInterval
   := { exhaustive_list := TI_5 :: TI5_6 :: TI6_8 :: TI8_9 :: TI9_10 :: TI10_ :: nil }.
-Proof. intro i. destruct i; compute; tauto. Defined.
+Proof. hs_solver. Defined.
 
 Program Definition s_absClockInterval (r: CR):
     { i | '0 <= r -> in_orange (ClockInterval_bounds i) r } :=
@@ -248,9 +229,6 @@ Program Definition s_absClockInterval (r: CR):
   if CR_le_le_dec r ('(2-centi)) then CI1_2 else
   if CR_le_le_dec r ('3) then CI2_3 else CI3_.
 
-Solve Obligations using
-  unfold in_orange, orange_left, orange_right; simpl; auto.
-
 Program Definition s_absTempInterval (r: CR):
     { i | in_orange (TempInterval_bounds i) r } :=
   if CR_le_le_dec r ('(5-centi)) then TI_5 else
@@ -259,66 +237,41 @@ Program Definition s_absTempInterval (r: CR):
   if CR_le_le_dec r ('(9-deci)) then TI8_9 else
   if CR_le_le_dec r ('10) then TI9_10 else TI10_.
 
-Solve Obligations using
-  unfold in_orange, orange_left, orange_right; simpl; auto.
-
-Definition absClockInterval (r: CR): ClockInterval := proj1_sig (s_absClockInterval r).
-Definition absTempInterval (r: CR): TempInterval := proj1_sig (s_absTempInterval r).
-
-Ltac absInterval_wd_helper r r' H v :=
-  set (e := @CR_le_le_dec_wd r r' v v H (genericSetoid_Reflexive _ _)); clearbody e;
-  destruct (CR_le_le_dec r v) in *; destruct (CR_le_le_dec r' v) in *; auto; try discriminate; clear e.
+Program Definition absClockInterval (r: CR): ClockInterval := s_absClockInterval r.
+Program Definition absTempInterval (r: CR): TempInterval := s_absTempInterval r.
 
 Lemma absClockInterval_wd (r r': CR): st_eq r r' -> absClockInterval r = absClockInterval r'.
 Proof.
-  unfold absClockInterval, s_absClockInterval. intros.
-  absInterval_wd_helper r r' H ('centi).
-  absInterval_wd_helper r r' H ('(1#2)).
-  absInterval_wd_helper r r' H ('(1+centi)).
-  absInterval_wd_helper r r' H ('(2-centi)).
-  absInterval_wd_helper r r' H ('3).
+  unfold absClockInterval, s_absClockInterval. hs_solver.
 Qed.
 
 Lemma absTempInterval_wd (r r': CR): st_eq r r' -> absTempInterval r = absTempInterval r'.
 Proof.
-  unfold absTempInterval, s_absTempInterval. intros.
-  absInterval_wd_helper r r' H ('(5-centi)).
-  absInterval_wd_helper r r' H ('6).
-  absInterval_wd_helper r r' H ('8).
-  absInterval_wd_helper r r' H ('(9-deci)).
-  absInterval_wd_helper r r' H ('10).
+  unfold absTempInterval, s_absTempInterval. hs_solver.
 Qed.
 
 Instance ClockInterval_eq_dec: EquivDec.EqDec ClockInterval eq.
-Proof. repeat intro. cut (decision (x=y)). auto. dec_eq. Defined.
+Proof. hs_solver. Defined.
+
 Instance TempInterval_eq_dec: EquivDec.EqDec TempInterval eq.
-Proof. repeat intro. cut (decision (x=y)). auto. dec_eq. Defined.
+Proof. hs_solver. Defined.
 
 Lemma NoDup_clock_intervals: NoDup clock_intervals.
-  apply decision_true with (NoDup_dec ClockInterval_eq_dec clock_intervals).
-  vm_compute. ref.
-Qed.
+Proof. hs_solver. Qed.
 
 Lemma NoDup_temp_intervals: NoDup temp_intervals.
-  apply decision_true with (NoDup_dec TempInterval_eq_dec temp_intervals).
-  vm_compute. ref.
-Qed.
+Proof. hs_solver. Qed.
 
 Lemma regions_cover_invariants l (p: concrete.Point concrete_system):
   concrete.invariant (l, p) ->
   square_abstraction.in_region ClockInterval_bounds TempInterval_bounds p
     (square_abstraction.absInterval absClockInterval absTempInterval p).
 Proof with auto.
-  simpl concrete.invariant.
   destruct p.
-  intros.
-  unfold square_abstraction.in_region.
-  unfold square_abstraction.absInterval.
-  simpl.
-  unfold absClockInterval, absTempInterval.
-  destruct (s_absClockInterval s). destruct (s_absTempInterval s0). simpl.
-  destruct H.
-  split...
+  simpl concrete.invariant. unfold invariant.
+  unfold square_abstraction.in_region, square_abstraction.absInterval,
+    absClockInterval, absTempInterval.
+  simplify_hyps. simplify_proj. split...
 Qed.
 
 Definition Region: Set := prod ClockInterval TempInterval.
