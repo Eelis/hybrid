@@ -697,6 +697,18 @@ Proof with auto.
   rewrite <- (CRminus_zero x)...
 Qed.
 
+Lemma CRle_mult_both_sides x y: '0 <= x -> x <= y ->
+  forall a b, '0 <= a -> a <= b -> x * a <= y * b.
+Proof with auto.
+  intros.
+  apply CRle_trans with (x * b).
+    apply CRle_mult...
+  rewrite (Rmul_comm CR_ring_theory x b).
+  rewrite (Rmul_comm CR_ring_theory y b).
+  apply CRle_mult...
+  apply CRle_trans with a...
+Qed.
+
 Lemma bah: forall x y, '0 < x * y -> '0 < x -> '0 < y.
 Proof with auto.
   intros.
@@ -750,15 +762,100 @@ Definition CR_sign_dec (e: Qpos) (x: CR): option (CRpos x + CRneg x) :=
   | left _, left _ => None
   end.
 
+Lemma CRdiv_Qdiv (a b: Qpos):
+  '(a / b)%Qpos == 'a * CRinv ('b) (Cinright _ _  (CRpos_lt_0_rev (Qpos_CRpos b))).
+Proof with auto.
+  intros.
+  rewrite <- (CRmult_Qmult a (Qpos_inv b)).
+  apply CRmult_wd...
+  symmetry.
+  apply CRinv_Qinv.
+Qed.
+
+Lemma CRinv_le: forall x y H H0, CRpos x -> x <= y -> CRinv y H0 <= CRinv x H.
+Proof with auto.
+  intros.
+  assert (IRasCR (CRasIR x) >< '0).
+    apply CRapart_wd with x ('0)...
+    symmetry. apply CRasIRasCR_id.
+  assert (IRasCR (CRasIR y) >< '0).
+    apply CRapart_wd with y ('0)...
+    symmetry. apply CRasIRasCR_id.
+  rewrite (@CRinv_wd x (IRasCR (CRasIR x)) H X).
+    rewrite (@CRinv_wd y (IRasCR (CRasIR y)) H0 X0).
+      do 2 rewrite <- IR_recip_as_CR_2.
+      apply -> IR_leEq_as_CR.
+      apply recip_resp_leEq.
+        apply CR_less_as_IR.
+        apply CRlt_wd with ('0) (IRasCR (CRasIR x))...
+          symmetry. apply IR_Zero_as_CR.
+        apply CRlt_wd with ('0) x...
+          symmetry. apply CRasIRasCR_id.
+        apply CRpos_lt_0_rev...
+      apply <- IR_leEq_as_CR...
+      apply <- (CRle_wd (CRasIRasCR_id x) (CRasIRasCR_id y))...
+    symmetry. apply CRasIRasCR_id.
+  symmetry. apply CRasIRasCR_id.
+Qed.
+
+Lemma CRinv_mult x (p: x >< '0): x * CRinv x p == '1.
+Proof with auto.
+  intros.
+  assert (IRasCR (CRasIR x) >< '0).
+    apply CRapart_wd with x ('0)...
+    symmetry. apply CRasIRasCR_id.
+  assert (CRinv _ X == CRinv _ p).
+    apply CRinv_wd, CRasIRasCR_id.
+  rewrite <- H.
+  rewrite <- (CRasIRasCR_id x) at 1.
+  rewrite <- IR_recip_as_CR_2, <- IR_mult_as_CR, <- IR_One_as_CR.
+  apply -> IR_eq_as_CR.
+  unfold cf_div.
+  rewrite (ax_mult_assoc  _ _ _ (cr_proof IR)).
+  rewrite (runit _ _ (ax_mult_mon _ _ _ (cr_proof IR)) (CRasIR x)).
+  apply x_div_x.
+Qed.
+
+Lemma CRinv_pos: forall x, CRpos x -> forall p, CRpos (CRinv x p).
+Proof with auto.
+  intros.
+  exists (Qpos_inv (CR_b (1#1) x)).
+  rewrite Q_Qpos_inv.
+  assert ('(CR_b (1#1) x) >< '0).
+    right. apply CRpos_lt_0_rev. apply Qpos_CRpos.
+  rewrite <- (CRinv_Qinv _ X).
+  apply CRinv_le...
+  apply CR_b_upperBound.
+Qed.
+
   (* todo: *)
 Axiom exp_pos: forall x, '0 < exp x.
-Axiom CRpos_mult_inv: forall y, CRnonNeg y -> forall x, CRpos (x * y) -> CRpos x.
-Axiom CRinv_pos: forall x, '0 < x -> forall p: x >< '0, '0 < CRinv x p.
-Axiom CRinv_mult: forall x (p: x >< '0), x * CRinv x p == '1.
-Axiom exp_inc: forall x y, x < y -> exp x < exp y.
 Axiom exp_opp_ln: forall x xp, x * exp (- CRln x xp) == '1.
 Axiom CRmult_le_compat_r: forall x y, x <= y -> forall z, CRnonNeg z -> z * x <= z * y.
 Axiom CRmult_le_inv: forall x, CRnonNeg x -> forall a b, x * a <= x * b -> a <= b.
+
+Lemma CRpos_mult_inv: forall y, CRpos y -> forall x, CRpos (x * y) -> CRpos x.
+Proof with try assumption.
+  intros.
+  set (yu := CR_b ((1#1)%Qpos) y).
+  destruct H0 as [mq H0].
+  exists ((mq / yu)%Qpos).
+  rewrite CRdiv_Qdiv.
+  apply CRle_trans with (x * y * CRinv y (Cinright _ _ (CRpos_lt_0_rev H))).
+    apply CRle_mult_both_sides...
+        apply t4.
+      rewrite CRinv_Qinv.
+      apply <- CRle_Qle.
+      apply Qinv_le_0_compat.
+      apply Qpos_nonneg.
+    apply CRinv_le...
+    apply CR_b_upperBound.
+  rewrite <- (Rmul_assoc CR_ring_theory).
+  rewrite CRinv_mult.
+  rewrite (Rmul_comm CR_ring_theory).
+  rewrite (Rmul_1_l CR_ring_theory).
+  apply CRle_refl.
+Qed.
 
 Lemma exp_pos' x: CRpos (exp x).
   intros. apply CRpos_lt_0, exp_pos.

@@ -94,7 +94,7 @@ Module scale.
 Section contents.
 
   Variable s: CR.
-  Hypothesis sp: '0 < s.
+  Hypothesis sp: CRpos s.
 
   Variable f: Flow CRasCSetoid.
 
@@ -128,10 +128,17 @@ Section contents.
   Variable old_inv: OpenRange -> OpenRange -> OpenRange.
   Hypothesis old_inv_correct: range_flow_inv_spec f old_inv.
 
-  Definition sinv: CR := CRinv s (Cinright _ _ sp).
+  Lemma CRpos_apart_0 x: CRpos x -> x >< '0.
+    right. apply CRpos_lt_0_rev. assumption.
+  Defined.
+
+  Definition sinv: CR := CRinv s (CRpos_apart_0 sp).
 
   Lemma sinv_nonneg: '0 <= sinv.
-  Proof. apply CRlt_le, CRinv_pos. assumption. Qed.
+  Proof.
+    apply CRlt_le, CRpos_lt_0_rev, CRinv_pos.
+    assumption.
+  Qed.
 
   Definition inv (a b: OpenRange): OpenRange := scale_orange sinv_nonneg (old_inv a b).
 
@@ -149,7 +156,7 @@ Section contents.
     assert (sinv * (s * t) == t).
       rewrite (Rmul_assoc CR_ring_theory).
       unfold sinv.
-      rewrite (Rmul_comm CR_ring_theory (CRinv s (Cinright _ _ sp))).
+      rewrite (Rmul_comm CR_ring_theory (CRinv s (CRpos_apart_0 sp))).
       rewrite CRinv_mult.
       apply (Rmul_1_l CR_ring_theory).
     apply (in_orange_wd (scale_orange sinv_nonneg (old_inv a b)) H1 H2 H3).

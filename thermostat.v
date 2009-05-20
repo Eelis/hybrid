@@ -19,9 +19,8 @@ Module dec_exp_flow := decreasing_exponential_flow.
 
 Open Local Scope CR_scope.
 
-Program Definition half_pos : '0 < '(1#2) := _.
-
-Program Definition two_pos : '0 < '2 := _.
+Definition half_pos: CRpos ('(1#2)) := Qpos_CRpos (1#2).
+Definition two_pos: CRpos ('2) := positive_CRpos 2.
 
 Definition deci: Qpos := (1#10)%Qpos.
 Definition centi: Qpos := (1#100)%Qpos.
@@ -135,6 +134,7 @@ Qed.
 Lemma temp_rfis l: range_flow_inv_spec (temp_flow l) (temp_flow_inv l).
 Proof with auto.
   destruct l; simpl temp_flow.
+      unfold temp_flow_inv.
       apply flow.scale.inv_correct.
       unfold range_flow_inv_spec. intros.
       apply square_flow_conditions.one_axis.flow_range_covers with p...

@@ -58,8 +58,10 @@ Proof. destruct x; exact I. Qed.
 
 Definition raw (x: CR) (t: Time): CR := x * exp (-t).
 
+Hint Resolve exp_pos'.
+
 Lemma raw_pos x t: CRpos x -> CRpos (raw x t).
-Proof with auto. intros. apply CRpos_mult... apply exp_pos'. Defined.
+Proof with auto. intros. apply CRpos_mult... Defined.
 
 Lemma raw_neg x t: CRneg x -> CRneg (raw x t).
 Proof with auto.
@@ -68,20 +70,15 @@ Proof with auto.
   apply CRneg_opp.
   apply CRpos_wd with (-x * exp (-t)).
     symmetry. apply CRopp_mult_l.
-  apply CRpos_mult.
-    apply CRpos_opp...
-  apply exp_pos'.
+  apply CRpos_mult...
+  apply CRpos_opp...
 Defined.
 
 Lemma raw_pos_inv x t: CRpos (raw x t) -> CRpos x.
 Proof with auto.
   intros.
   unfold raw in H.
-  apply CRpos_mult_inv with (exp (-t)).
-    apply CRpos_nonNeg.
-    apply CRpos_lt_0.
-    apply exp_pos.
-  apply CRpos_lt_0...
+  apply CRpos_mult_inv with (exp (-t))...
 Defined.
 
 Lemma raw_neg_inv x t: CRneg (raw x t) -> CRneg x.
@@ -89,20 +86,9 @@ Proof with auto.
   intros.
   apply CRneg_opp.
   apply CRpos_mult_inv with (exp (-t))...
-    apply CRpos_nonNeg.
-    apply exp_pos'.
   apply CRpos_wd with (-(x * exp (-t))).
     apply CRopp_mult_l.
   apply CRpos_opp...
-Defined.
-
-Lemma mono: forall x a b, CRpos x -> a < b -> raw x b < raw x a.
-Proof with auto.
-  repeat intro.
-  unfold raw.
-  apply CRmult_lt_pos_r...
-  apply exp_inc.
-  apply CRlt_opp_compat...
 Defined.
 
 Lemma raw_lt_compat_l: forall x a b, CRpos x -> a < b -> raw a x < raw b x.
@@ -113,8 +99,6 @@ Proof with auto.
       apply (Rmul_comm CR_ring_theory).
     apply (Rmul_comm CR_ring_theory).
   apply CRmult_lt_pos_r...
-  apply CRpos_lt_0.
-  apply exp_pos.
 Defined.
 
 Lemma raw_le_compat_l: forall x a b, a <= b -> raw a x <= raw b x.
@@ -124,9 +108,7 @@ Proof with auto.
   rewrite (Rmul_comm CR_ring_theory a).
   rewrite (Rmul_comm CR_ring_theory b).
   apply CRmult_le_compat_r...
-  apply CRpos_nonNeg.
-  apply CRpos_lt_0.
-  apply exp_pos.
+  apply CRpos_nonNeg...
 Qed.
 
 Lemma raw_le_inv_r: forall x a b, CRnonNeg x -> raw x b <= raw x a -> a <= b.
@@ -262,7 +244,7 @@ Section upper_def.
   Lemma part_inv_alt (H3: CRpos x) (H4 : CRpos (raw x t)): t[=]part_inv H3 H4.
   Proof with auto.
     intros. unfold part_inv, raw.
-    assert (CRpos (exp (-t))) by apply exp_pos'.
+    assert (CRpos (exp (-t)))...
     rewrite (CRln_mult' H3 H H4).
     unfold CRln'.
     rewrite CRln_exp.
