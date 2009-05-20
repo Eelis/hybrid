@@ -1,5 +1,5 @@
 import os, glob, string
-corn_dir = '/data/home/eelis/soft/CoRN'
+corn_dir = '~/coq_libs/CoRN'
 
 Rs = [(corn_dir, 'CoRN'), ('.', 'hybrid')]
 Rs = string.join(map(lambda (x,y): '-R "' + x + '" ' + y, Rs))
