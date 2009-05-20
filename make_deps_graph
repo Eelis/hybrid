@@ -1,2 +1,2 @@
 #!/bin/sh
-cat deps | runhaskell coqdeps_as_dot.hs | dot -Tpng > deps.png
+coqdep *.v -I . 2> /dev/null | runhaskell coqdeps_as_dot.hs | dot -Tpng > deps.png
