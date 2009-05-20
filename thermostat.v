@@ -419,29 +419,13 @@ Definition in_region_wd: forall (x x': concrete.Point concrete_system),
   := @square_abstraction.in_region_wd ClockInterval TempInterval Location
     _ _ _ _ _ _ ClockInterval_bounds TempInterval_bounds.
 
-Lemma chicken: forall x : concrete.Location concrete_system * concrete.Point concrete_system,
-  concrete.invariant x ->
-  square_abstraction.in_region ClockInterval_bounds TempInterval_bounds
-    (snd x) (square_abstraction.absInterval absClockInterval absTempInterval (snd x)).
-Proof with auto.
-  intros.
-  destruct x as [a [b c]]. simpl.
-  destruct H as [V W]...
-  split.
-    unfold absClockInterval.
-    simpl. destruct (s_absClockInterval b)...
-  unfold absTempInterval.
-  simpl. destruct (s_absTempInterval c)...
-      (* todo: this should be done generically by square_abstraction *)
-Qed.
-
 Definition abstract_system (eps : Qpos) : abstract.System concrete_system.
 Proof with auto.
   intro eps.
   eapply (@abstraction.abstract_system' _ _ _ concrete_system in_region
    in_region_wd
    (square_abstraction.NoDup_squareIntervals NoDup_clock_intervals NoDup_temp_intervals) _
-  chicken
+   (fun x => @regions_cover_invariants (fst x) (snd x))
     (@square_abstraction.do_cont_trans _ _ _ _ _ _ _ _ _
     ClockInterval_bounds TempInterval_bounds clock_flow temp_flow
     clock_flow_inv temp_flow_inv clock_rfis temp_rfis _ _ _ _ _ _ invariant_squares_correct _ _ eps)
