@@ -7,6 +7,10 @@ Require Import QMinMax.
 Set Implicit Arguments.
 Open Local Scope CR_scope.
 
+Definition deci: Qpos := (1#10)%Qpos.
+Definition centi: Qpos := (1#100)%Qpos.
+Definition milli: Qpos := (1#1000)%Qpos.
+
 Inductive weak_decision P := 
   | definitely: P -> weak_decision P
   | definitely_not: Not P -> weak_decision P

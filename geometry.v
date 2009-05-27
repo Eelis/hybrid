@@ -209,7 +209,7 @@ Coercion unoqsquare (s: OpenQSquare): OpenSquare :=
 Definition unbounded_square: OpenSquare
   := (unbounded_range, unbounded_range).
 
-Definition Point: Type := ProdCSetoid CRasCSetoid CRasCSetoid.
+Definition Point: CSetoid := ProdCSetoid CRasCSetoid CRasCSetoid.
 
 Definition in_square (p : Point) (s : Square) : Prop :=
   let (px, py) := p in
