@@ -16,6 +16,8 @@ Open Local Scope CR_scope.
 Definition half_pos: CRpos ('(1#2)) := Qpos_CRpos (1#2).
 Definition two_pos: CRpos ('2) := positive_CRpos 2.
 
+Hint Resolve two_pos.
+
 Definition above (c: CR): OpenRange := exist OCRle (Some c, None) I.
 Definition below (c: CR): OpenRange := exist OCRle (None, Some c) I.
 
@@ -232,10 +234,6 @@ Qed.
 
 (* Hints: *)
 
-Hint Immediate positive_CRpos.
-Hint Resolve CRpos_nonNeg.
-
-
 Definition he (f: Flow CRasCSetoid) (flow_inc: forall x, strongly_increasing (f x)) (t: Time) (x b: CR):
   b <= x -> f x t <= b -> t <= '0.
 Proof with auto.
@@ -243,33 +241,6 @@ Proof with auto.
   apply (@strongly_increasing_inv_mild (f x) (flow_inc x))...
   rewrite (flow_zero f).
   apply CRle_trans with b...
-Qed.
-
-Lemma heat_temp_flow_inc: (forall x : CRasCSetoid, strongly_increasing (temp_flow Heat x)).
-  repeat intro.
-  simpl.
-  unfold scale.raw.
-  unfold positive_linear.f.
-  simpl.
-  apply CRlt_wd with (' 2 * x0 + x) (' 2 * x' + x).
-      apply (Radd_comm CR_ring_theory).
-    apply (Radd_comm CR_ring_theory).
-  apply t1.
-  apply (CRmult_lt_pos_r H).
-  apply (Qpos_CRpos (2#1)%Qpos).
-Qed.
-
-Lemma clock_flow_inc: forall l x, strongly_increasing (clock_flow l x).
-Proof with auto.
-  intros.
-  unfold clock_flow.
-  repeat intro.
-  simpl.
-  apply CRlt_wd with (x0 + x) (x' + x).
-      apply (Radd_comm CR_ring_theory).
-    apply (Radd_comm CR_ring_theory).
-  apply t1.
-  assumption.
 Qed.
 
 Definition clock_hints (l: Location) (r r': Region): r <> r' -> option
@@ -293,7 +264,6 @@ Proof with auto.
         intros.
         destruct H0. destruct H1. destruct H0. destruct H1.
         apply (@he (clock_flow l) ) with (fst p) ('q)...
-          apply clock_flow_inc.
         simpl.
         rewrite q1...
       exact None.
@@ -325,7 +295,8 @@ Proof with auto.
             intros.
             destruct H0. destruct H1.
             destruct H2. destruct H3.
-            apply (@he (temp_flow Heat) heat_temp_flow_inc t1 (snd p) ('q) H2).
+            apply (@he (temp_flow Heat)) with (snd p) ('q)...
+              unfold temp_flow...
             rewrite q1...
           exact None.
         exact None.

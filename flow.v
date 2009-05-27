@@ -125,6 +125,13 @@ Section contents.
     apply (Rdistr_l CR_ring_theory).
   Defined.
 
+  Lemma inc: (forall x, strongly_increasing (f x)) ->
+    forall x, strongly_increasing (flow x).
+  Proof.
+    repeat intro. unfold flow. simpl.
+    apply X, CRmult_lt_pos_r; assumption.
+  Qed.
+
   Variable old_inv: OpenRange -> OpenRange -> OpenRange.
   Hypothesis old_inv_correct: range_flow_inv_spec f old_inv.
 
@@ -166,6 +173,8 @@ Section contents.
 End contents.
 End scale.
 
+Hint Resolve scale.inc.
+
 Module positive_linear.
 Section contents.
 
@@ -189,6 +198,8 @@ Section contents.
 
 End contents.
 End positive_linear.
+
+Hint Immediate positive_linear.increasing.
 
 Module negative_linear.
 Section contents.
