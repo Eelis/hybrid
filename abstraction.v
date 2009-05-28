@@ -1,12 +1,8 @@
 Require Import List.
-Require Import dec_overestimator.
-Require Import c_util.
-Require Import list_util.
-Require Import CSetoids.
-Require Import CRreal.
+Require Import c_util util list_util.
+Require Import CSetoids CRreal.
 Require Import flow.
-Require concrete.
-Require abstract.
+Require concrete abstract.
 Set Implicit Arguments.
 Open Local Scope CR_scope.
 
@@ -41,9 +37,7 @@ Section contents.
     let (l, r) := s in
       exists p, in_region p r /\ concrete.initial (l, p).
 
-  Definition cont_trans_cond (w : Location * (Region * Region)) : Prop :=
-    let (l, r) := w in
-    let (r1, r2) := r in
+  Definition cont_trans_cond (l: Location) (r1 r2: Region): Prop :=
       exists p, exists q,
         in_region p r1 /\ in_region q r2 /\ concrete.cont_trans (l, p) (l, q).
 
@@ -58,9 +52,8 @@ Section contents.
    regions in reset=id cases *)
 
   Variables
-    (cont_do : dec_overestimator cont_trans_cond)
-    (disc_do : dec_overestimator disc_trans_cond)
-    (initial_do : dec_overestimator initial_condition).
+    (cont_dec: forall l r r', overestimation (cont_trans_cond l r r'))
+    (initial_dec: forall s, overestimation (initial_condition s)).
 
   Definition Hint (l: Location) (r r': Region): Set :=
     forall p, in_region p r ->
@@ -107,64 +100,14 @@ Section contents.
 
   Let cont_trans_b (s : State) (r_dst : Region) : bool :=
     let (l, r_src) := s in
-    (do_pred cont_do) (l, (r_src, r_dst)) &&
+    cont_dec l r_src r_dst &&
     negb (hints' l r_src r_dst).
-
-  Let disc_trans_b (s1 s2 : State): bool :=
-    (do_pred disc_do) (s1, s2).
 
   Definition RegionsCoverInvariants : Prop :=
     forall l p, concrete.invariant (l, p) ->
       in_region p (select_region p).
 
   Variable regions_cover_invariants : RegionsCoverInvariants.
-
-  Definition initial_prop (s : State) :=
-    let (l, r) := s in
-      exists p, in_region p r /\ concrete.initial (l, p).
-
-  Definition initial_dec (s : State) :=
-    let (l, r) := s in
-      do_pred initial_do (l, r).
-
-  Lemma over_initial : initial_dec >=> initial_prop.
-  Proof with auto.
-    intros s init ips. destruct s.
-    apply (do_correct initial_do (l, r))...
-  Qed.
-
-  Definition disc_trans (s : State) : list State :=
-    filter (disc_trans_b s) (abstract.states conc_sys).
-      (* a more efficient implementation would grow the graph *)
-
-  Lemma NoDup_disc_trans s : NoDup (disc_trans s).
-  Proof with auto.
-    intro. apply NoDup_filter. apply abstract.NoDup_states...
-  Qed.
-
-  Lemma respects_disc (s1 s2 : c_State) :
-    let (l1, p1) := s1 in
-    let (l2, p2) := s2 in
-    concrete.disc_trans s1 s2 ->
-    forall r1, in_region p1 r1 ->
-    exists r2, in_region p2 r2 /\
-    In (l2, r2) (disc_trans (l1, r1)).
-  Proof with auto.
-    intros [l1 p1] [l2 p2] dt r1 inr1.
-    exists (select_region p2).
-    split.
-      destruct dt.
-      apply (select_region_correct (l2, p2)).
-      intuition.
-    apply in_filter...
-    set (s1 := (l1, select_region p1)). set (s2 := (l2, select_region p2)).
-    apply do_over_true.
-    destruct dt as [guard [reset [inv1 inv2]]].
-    exists p1. exists p2. 
-    repeat split; solve 
-      [ hyp 
-      | simpl; eapply regions_cover_invariants; eassumption].
-  Qed.
 
   Add Morphism (concrete.inv_curried conc_sys)
     with signature (@eq _) ==> (@cs_eq _) ==> iff
@@ -182,7 +125,7 @@ Section contents.
     apply in_filter...
     apply andb_true_intro.
     split.
-      apply do_over_true.
+      apply overestimation_true.
       simpl.
       exists p. exists p.
       repeat split...
@@ -253,7 +196,7 @@ Section contents.
     apply in_filter...
     apply andb_true_intro.
     split.
-      apply do_over_true.
+      apply overestimation_true.
       exists s1. exists s2.
       split...
       split.
@@ -276,11 +219,6 @@ Section contents.
     apply (select_region_correct (l, p))...
   Qed.
 
-  Program Definition abstract_system : abstract.System conc_sys :=
-    abstract.Build_System Region_eq_dec regions
-     NoDup_regions in_region regions_cover_invariant over_initial disc_trans
-     NoDup_disc_trans respects_disc cont_trans NoDup_cont_trans respects_cont.
-
   Variable disc_trans': @abstract.State conc_sys Region -> list (@abstract.State conc_sys Region).
   Variable NoDup_disc_trans': forall s : @abstract.State conc_sys Region, NoDup (disc_trans' s).
   Variable respects_disc': forall s1 s2 : concrete.State conc_sys,
@@ -291,9 +229,15 @@ Section contents.
       exists r2, in_region p2 r2 /\
       In (l2, r2) (disc_trans' (l1, r1)).
 
-  Program Definition abstract_system': abstract.System conc_sys :=
+  Program Definition abstract_system: abstract.System conc_sys :=
     abstract.Build_System Region_eq_dec regions
-     NoDup_regions in_region regions_cover_invariant over_initial disc_trans' NoDup_disc_trans'
+     NoDup_regions in_region regions_cover_invariant initial_dec disc_trans' NoDup_disc_trans'
      respects_disc' cont_trans NoDup_cont_trans respects_cont.
+
+  Next Obligation. Proof with intuition.
+    destruct (initial_dec x).
+    destruct x0...
+    destruct x...
+  Qed.
 
 End contents.

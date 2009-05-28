@@ -53,4 +53,4 @@ Qed.
 Theorem safe: Safe.
 Proof. Time apply unsafe_correct; vm_compute; reflexivity. Qed.
 
-Print Assumptions Safe.
+Print Assumptions safe.

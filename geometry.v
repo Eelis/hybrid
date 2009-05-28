@@ -2,7 +2,6 @@ Require Export CRsign.
 Require Export CRln.
 Require Export c_util.
 Require Export util.
-Require Export dec_overestimator.
 Set Implicit Arguments.
 Open Local Scope CR_scope.
 
@@ -67,10 +66,16 @@ End option_setoid.
 
 Definition optCR: CSetoid := option_setoid CRasCSetoid.
 
-Definition OCRle (r: optCR * optCR): Prop :=
-  match r with
-  | (Some l, Some u) => l <= u
-  | _ => True
+Definition OCRle (x y: optCR): Prop :=
+  match x, y with
+  | Some l, Some u => l <= u
+  | _, _ => True
+  end.
+
+Program Definition OCRle_dec eps x y: overestimation (OCRle x y) :=
+  match x, y with
+  | Some l, Some u => CRle_dec eps l u
+  | _, _ => true
   end.
 
 Definition OQle (r: option Q * option Q): Prop :=
@@ -87,13 +92,14 @@ Definition CRmin_of_upper_bounds (a b: option CR): option CR :=
   end.
 
 Definition OpenQRange: Set := sig OQle.
-Definition OpenRange: Type := sig OCRle.
+Definition OpenRange: Type := sig (uncurry OCRle).
 
 Program Definition unoqrange (r: OpenQRange): OpenRange
   := (option_map inject_Q (fst r), option_map inject_Q (snd r)).
 
 Next Obligation.
   destruct r as [[[x|] [y|]] H]; auto.
+  unfold OCRle, uncurry.
   simpl. apply <- CRle_Qle. assumption.
 Qed.
 
@@ -113,6 +119,8 @@ Coercion open_qrange (r: QRange): OpenQRange :=
 
 Program Definition unbounded_qrange: OpenQRange := (None, None).
 Program Definition unbounded_range: OpenRange := (None, None).
+
+Next Obligation. exact I. Qed.
 
 Definition qrange_left (r: QRange): Q := fst (proj1_sig r).
 Definition qrange_right (r: QRange): Q := snd (proj1_sig r).
@@ -168,32 +176,31 @@ Proof with auto. intros. split; simpl; auto. Qed.
 
 Hint Immediate in_unbounded_range.
 
-Definition in_range_dec eps (r : Range) (x : CR) : bool :=
-  CRle_dec eps (range_left r, x) && CRle_dec eps (x, range_right r).
+Program Definition in_range_dec eps r x: overestimation (in_range r x) :=
+  overestimate_conj
+    (CRle_dec eps (range_left r) x)
+    (CRle_dec eps x (range_right r)).
 
-Definition in_orange_dec eps (r : OpenRange) (x : CR) : bool :=
+Program Definition in_orange_dec eps r x: overestimation (in_orange r x) :=
   match orange_left r with
-  | Some l => CRle_dec eps (l, x)
+  | Some l => CRle_dec eps l x
   | None => true
   end &&
   match orange_right r with
-  | Some u => CRle_dec eps (x, u)
+  | Some u => CRle_dec eps x u
   | None => true
   end.
-
-Lemma over_in_range eps r : in_range_dec eps r >=> in_range r.
-Proof with auto.
-  intros eps r x rxf [rx xr].
-  unfold in_range_dec in rxf.
-  band_discr; estim (over_CRle eps).
-Qed.
-
-Lemma over_in_orange eps r : in_orange_dec eps r >=> in_orange r.
-Proof with auto.
-  intros eps r.
-  apply over_and; repeat intro;
-    [destruct (orange_left r) | destruct (orange_right r)];
-    try discriminate; apply (over_CRle eps H)...
+Next Obligation. Proof with intuition.
+  intros [rx xr].
+  unfold orange_left, orange_right in *.
+  destruct r.
+  destruct x0.
+  simpl in H.
+  destruct (andb_false_elim _ _ H); clear H.
+    destruct s...
+    destruct (CRle_dec eps s x)...
+  destruct s0...
+  destruct (CRle_dec eps x s0)...
 Qed.
 
 Definition Square: Type := (Range * Range)%type.
@@ -212,52 +219,33 @@ Definition unbounded_square: OpenSquare
 Definition Point: CSetoid := ProdCSetoid CRasCSetoid CRasCSetoid.
 
 Definition in_square (p : Point) (s : Square) : Prop :=
-  let (px, py) := p in
-  let (sx, sy) := s in
-    in_range sx px /\ in_range sy py.
+  in_range (fst s) (fst p) /\ in_range (snd s) (snd p).
 
 Definition in_osquare (p : Point) (s : OpenSquare) : Prop :=
-  in_orange (fst s) (fst p) /\
-  in_orange (snd s) (snd p).
+  in_orange (fst s) (fst p) /\ in_orange (snd s) (snd p).
 
 Lemma in_unbounded_square p: in_osquare p unbounded_square.
 Proof with auto. intros. split; apply in_unbounded_range. Qed.
 
-Definition in_square_dec eps (p : Point) (s : Square) : bool :=
-  let (px, py) := p in
-  let (sx, sy) := s in
-    in_range_dec eps sx px && in_range_dec eps sy py.
+Definition in_square_dec eps p s: overestimation (in_square p s) :=
+  overestimate_conj
+    (in_range_dec eps (fst s) (fst p))
+    (in_range_dec eps (snd s) (snd p)).
 
-Definition in_osquare_dec eps (p : Point) (s : OpenSquare) : bool :=
-  in_orange_dec eps (fst s) (fst p) &&
-  in_orange_dec eps (snd s) (snd p).
+Definition in_osquare_dec eps p s: overestimation (in_osquare p s) :=
+  overestimate_conj
+    (in_orange_dec eps (fst s) (fst p))
+    (in_orange_dec eps (snd s) (snd p)).
 
-Lemma over_in_square eps p : in_square_dec eps p >=> in_square p.
-Proof with auto.
-  intros eps [px py] [sx sy] ps [inx iny]. simpl in ps.
-  band_discr.
-  estim (@over_in_range eps sx)...
-  estim (@over_in_range eps sy)...
-Qed.
+Definition ranges_overlap (a b: Range): Prop :=
+  range_left a <= range_right b /\ range_left b <= range_right a.
 
-Lemma over_in_osquare eps p : in_osquare_dec eps p >=> in_osquare p.
-  (* hm, isn't it rather arbitrary that the point is named here
-   and not the square? *)
-Proof.
-  intros.
-  apply over_and; repeat intro; apply (over_in_orange eps H); auto.
-Qed.
-
-Definition ranges_overlap (r : Range * Range) : Prop :=
-  let (a, b) := r in
-    range_left a <= range_right b /\ range_left b <= range_right a.
-
-Definition oranges_overlap (r : OpenRange * OpenRange) : Prop :=
-  match orange_left (fst r), orange_right (snd r) with
+Definition oranges_overlap (a b: OpenRange): Prop :=
+  match orange_left a, orange_right b with
   | Some l, Some r => l <= r
   | _, _ => True
   end /\
-  match orange_left (snd r), orange_right (fst r) with
+  match orange_left b, orange_right a with
   | Some l, Some r => l <= r
   | _, _ => True
   end.
@@ -269,101 +257,60 @@ Hint Immediate CRmin_lb_r.
 Hint Immediate CRle_refl.
 Hint Resolve CRmax_lub.
 
-Lemma overlapping_oranges_share_point (r: OpenRange * OpenRange):
-  oranges_overlap r -> exists p, in_orange (fst r) p /\ in_orange (snd r) p.
+Lemma overlapping_oranges_share_point (a b: OpenRange):
+  oranges_overlap a b -> exists p, in_orange a p /\ in_orange b p.
 Proof with auto.
-  intros [[[a e] b] [[c f] d]] [H H0].
+  intros [[a b] e] [[c d] f] [H H0].
   unfold in_orange.
   unfold orange_left, orange_right in *.
   simpl @fst in *. simpl @snd in *.
   destruct a.
     destruct c; [| eauto].
     exists (CRmax s s0).
-    destruct e; destruct f...
+    destruct b; destruct d...
   destruct c. eauto.
-  destruct e.
-    destruct f; [| eauto].
+  destruct b.
+    destruct d; [| eauto].
     exists (CRmin s s0)...
-  destruct f. eauto.
+  destruct d. eauto.
   exists ('0)...
 Qed.
 
-Definition ranges_overlap_dec eps (r : Range * Range) : bool :=
-  let (a, b) := r in
-    CRle_dec eps (range_left a, range_right b) &&
-    CRle_dec eps (range_left b, range_right a).
+Definition ranges_overlap_dec eps a b: overestimation (ranges_overlap a b) :=
+  overestimate_conj
+    (CRle_dec eps (range_left a) (range_right b))
+    (CRle_dec eps (range_left b) (range_right a)).
 
-Definition oranges_overlap_dec eps (r: OpenRange * OpenRange): bool :=
-  match orange_left (fst r), orange_right (snd r) with
-  | Some l, Some r => CRle_dec eps (l, r)
-  | _, _ => true
-  end &&
-  match orange_left (snd r), orange_right (fst r) with
-  | Some l, Some r => CRle_dec eps (l, r)
-  | _, _ => true
-  end.
+Definition oranges_overlap_dec eps a b: overestimation (oranges_overlap a b) :=
+  overestimate_conj
+    (OCRle_dec eps (orange_left a) (orange_right b))
+    (OCRle_dec eps (orange_left b) (orange_right a)).
 
-Lemma over_ranges_overlap eps : ranges_overlap_dec eps >=> ranges_overlap.
-Proof.
-  intros eps [rx ry] rf [r1 r2].
-  unfold ranges_overlap_dec in rf.
-  band_discr; estim (over_CRle eps). 
-Qed.
+Definition squares_overlap (a b: Square): Prop :=
+    ranges_overlap (fst a) (fst b) /\ ranges_overlap (snd a) (snd b).
 
-Lemma over_oranges_overlap eps: oranges_overlap_dec eps >=> oranges_overlap.
-Proof with try discriminate; auto.
-  intros.
-  apply over_and; repeat intro.
-    destruct (orange_left (fst a))...
-    destruct (orange_right (snd a))...
-    apply (over_CRle eps H)...
-  destruct (orange_left (snd a))...
-  destruct (orange_right (fst a))...
-  apply (over_CRle eps H)...
-Qed.
+Definition osquares_overlap (a b: OpenSquare): Prop :=
+  oranges_overlap (fst a) (fst b) /\
+  oranges_overlap (snd a) (snd b).
 
-Definition squares_overlap (s : Square * Square) : Prop :=
-  let (a, b) := s in
-  let (ax, ay) := a in
-  let (bx, by) := b in
-    ranges_overlap (ax, bx) /\ ranges_overlap (ay, by).
+Definition osquares_overlap_dec eps a b: overestimation (osquares_overlap a b) :=
+  overestimate_conj
+    (oranges_overlap_dec eps (fst a) (fst b))
+    (oranges_overlap_dec eps (snd a) (snd b)).
 
-Definition osquares_overlap (s: OpenSquare * OpenSquare): Prop :=
-  oranges_overlap (fst (fst s), fst (snd s)) /\
-  oranges_overlap (snd (fst s), snd (snd s)).
-
-Definition squares_overlap_dec eps (s : Square * Square) : bool :=
-  let (a, b) := s in
-  let (x1, y1) := a in
-  let (x2, y2) := b in
-    ranges_overlap_dec eps (x1, x2) && ranges_overlap_dec eps (y1, y2).
-
-Definition osquares_overlap_dec eps (s : OpenSquare * OpenSquare): bool :=
-  oranges_overlap_dec eps (fst (fst s), fst (snd s)) &&
-  oranges_overlap_dec eps (snd (fst s), snd (snd s)).
-
-Lemma over_squares_overlap eps : squares_overlap_dec eps >=> squares_overlap.
-Proof.
-  intros eps [[x1 y1] [x2 y2]] so [o1 o2].
-  unfold squares_overlap_dec in so.
-  band_discr; estim (over_ranges_overlap eps).
-Qed.
-
-Lemma over_osquares_overlap eps: osquares_overlap_dec eps >=> osquares_overlap.
-Proof.
-  intros.
-  apply over_and; repeat intro;
-   apply (over_oranges_overlap eps H); auto.
-Qed.
+Definition squares_overlap_dec eps (a b: Square): overestimation (squares_overlap a b) :=
+  overestimate_conj
+    (ranges_overlap_dec eps (fst a) (fst b))
+    (ranges_overlap_dec eps (snd a) (snd b)).
 
 Lemma ranges_share_point a b p: in_range a p -> in_range b p ->
-  ranges_overlap (a, b).
+  ranges_overlap a b.
 Proof.
   intros a b p [c d] [e f]. split; eapply CRle_trans; eauto.
 Qed.
 
 Lemma oranges_share_point a b p: in_orange a p -> in_orange b p ->
-  oranges_overlap (a, b).
+  oranges_overlap a b.
 Proof with auto.
   intros [[a b] c] [[d e] f] p [g h] [i j].
   unfold oranges_overlap, orange_left, orange_right in *.
@@ -378,7 +325,7 @@ Proof with auto.
 Qed.
 
 Lemma squares_share_point a b p: in_square p a -> in_square p b ->
-  squares_overlap (a, b).
+  squares_overlap a b.
     (* todo: this also holds in reverse *)
 Proof.
   intros [a b] [c d] [e f] [g h] [i j].
@@ -386,7 +333,7 @@ Proof.
 Qed.
 
 Lemma osquares_share_point a b p: in_osquare p a -> in_osquare p b ->
-  osquares_overlap (a, b).
+  osquares_overlap a b.
 Proof.
   intros [a b] [c d] [e f] [g h] [i j].
   split; eapply oranges_share_point; eauto.
@@ -395,12 +342,13 @@ Qed.
 Program Definition map_range (f: CR -> CR) (fi: increasing f) (r: Range): Range :=
   (f (fst (proj1_sig r)), f (snd (proj1_sig r))).
 
-Next Obligation. destruct r. apply fi. assumption. Qed.
+Next Obligation. destruct r. intuition. Qed.
+
+Hint Unfold OCRle.
 
 Program Definition map_orange (f: CR -> CR) (fi: increasing f) (r: OpenRange): OpenRange
   := (option_map f (fst (`r)), option_map f (snd (`r))).
-
-Next Obligation. destruct r as [[[a|] [b|]] m]; simpl; auto. Qed.
+Next Obligation. unfold uncurry. destruct r as [[[a|] [b|]] m]; simpl; auto. Qed.
 
 Definition in_map_range p r (f: CR -> CR) (i: increasing f): in_range r p ->
   in_range (map_range i r) (f p).
@@ -427,7 +375,7 @@ Section scaling.
 
   Program Definition scale_orange (r: OpenRange): OpenRange :=
     (option_map (CRmult s) (fst (`r)), option_map (CRmult s) (snd (`r))) .
-  Next Obligation. destruct r as [[[a|] [b|]] h]; simpl; auto. Qed.
+  Next Obligation. unfold uncurry. destruct r as [[[a|] [b|]] h]; simpl; auto. Qed.
 
   Lemma in_scale_orange p r : in_orange r p ->
     in_orange (scale_orange r) (s * p).

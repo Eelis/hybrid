@@ -1,11 +1,8 @@
-Require Import List.
-Require Import Bool.
-Require Import util.
-Require Import list_util.
+Require Import List Bool.
+Require Import util bool_util list_util.
 Require abstract.
 Require Import reachability.
 Require digraph.
-Require Import dec_overestimator.
 Set Implicit Arguments.
 
 Section using_duplication.
@@ -69,7 +66,7 @@ Section using_duplication.
   Lemma respect (s : a_State) : 
     abstract.reachable _ s ->
     exists k, exists v : digraph.Vertex g,
-    abstract.initial_dec chs (snd v) = true /\
+    (abstract.initial_dec chs (snd v): bool) = true /\
     digraph.reachable v (k, s).
   Proof with auto.
     intros s [absS [init [tt reach_alt]]].
@@ -89,7 +86,7 @@ Section using_duplication.
   Qed.
 
   Definition graph_unreachable_prop s (v : digraph.Vertex g) : Prop :=
-    abstract.initial_dec chs (snd v) = true ->
+    (abstract.initial_dec chs (snd v): bool) = true ->
     ~digraph.reachable v (Cont, s) /\ ~digraph.reachable v (Disc, s).
 
   Lemma respect_inv (s: a_State) :
@@ -111,8 +108,8 @@ Section using_duplication.
     map (pair tt) (filter (fun v => abstract.initial_dec chs (s:=ahs) v) ss) =
     filter (fun s => abstract.initial_dec chs (snd s)) (map (pair tt) ss).
   Proof.
-    induction ss. ref. simpl. 
-    destruct (abstract.initial_dec chs a); simpl; rewrite IHss; ref.
+    induction ss. ref. simpl.
+    destruct (abstract.initial_dec chs a); destruct x; simpl; rewrite IHss; ref.
   Qed.
 
   Lemma init_verts_eq  :
@@ -133,33 +130,38 @@ Section using_duplication.
     apply abstract.NoDup_regions.
   Qed.
 
-  Definition state_reachable vr s : bool :=
-    let edge tt := 
-      match In_dec (digraph.Vertex_eq_dec g) (tt, s) vr with
-      | left _ => true
-      | right _ => false
-      end
-    in
-      edge Cont || edge Disc.
+  Definition reachable_verts: list V :=
+    proj1_sig (@digraph.reachables g init_verts NoDup_init_verts).
 
-  Definition reachable_verts :=
-    let (vr, _) := @digraph.reachables g init_verts NoDup_init_verts in
-      vr.
+  Hint Resolve in_filter.
+  Obligation Tactic := idtac.
 
-Hint Resolve in_filter.
+  Definition state_reachable vs s: bool :=
+    unsumbool (In_dec (digraph.Vertex_eq_dec g) (Cont, s) vs) ||
+    unsumbool (In_dec (digraph.Vertex_eq_dec g) (Disc, s) vs).
+      (* We really only ever call state_reachable with vs=reachable_verts, but
+       for efficiency reasons we don't hard-code it into state_reachable, because
+       for some reason, that appears to cause it to be re-computed over and
+       over again. This is also why state_reachable doesn't return an
+       overestimation: nothing interesting can be concluded when nothing
+       is known about vs. *)
 
-  Lemma over_abstract_reachable : 
-    state_reachable reachable_verts >=> abstract.reachable ahs.
-  Proof with auto.
-    intros s sur. apply respect_inv. intros v init_t.
-    unfold state_reachable, reachable_verts in sur.
+  Lemma state_reachable_correct s:
+    state_reachable reachable_verts s = false -> 
+    ~ abstract.reachable ahs s.
+  Proof with eauto.
+    intros.
+    apply respect_inv.
+    unfold state_reachable in H.
+    destruct (In_dec (digraph.Vertex_eq_dec g) (Cont, s) reachable_verts); [discriminate|].
+    destruct (In_dec (digraph.Vertex_eq_dec g) (Disc, s) reachable_verts); [discriminate|].
+    repeat intro.
     assert (In v init_verts). rewrite init_verts_eq...
-    destruct (@digraph.reachables g init_verts). 
-    destruct (In_dec (digraph.Vertex_eq_dec g) (Cont, s) x);
-    destruct (In_dec (digraph.Vertex_eq_dec g) (Disc, s) x); 
-      try discriminate; split.
-    intro. apply n. apply (snd (i (Cont, s))). exists v... 
-    intro. apply n0. apply (snd (i (Disc, s))). exists v...
+    unfold reachable_verts in *.
+    destruct (digraph.reachables g NoDup_init_verts).
+    set (snd (i (Cont, s))).
+    set (snd (i (Disc, s))).
+    eauto 20.
   Qed.
 
   Definition some_reachable ss : bool :=
@@ -181,8 +183,9 @@ Hint Resolve in_filter.
     apply (snd (existsb_exists (state_reachable reachable_verts) ss)).
     exists s'.
     split...
-    apply over_true with a_State (abstract.reachable ahs)...
-    apply over_abstract_reachable.
+    case_eq (state_reachable reachable_verts s')...
+    intro. elimtype False.
+    apply state_reachable_correct with s'...
   Qed.
 
 End using_duplication.

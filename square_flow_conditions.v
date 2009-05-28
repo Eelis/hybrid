@@ -5,36 +5,15 @@ Require Import geometry.
 Set Implicit Arguments.
 Open Local Scope CR_scope.
 
-Definition OCRle_dec (e: Qpos) (o: option CR * option CR): bool :=
-  match o with
-  | (Some p, Some q) => CRnonNeg_dec e (q - p)
-  | _ => true
-  end.
-
-Definition over_OCRle eps: @OCRle_dec eps >=> OCRle.
-  repeat intro.
-  destruct a.
-  destruct o; try discriminate.
-  destruct o0; try discriminate.
-  apply (over_CRnonNeg eps H).
-  assumption.
-Qed.
-
 Section omle.
 
   Variables (f: Flow CRasCSetoid) (fm: mono f).
 
   Definition omle (x y: option CR): Prop :=
-    if fm then OCRle (x, y) else OCRle (y, x).
+    if fm then OCRle x y else OCRle y x.
 
   Definition omle_dec (e: Qpos) (x y: option CR): bool :=
-    if fm then OCRle_dec e (x, y) else OCRle_dec e (y, x).
-
-  Lemma over_omle eps p: omle_dec eps p >=> omle p.
-  Proof.
-    unfold omle_dec, omle. repeat intro.
-    destruct fm; apply (over_OCRle eps _ H); assumption.
-  Qed.
+    if fm then OCRle_dec e x y else OCRle_dec e y x.
 
 End omle.
 
@@ -79,9 +58,9 @@ Section contents.
       flip_opt None (ox oa) (fun xa => flip_opt None (ox' ob) (fun x'b =>
         Some (finv xa x'b))).
 
-  Lemma low_le_high: OCRle (low, high).
+  Lemma low_le_high: uncurry OCRle (low, high).
   Proof with simpl; auto.
-    unfold OCRle, low, high.
+    unfold uncurry, OCRle, low, high.
     destruct oa. destruct ob. unfold ox, ox', fst.
     set (inv_le_left fm finv finv_correct).
     set (inv_le fm finv finv_correct).
@@ -158,28 +137,17 @@ Section contents.
   Definition yflow_range: OpenRange := finvy (snd oa) (snd ob).
 
   Definition naive_decideable: Prop :=
-    oranges_overlap (xflow_range, yflow_range).
+    oranges_overlap xflow_range yflow_range.
 
-  Definition practical_decideable (_: unit): Prop :=
+  Definition practical_decideable: Prop :=
     naive_decideable /\
     opt_prop (CRmin_of_upper_bounds (snd (`xflow_range)) (snd (`yflow_range))) CRnonNeg.
 
-  Definition decide_practical eps (_: unit): bool :=
-    oranges_overlap_dec eps (xflow_range, yflow_range) &&
-    flip_opt true (CRmin_of_upper_bounds (snd (`xflow_range)) (snd (`yflow_range)))
-    (CRnonNeg_dec eps).
-
-  Lemma over_decide_practical eps: decide_practical eps >=> practical_decideable.
-  Proof with auto.
-    unfold decide_practical, practical_decideable, naive_decideable.
-    repeat intro.
-    destruct H0.
-    destruct (andb_false_elim _ _ H).
-      apply (over_oranges_overlap eps e)...
-    destruct (CRmin_of_upper_bounds (snd (`xflow_range)) (snd (`yflow_range))).
-      apply (over_CRnonNeg eps e)...
-    discriminate.
-  Qed.
+  Definition decide_practical eps: overestimation practical_decideable :=
+    overestimate_conj
+      (oranges_overlap_dec eps xflow_range yflow_range)
+      (opt_overestimation (CRnonNeg) (CRnonNeg_dec eps)
+        (CRmin_of_upper_bounds (snd (`xflow_range)) (snd (`yflow_range)))).
 
   Variables
      (finvx_correct: 
@@ -195,7 +163,7 @@ Section contents.
     apply oranges_share_point with t; eauto.
   Qed.
 
-  Lemma ideal_implies_practical_decideable: ideal -> practical_decideable tt.
+  Lemma ideal_implies_practical_decideable: ideal -> practical_decideable.
   Proof with auto.
     intros [[x y] [[i i'] [t [tle [j j']]]]].
     split.

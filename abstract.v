@@ -1,7 +1,6 @@
 Require Import reachability.
-Require Import List.
-Require Import dec_overestimator.
-Require Import list_util.
+Require Import List Bool.
+Require Import util list_util.
 Set Implicit Arguments.
 Require EquivDec.
 Require concrete.
@@ -48,10 +47,9 @@ Section contents.
     ; NoDup_regions: NoDup regions
     ; in_region: concrete.Point chs -> Region -> Prop
     ; select_region: forall l p, concrete.invariant (l, p) -> exists r, in_region p r
-    ; initial_dec: State Region -> bool
-    ; initial_pred : initial_dec >=> (fun s : State Region =>
-      let (l, r) := s in
-        exists p, in_region p r /\ concrete.initial (l, p))
+    ; Initial: State Region -> Prop
+      := fun s => exists p, in_region p (snd s) /\ concrete.initial (fst s, p)
+    ; initial_dec: forall s, overestimation (Initial s)
     ; disc_trans: State Region -> list (State Region)
     ; NoDup_disc_trans: forall s, NoDup (disc_trans s)
     ; disc_resp: forall s1 s2 : concrete.State chs,
@@ -98,12 +96,14 @@ Section contents.
 
   Definition reachable (s : State) : Prop :=
     exists is : State, 
-      initial_dec ahs is = true /\ reachable_alternating trans is s.
+      (initial_dec ahs is: bool) = true /\ reachable_alternating trans is s.
+
+  Hint Unfold Initial.
 
   Lemma reachable_alternating_concrete_abstract (i s: c_State):
     concrete.initial i -> forall b, end_with
       (fun b => if b then @concrete.disc_trans chs else @concrete.cont_trans chs) b i s ->
-   (exists is, initial_dec ahs is = true /\ exists s', abs s s' /\ end_with trans (negb b) is s').
+   (exists is, (initial_dec ahs is: bool) = true /\ exists s', abs s s' /\ end_with trans (negb b) is s').
   Proof with eauto.
     intros i s H b H0.
     induction H0.
@@ -112,8 +112,8 @@ Section contents.
         apply (concrete.invariant_initial chs _ H).
       exists (l, x).
       split.
-        change (do_pred (mk_DO (initial_pred ahs)) (l, x) = true).
-        apply do_over_true...
+        destruct (initial_dec ahs (l, x)). simpl.
+        destruct x0... elimtype False. apply n...
       exists (l, x)...
     intuition.
     destruct H2 as [x0 [H2 [x1 [H3 H4]]]].

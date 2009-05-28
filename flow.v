@@ -70,21 +70,20 @@ Section contents.
 
   Definition neg_range: OpenRange.
     exists (Some (-'1), Some (-'1)).
-    simpl. apply CRle_refl.
+    unfold uncurry. simpl. auto.
   Defined.
 
   Definition inv (a b: OpenRange): OpenRange :=
-    if oranges_overlap_dec eps (a, b) then unbounded_range else neg_range.
+    if oranges_overlap_dec eps a b: bool then unbounded_range else neg_range.
 
   Lemma inv_correct: range_flow_inv_spec flow inv.
   Proof with auto.
     unfold range_flow_inv_spec, inv.
     intros.
-    case_eq (oranges_overlap_dec eps (a, b))...
-    intros.
+    destruct_call oranges_overlap_dec.
+    destruct x...
     elimtype False.
-    apply (over_oranges_overlap eps H1).
-    apply oranges_share_point with p...
+    apply n, oranges_share_point with p...
   Qed.
 
 End contents.

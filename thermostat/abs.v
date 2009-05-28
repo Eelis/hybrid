@@ -3,7 +3,7 @@ Require Import geometry.
 Require Import monotonic_flow.
 Require Import hs_solver.
 Require decreasing_exponential_flow.
-Require abstract abstraction square_abstraction abstract_as_graph.
+Require abstract abstraction square_abstraction.
 Require EquivDec.
 
 Require Import thermostat.conc.
@@ -18,8 +18,8 @@ Definition two_pos: CRpos ('2) := positive_CRpos 2.
 
 Hint Resolve two_pos.
 
-Definition above (c: CR): OpenRange := exist OCRle (Some c, None) I.
-Definition below (c: CR): OpenRange := exist OCRle (None, Some c) I.
+Definition above (c: CR): OpenRange := exist _ (Some c, None) I.
+Definition below (c: CR): OpenRange := exist _ (None, Some c) I.
 
 (* Flow inverses *)
 
@@ -158,20 +158,17 @@ Definition in_region_wd: forall (x x': concrete.Point conc_thermo.system),
 Program Definition initial_square: OpenSquare := (('0, '0), ('5, '10)): Square.
 Definition initial_location := Heat.
 
-Definition initial_dec eps: Location * Region -> bool :=
-  square_abstraction.initial_dec (Location:=Location)
-    ClockInterval_bounds TempInterval_bounds
-    initial_location initial_square eps.
-
-Lemma over_initial eps: initial_dec eps >=>
-  abstraction.initial_condition conc_thermo.system
-  (square_abstraction.in_region ClockInterval_bounds TempInterval_bounds).
+Lemma initial_representative: forall s: concrete.State conc_thermo.system,
+  let (l, p) := s in
+    concrete.initial s -> l = initial_location /\ in_osquare p initial_square.
 Proof.
-  apply square_abstraction.over_initial.
-  intros [a b] [A [B [C D]]].
+  intros [l s] [H [H0 [H1 H2]]].
   unfold in_osquare, in_orange.
-  simpl. rewrite D. auto.
+  simpl. rewrite H2. auto.
 Qed.
+
+Let initial_dec := square_abstraction.initial_dec
+  ClockInterval_bounds TempInterval_bounds _ _ initial_representative .
 
 (* Abstracted invariant: *)
 
@@ -200,7 +197,7 @@ Definition guard_square (l l': Location): option OpenSquare :=
   end.
 
 Lemma guard_squares_correct: forall s l',
-  guard s l' <->
+  concrete.guard conc_thermo.system s l' <->
   match guard_square (loc s) l' with
   | None => False
   | Some v => in_osquare (point s) v
@@ -210,27 +207,8 @@ Proof.
   destruct l; destruct l'; repeat split; simpl; auto; intros [[A B] [C D]]; auto.
 Qed.
 
-Definition guard_dec eps (ls : Location * Region * Location) :=
-  let (lr, l2) := ls in
-  let (l1, r) := lr in
-    match guard_square l1 l2 with
-    | Some s => osquares_overlap_dec eps
-      (s, square_abstraction.square ClockInterval_bounds TempInterval_bounds r)
-    | None => false
-    end.
-
-Lemma over_guard eps :
-  guard_dec eps >=> square_abstraction.abstract_guard ClockInterval_bounds TempInterval_bounds guard.
-Proof with auto.
-  intros eps [[l r] l'] gf [p [in_p g]].
-  unfold guard_dec in gf.
-  pose proof (fst (guard_squares_correct _ _) g).
-  clear g. rename H into g. simpl in g.
-  simpl @fst in *. simpl @snd in *.  
-  destruct (guard_square l l'); try contradiction.
-  apply (over_osquares_overlap eps gf).
-  apply osquares_share_point with p...
-Qed.
+Let guard_dec := square_abstraction.guard_dec
+  ClockInterval_bounds TempInterval_bounds guard_square guard_squares_correct.
 
 (* Hints: *)
 
@@ -313,20 +291,19 @@ Definition hints (l: Location) (r r': Region) (E: r <> r') :=
 Definition system (eps: Qpos): abstract.System conc_thermo.system.
 Proof with auto.
   intro eps.
-  eapply (@abstraction.abstract_system' _ _ _ conc_thermo.system in_region
-   in_region_wd
-   (square_abstraction.NoDup_squareIntervals NoDup_clock_intervals NoDup_temp_intervals) _
+  eapply (@abstraction.abstract_system _ _ _ conc_thermo.system in_region
+   in_region_wd (square_abstraction.NoDup_squareIntervals NoDup_clock_intervals NoDup_temp_intervals) _
    (fun x => @regions_cover_invariants (fst x) (snd x))
-    (@square_abstraction.do_cont_trans _ _ _ _ _ _ _ _ _
+    (square_abstraction.cont_trans_cond_dec
     ClockInterval_bounds TempInterval_bounds clock_flow temp_flow
     clock_flow_inv temp_flow_inv clock_rfis temp_rfis _ _ _ _ _ _ invariant_squares_correct _ _ eps)
-    (mk_DO (over_initial eps)) (abstraction.dealt_hints in_region_wd hints) regions_cover_invariants).
+    (initial_dec eps) (abstraction.dealt_hints in_region_wd hints) regions_cover_invariants).
     apply (square_abstraction.NoDup_disc_trans
       NoDup_clock_intervals NoDup_temp_intervals
-      (square_abstraction.do_invariant ClockInterval_bounds TempInterval_bounds _ _ invariant_squares_correct eps)
+      (square_abstraction.invariant_dec ClockInterval_bounds TempInterval_bounds _ _ invariant_squares_correct eps)
       NoDup_locations
-      clock_reset temp_reset (mk_DO (over_guard eps)) eps).
-  apply (@square_abstraction.respects_disc _ _ _ _ _ _ _ _ _ ClockInterval_bounds TempInterval_bounds absClockInterval absTempInterval clock_flow temp_flow)...
+      clock_reset temp_reset (guard_dec eps) eps).
+  apply (square_abstraction.respects_disc absClockInterval absTempInterval)...
     unfold absClockInterval. intros.
     destruct (s_absClockInterval (fst p))... destruct H...
   unfold absTempInterval. intros.

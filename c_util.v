@@ -11,36 +11,25 @@ Definition deci: Qpos := (1#10)%Qpos.
 Definition centi: Qpos := (1#100)%Qpos.
 Definition milli: Qpos := (1#1000)%Qpos.
 
-Inductive weak_decision P := 
-  | definitely: P -> weak_decision P
-  | definitely_not: Not P -> weak_decision P
-  | indeterminate: weak_decision P.
-
-Definition weak_and_dec (A B: Prop):
-  weak_decision A -> weak_decision B -> weak_decision (A /\ B).
-Proof.
-  intros.
-  destruct H.
-      destruct H0.
-          apply definitely.
-          split; assumption.
-        apply definitely_not.
-        intro. apply n. destruct H. assumption.
-      apply indeterminate.
-    apply definitely_not.
-    intro. apply n. destruct H. assumption.
-  destruct H0.
-      apply indeterminate.
-    apply definitely_not.
-    intro. apply n. destruct H. assumption.
-  apply indeterminate.
+Program Definition CRnonNeg_dec eps r: overestimation (CRnonNeg r) :=
+  match CR_epsilon_sign_dec eps r with
+  | Lt => false
+  | _ => true
+  end.
+Next Obligation.
+  unfold CR_epsilon_sign_dec in Heq_anonymous.
+  intro.
+  set (w := H0 eps).
+  set (ax := approximate r eps) in *.
+  destruct (QMinMax.Qle_total ax (2 * eps)); try discriminate.
+  destruct (QMinMax.Qle_total (- (2) * eps) ax); try discriminate.
+  apply (Qlt_not_le (-(2)*eps) (-eps)).
+    change (-eps)%Q with (- (1)%positive * eps)%Q.
+    apply Qmult_lt_compat_r; compute; trivial.
+  apply Qle_trans with ax; trivial.
 Defined.
 
-Definition weak_decision_to_opt_neg (A: Prop) (d: weak_decision A): option (~ A) :=
-  match d with
-  | definitely_not p => Some p
-  | _ => None
-  end.
+Definition CRle_dec eps x y: overestimation (CRle x y) := CRnonNeg_dec eps (y - x).
 
 Lemma CRadd_0_r x: x + '0 == x.
   intros.

@@ -166,3 +166,33 @@ Definition flip (A B C: Type) (f: A -> B -> C) (b: B) (a: A): C := f a b.
 Hint Extern 4 => match goal with
   |- ?P (@proj1_sig ?T ?P ?x) => destruct x; auto
   end.
+
+Definition overestimation (P: Prop): Set := { b: bool | b = false -> ~ P }.
+
+Coercion overestimation_bool P: overestimation P -> bool := @proj1_sig _ _.
+
+Program Definition opt_overestimation (A: Type) (P: A -> Prop)
+  (H: forall a, overestimation (P a)) (o: option A): overestimation (opt_prop o P) :=
+  match o with
+  | None => true
+  | Some v => H v
+  end.
+
+Program Definition overestimate_conj (P Q: Prop)
+  (x: overestimation P) (y: overestimation Q): overestimation (P /\ Q) := x && y.
+Next Obligation.
+  intros [A B].
+  destruct x. destruct y.
+  simpl in H.
+  destruct (andb_false_elim _ _ H); intuition.
+Qed.
+
+Lemma overestimation_false P (o: overestimation P): (o: bool) = false -> ~ P.
+Proof. destruct o. assumption. Qed.
+
+Lemma overestimation_true P (o: overestimation P): P -> (o: bool) = true.
+Proof. destruct o. destruct x. reflexivity. intros. absurd P; auto. Qed.
+
+Program Definition weaken_decision (P: Prop) (d: decision P):
+  overestimation P := d: bool.
+Next Obligation. destruct d; firstorder. Qed.
