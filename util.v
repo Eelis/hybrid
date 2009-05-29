@@ -30,6 +30,7 @@ Implicit Arguments snd [[A] [B]].
 Notation "g ∘ f" := (compose g f) (at level 40, left associativity).
 
 Definition uncurry A B C (f: A -> B -> C) (ab: A * B): C := f (fst ab) (snd ab).
+Definition curry A B C (f: A * B -> C) (a: A) (b: B): C := f (a, b).
 
 Definition conj_pair {A B: Prop} (P: A /\ B): A * B :=
   match P with conj a b => (a, b) end.
@@ -145,15 +146,6 @@ Hint Resolve @list_exhaustive.
 Coercion exhaustive_list: ExhaustiveList >-> list.
 
 Hint Resolve in_map.
-
-Instance ExhaustivePairList {A B} {EA: ExhaustiveList A} {EB: ExhaustiveList B}:
-   ExhaustiveList (A*B)
-    := { exhaustive_list := flat_map (fun i => map (pair i) EB) EA }.
-Proof with auto.
-  intros [a b].
-  destruct (in_flat_map (fun i => map (pair i) EB) EA (a, b)).
-  eauto.
-Defined.
 
 Lemma negb_inv b c: b = negb c -> negb b = c.
 Proof. intros. subst. apply negb_involutive. Qed.

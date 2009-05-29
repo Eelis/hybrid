@@ -6,7 +6,7 @@ Set Implicit Arguments.
 
 Section with_eq_dec.
 
-Variables (X: Set) (Xeq: forall x x': X, decision (x = x')).
+Variables (X: Type) (Xeq: forall x x': X, decision (x = x')).
 
 Lemma remove_incl
   (x: X) (l: list X): incl (remove Xeq x l) l.
@@ -73,7 +73,7 @@ Definition In_remove' (l: list X) (x y: X): In x l -> y <> x -> In x (remove Xeq
   (* redundant, but easier to apply and use as hint. *)
 Proof. intros. apply (In_remove l x y); auto. Qed.
 
-Lemma incl_filter (X: Set) (p: X -> bool) (l: list X): incl (filter p l) l.
+Lemma incl_filter (p: X -> bool) (l: list X): incl (filter p l) l.
 Proof with auto.
   unfold incl.
   induction l; simpl...
@@ -151,7 +151,7 @@ Proof with auto.
   destruct (intersection_In a0 a b H0)...
 Qed.
 
-Lemma NoDup_map (A B: Set) (f: A -> B) l:
+Lemma NoDup_map (A B: Type) (f: A -> B) l:
   (forall x y, In x l -> In y l -> f x = f y -> x = y) -> NoDup l -> NoDup (map f l).
 Proof with simpl; auto.
   induction l...
@@ -168,7 +168,7 @@ Proof with simpl; auto.
   rewrite H with a x...
 Qed.
 
-Lemma NoDup_filter (T: Set) (p: T -> bool) (l: list T):
+Lemma NoDup_filter (p: X -> bool) (l: list X):
   NoDup l -> NoDup (filter p l).
 Proof with auto.
   induction l...
@@ -274,7 +274,7 @@ Defined.
 
 End with_eq_dec.
 
-Lemma NoDup_flat_map (A B: Set) (f: A -> list B) l:
+Lemma NoDup_flat_map (A B: Type) (f: A -> list B) l:
   (forall x a b, In a l -> In b l -> In x (f a) -> In x (f b)
     -> a = b) ->
   (forall x, In x l -> NoDup (f x)) ->
@@ -332,3 +332,33 @@ Proof.
   induction ls. ref. intros.
   simpl. destruct (f a); simpl. rewrite IHls. ref. apply IHls.
 Qed.
+
+Section ExhaustivePairList.
+
+  Context {A B} {EA: ExhaustiveList A} {EB: ExhaustiveList B}.
+
+  Instance ExhaustivePairList:
+     ExhaustiveList (A*B)
+      := { exhaustive_list := flat_map (fun i => map (pair i) EB) EA }.
+  Proof.
+    intros [a b].
+    destruct (in_flat_map (fun i => map (pair i) EB) EA (a, b)).
+    eauto.
+  Defined.
+
+  Lemma NoDup_ExhaustivePairList:
+    NoDup EA -> NoDup EB -> NoDup ExhaustivePairList.
+  Proof with auto.
+    intros H H0.
+    simpl.
+    apply NoDup_flat_map; intros...
+      destruct (fst (in_map_iff (pair a) EB x) H3) as [x0 [C D]].
+      destruct (fst (in_map_iff (pair b) EB x) H4) as [x1 [E F]].
+      subst. inversion E...
+    apply NoDup_map...
+    intros. inversion H4...
+  Qed.
+
+End ExhaustivePairList.
+Existing Instance ExhaustivePairList.
+  (* No idea why this is necessary... *)

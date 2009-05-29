@@ -1,7 +1,7 @@
 Require Import util.
 Set Implicit Arguments.
 
-Section definitions.
+Section contents.
 
   Variables (State: Type) (trans: State -> State -> Prop).
 
@@ -14,13 +14,11 @@ Section definitions.
     | path_refl s: path s s
     | path_next a b c: path a b -> trans b c -> path a c.
 
+  Hint Constructors reachable.
+
   Lemma reachable_trans a b: reachable a b -> forall c, reachable b c ->
     reachable a c.
-  Proof with auto.
-    intros.
-    induction H0...
-    apply reachable_next with b...
-  Qed.
+  Proof. induction 2; eauto. Qed.
 
   Inductive reachable_irrefl: State -> State -> Prop :=
     | reachable_one s s': trans s s' -> reachable_irrefl s s'
@@ -30,23 +28,19 @@ Section definitions.
   Lemma reachable_flip (P: State -> Prop) (Pdec: forall s, decision (P s))
    (a b: State): reachable a b -> P a -> ~ P b ->
     exists c, exists d, P c /\ ~ P d /\ trans c d.
-  Proof with auto.
-    intros P Pdec a b r. induction r.
-      intros. elimtype False...
-    intros.
-    destruct (Pdec b)...
-    exists b. exists c...
+  Proof.
+    intros P Pdec a b r.
+    induction r. firstorder.
+    destruct (Pdec b); eauto.
   Qed.
 
   Lemma reachable_flip_inv (P: State -> Prop) (Pdec: forall s, decision (P s))
    (a b: State): reachable a b -> ~ P a -> P b ->
     exists c, exists d, ~ P c /\ P d /\ trans c d.
-  Proof with auto.
-    intros P Pdec a b r. induction r.
-      intros. elimtype False...
-    intros.
-    destruct (Pdec b)...
-    exists b. exists c...
+  Proof.
+    intros P Pdec a b r.
+    induction r. firstorder.
+    destruct (Pdec b); eauto.
   Qed.
 
   Variable t: bool -> State -> State -> Prop.
@@ -59,7 +53,7 @@ Section definitions.
   Definition reachable_alternating (s s': State): Prop :=
     exists b, end_with b s s'.
 
-End definitions.
+End contents.
 
 Hint Constructors end_with.
 Hint Unfold reachable_alternating.

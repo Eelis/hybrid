@@ -26,7 +26,7 @@ Section using_duplication.
 
   Let V := (TransKind * a_State)%type.
 
-  Definition all_abstract_states := @abstract.states chs _ _ (abstract.regions ahs).
+  Definition all_abstract_states := @abstract.states chs _ (abstract.regions ahs).
 
   Definition states_to_verts (s : list a_State) := map (pair Cont) s ++ map (pair Disc) s.
 

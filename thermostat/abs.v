@@ -291,13 +291,15 @@ Definition hints (l: Location) (r r': Region) (E: r <> r') :=
 Definition system (eps: Qpos): abstract.System conc_thermo.system.
 Proof with auto.
   intro eps.
-  eapply (@abstraction.abstract_system _ _ _ conc_thermo.system in_region
-   in_region_wd (square_abstraction.NoDup_squareIntervals NoDup_clock_intervals NoDup_temp_intervals) _
+  eapply (@abstraction.abstract_system _ _ _ (square_abstraction.NoDup_squareIntervals NoDup_clock_intervals NoDup_temp_intervals) conc_thermo.system in_region
+   in_region_wd _
    (fun x => @regions_cover_invariants (fst x) (snd x))
+(abstraction.dealt_hints in_region_wd hints)
     (square_abstraction.cont_trans_cond_dec
     ClockInterval_bounds TempInterval_bounds clock_flow temp_flow
     clock_flow_inv temp_flow_inv clock_rfis temp_rfis _ _ _ _ _ _ invariant_squares_correct _ _ eps)
-    (initial_dec eps) (abstraction.dealt_hints in_region_wd hints) regions_cover_invariants).
+    (initial_dec eps)  regions_cover_invariants).
+    Focus 2.
     apply (square_abstraction.NoDup_disc_trans
       NoDup_clock_intervals NoDup_temp_intervals
       (square_abstraction.invariant_dec ClockInterval_bounds TempInterval_bounds _ _ invariant_squares_correct eps)

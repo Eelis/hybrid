@@ -8,30 +8,40 @@ Open Local Scope CR_scope.
 
 Section contents.
 
+  (* If we have a suitable set of regions.. *)
+
   Context
     {Region: Set}
     {Region_eq_dec: EquivDec.EqDec Region eq}
     {regions: ExhaustiveList Region}.
+  Variable NoDup_regions: NoDup regions.
 
-  Variables
-    (conc_sys : concrete.System)
-    (in_region : concrete.Point conc_sys -> Region -> Prop)
-    (in_region_wd: forall x x', x [=] x' -> forall r, in_region x r -> in_region x' r)
-    (NoDup_regions : NoDup (@exhaustive_list _ regions)).
+  (* .. and a concrete system.. *)
 
+  Variable conc_sys: concrete.System.
   Let Location := concrete.Location conc_sys.
   Let Point := concrete.Point conc_sys.
   Let c_State := concrete.State conc_sys.
   Let State := (Location * Region)%type.
 
+  (* .. and we can express that a concrete point lies in a region.. *)
+
+  Variables
+    (in_region : concrete.Point conc_sys -> Region -> Prop)
+    (in_region_wd: forall x x', x [=] x' -> forall r, in_region x r -> in_region x' r).
+
+  (* .. and we can also find regions corresponding to points.. *)
+
   Variables
     (select_region: Point -> Region)
+      (* (does not have to be constructive, because never used in actual computations) *)
     (select_region_wd: forall x x', x [=] x' -> select_region x = select_region x')
     (select_region_correct: forall x, concrete.invariant x -> in_region (snd x) (select_region (snd x))).
-      (* select_region does not have to be constructive, because it is only
-       used in the correctness proof. *)
 
   Hint Resolve select_region_correct.
+
+  (* .. then we can state abstract region-based versions of initiality- and
+   transition conditions. These are not necessarily decidable. *)
 
   Definition initial_condition (s : State) : Prop :=
     let (l, r) := s in
@@ -47,13 +57,6 @@ Section contents.
     let (l2, r2) := s2 in
       exists p, exists q,
         in_region p r1 /\ in_region q r2 /\ concrete.disc_trans (l1, p) (l2, q).
-
-  (* this condition is no good, because it forces transitions to adjacent
-   regions in reset=id cases *)
-
-  Variables
-    (cont_dec: forall l r r', overestimation (cont_trans_cond l r r'))
-    (initial_dec: forall s, overestimation (initial_condition s)).
 
   Definition Hint (l: Location) (r r': Region): Set :=
     forall p, in_region p r ->
@@ -96,6 +99,10 @@ Section contents.
     | right E => hints l E
     end.
 
+  Variables
+    (cont_dec: forall l r r', overestimation (cont_trans_cond l r r'))
+    (initial_dec: forall s, overestimation (initial_condition s)).
+
   (* Using these, we can define the abstract transitions.. *)
 
   Let cont_trans_b (s : State) (r_dst : Region) : bool :=
@@ -129,7 +136,7 @@ Section contents.
       simpl.
       exists p. exists p.
       repeat split...
-      unfold concrete.cont_trans'.
+      unfold concrete.can_flow.
       exists NonNegCR_zero.
       split.
         intros.
@@ -159,7 +166,7 @@ Section contents.
   Qed.
 
   Lemma respects_cont l s1 s2 :
-    concrete.cont_trans' _ l s1 s2 ->
+    concrete.can_flow _ l s1 s2 ->
     forall r1, in_region s1 r1 ->
     exists r2, in_region s2 r2 /\ In r2 (cont_trans (l, r1)).
   Proof with auto with real.
@@ -219,20 +226,11 @@ Section contents.
     apply (select_region_correct (l, p))...
   Qed.
 
-  Variable disc_trans': @abstract.State conc_sys Region -> list (@abstract.State conc_sys Region).
-  Variable NoDup_disc_trans': forall s : @abstract.State conc_sys Region, NoDup (disc_trans' s).
-  Variable respects_disc': forall s1 s2 : concrete.State conc_sys,
-    let (l1, p1) := s1 in
-    let (l2, p2) := s2 in
-      concrete.disc_trans s1 s2 ->
-      forall r1, in_region p1 r1 ->
-      exists r2, in_region p2 r2 /\
-      In (l2, r2) (disc_trans' (l1, r1)).
-
-  Program Definition abstract_system: abstract.System conc_sys :=
+  Program Definition abstract_system disc_trans respects_disc NoDup_disc_trans
+    : abstract.System conc_sys :=
     abstract.Build_System Region_eq_dec regions
-     NoDup_regions in_region regions_cover_invariant initial_dec disc_trans' NoDup_disc_trans'
-     respects_disc' cont_trans NoDup_cont_trans respects_cont.
+     NoDup_regions in_region regions_cover_invariant initial_dec disc_trans NoDup_disc_trans
+     respects_disc cont_trans NoDup_cont_trans respects_cont.
 
   Next Obligation. Proof with intuition.
     destruct (initial_dec x).

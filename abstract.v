@@ -15,24 +15,16 @@ Section contents.
 
     Definition State := (concrete.Location chs * Region)%type.
 
-    Context
-      {Region_eq_dec: EquivDec.EqDec Region eq}
-      {regions: ExhaustiveList Region}.
+    Definition region: State -> Region := snd.
+    Definition location: State -> concrete.Location chs := fst.
 
-    Hypothesis NoDup_regions: NoDup regions.
+    Context {regions: ExhaustiveList Region}.
 
     Definition states := @ExhaustivePairList (concrete.Location chs) Region _ _.
 
-    Lemma NoDup_states : NoDup states.
+    Lemma NoDup_states: NoDup regions -> NoDup states.
     Proof with auto.
-      unfold exhaustive_list. simpl.
-      apply NoDup_flat_map; intros.
-          destruct (fst (in_map_iff (pair a) regions x) H1).
-          destruct (fst (in_map_iff (pair b) regions x) H2).
-          destruct H3. destruct H4.
-          subst. inversion H4...
-        apply NoDup_map...
-        intros. inversion H2...
+      apply NoDup_ExhaustivePairList...
       apply concrete.NoDup_locations.
     Qed.
 
@@ -61,12 +53,12 @@ Section contents.
     ; cont_trans: State Region -> list Region
     ; NoDup_cont_trans: forall s, NoDup (cont_trans s)
     ; cont_resp: forall l s1 s2,
-        concrete.cont_trans' chs l s1 s2 ->
+        concrete.can_flow chs l s1 s2 ->
         forall r1, in_region s1 r1 ->
           exists r2, in_region s2 r2 /\ In r2 (cont_trans (l, r1))
     }.
 
-  (* Note that the definition of cont_resp below is no longer the traditional
+  (* Note that the definition of cont_resp above is no longer the traditional
       "there is an abstract continuous transition between regions A and B
       if there is a concrete continuous transition between a point in A
       and a point in B"
@@ -83,7 +75,8 @@ Section contents.
   Let c_State := concrete.State chs.
 
   Definition abs (s: c_State) (s': State): Prop :=
-    fst s = fst s' /\ in_region ahs (snd s) (snd s').
+    concrete.location s = fst s' /\
+    in_region ahs (snd s) (snd s').
   Hint Unfold abs.
 
   Definition trans (b : bool) (s1 s2 : State) : Prop :=
@@ -112,8 +105,7 @@ Section contents.
         apply (concrete.invariant_initial chs _ H).
       exists (l, x).
       split.
-        destruct (initial_dec ahs (l, x)). simpl.
-        destruct x0... elimtype False. apply n...
+        apply overestimation_true...
       exists (l, x)...
     intuition.
     destruct H2 as [x0 [H2 [x1 [H3 H4]]]].
