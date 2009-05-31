@@ -206,3 +206,24 @@ Hint Constructors unit.
 Require Import Ensembles.
 Notation "x ⊆ y" := (Ensembles.Included _ x y) (at level 40).
 Implicit Arguments Complement [U].
+
+Require Import EqdepFacts.
+Require Import Eqdep_dec.
+
+Section eq_dep.
+
+Variables (U : Type) (eq_dec : forall x y : U, {x=y}+{~x=y}).
+
+Lemma eq_rect_eq : forall (p : U) Q x h, x = eq_rect p Q x p h.
+  
+Proof.
+exact (eq_rect_eq_dec eq_dec).
+Qed.
+
+Lemma eq_dep_eq : forall P (p : U) x y, eq_dep U P p x p y -> x = y.
+
+Proof.
+exact (eq_rect_eq__eq_dep_eq U eq_rect_eq).
+Qed.
+
+End eq_dep.

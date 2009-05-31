@@ -1,7 +1,9 @@
 Require Import QArith.
 Require Export vec_util.
 Require Import c_util.
+Require Import nat_util.
 Require Import Program.
+Require Import CRln.
 
 Set Implicit Arguments.
 
@@ -38,6 +40,7 @@ Module Type RoomHeatingSpec.
 
 End RoomHeatingSpec.
 
+Local Open Scope CR_scope.
 
 (** * Instantiation of room heating to a given 
       specification *)
@@ -59,9 +62,14 @@ Module RoomHeating (Import RHS : RoomHeatingSpec).
   Definition CS := vector CR n.
 
   Definition State := (DS * CS)%type.
+  Definition ds : State -> DS := fst.
+  Definition cs : State -> CS := snd.
+
+  Program Definition temp (cs : CS) (ip : dom_lt n) : CR :=
+    Vnth cs ip.
 
   Definition initial : DS :=
-    let init_room i ip :=
+    let init_room ip :=
       match Vnth initHeaters ip with 
       | false => NoHeater
       | true =>
@@ -74,5 +82,20 @@ Module RoomHeating (Import RHS : RoomHeatingSpec).
       end
     in
       Vbuild init_room.
+
+  Definition invariant (s : State) : Prop :=
+    let check_room ip :=
+      let temp := Vnth (cs s) ip in
+      let roomState := Vnth (ds s) ip in
+        match roomState with
+          (* no heater, no invariant *)
+        | NoHeater => True
+          (* heater on, temperature below [off] threshold *)
+        | HeaterOn => temp <= '(Vnth off ip)
+          (* heater off, temperature above [on] threshold *)
+        | HeaterOff => '(Vnth on ip) <= temp
+        end
+    in
+      Vcheck_n check_room.
 
 End RoomHeating.
