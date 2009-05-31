@@ -26,6 +26,10 @@ Module Type RoomHeatingSpec.
   Parameter on : vectorQ n.
   Parameter off : vectorQ n.
 
+   (** For every room the [on] threshold needs to be strictly 
+       smaller than the [off] threshold. *)
+  Parameter on_lt_off : Vforall2 (fun on off => on < off) on off.
+
    (** heater can be moved to room [i] only if the 
        temperature in this room is below [get_i]. *)
   Parameter get : vectorQ n.
@@ -68,7 +72,8 @@ Module RoomHeating (Import RHS : RoomHeatingSpec).
   Program Definition temp (cs : CS) (ip : dom_lt n) : CR :=
     Vnth cs ip.
 
-  Definition initial : DS :=
+   (** initial state predicate *)
+  Definition initial (s : State) : Prop :=
     let init_room ip :=
       match Vnth initHeaters ip with 
       | false => NoHeater
@@ -81,7 +86,9 @@ Module RoomHeating (Import RHS : RoomHeatingSpec).
             end
       end
     in
-      Vbuild init_room.
+    let check_temp actual prescribed := actual = 'prescribed in
+      ds s = Vbuild init_room /\
+      Vforall2 check_temp (cs s) initTemp.
 
   Definition invariant (s : State) : Prop :=
     let check_room ip :=
@@ -97,5 +104,20 @@ Module RoomHeating (Import RHS : RoomHeatingSpec).
         end
     in
       Vcheck_n check_room.
+
+  Lemma initial_invariant s : initial s -> invariant s.
+  Proof with auto.
+    intros [dS cS] [init_dS init_cS].
+    simpl in *. subst.
+    apply Vcheck_n_holds. intros. simpl in *.
+    unfold roomState. rewrite Vnth_Vbuild.
+    destruct (Vnth initHeaters ip)...
+    unfold temp0.
+    destruct (Qlt_le_dec (Vnth initTemp ip) (Vnth on ip));
+      rewrite (Vforall2_elim _ _ _ init_cS ip);
+      eapply (proj2 (CRle_Qle _ _))...
+    apply Qlt_le_weak. apply Qlt_trans with (Vnth on ip)...
+    apply (Vforall2_elim _ _ _ on_lt_off).
+  Qed.
 
 End RoomHeating.

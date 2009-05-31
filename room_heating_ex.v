@@ -19,6 +19,14 @@ Module RHS <: RoomHeatingSpec.
   Definition initHeaters := vec_of_list [true; true; false].
   Definition initTemp := vec_of_list [20:Q; 20:Q; 20:Q].
 
+  Lemma on_lt_off : Vforall2 (fun on off => on < off) on off.
+  Proof.
+    apply Vforall2_intro. intros.
+    destruct ip.
+    do 3 (destruct x; [vm_compute; trivial | idtac]).
+    simpl in l. elimtype False. omega.    
+  Qed.
+
 End RHS.
 
 Module RHSex := RoomHeating RHS.

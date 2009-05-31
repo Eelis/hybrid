@@ -9,12 +9,9 @@ Set Implicit Arguments.
 Implicit Arguments Vnil [A].
 Implicit Arguments Vcons.
 
-Section vector.
-
-Variable n : nat.
-Variable A : Type.
-
 Section Vnth.
+
+  Variable A : Type.  
 
   Program Fixpoint Vnth n (v : vector A n) : dom_lt n -> A :=
     match v with
@@ -41,6 +38,8 @@ End Vnth.
 
 Section Vbuild.
 
+  Variable A : Type.
+
   Program Fixpoint Vbuild_spec n (gen : dom_lt n -> A) :
     { v : vector A n | forall (ip : dom_lt n), Vnth v ip = gen ip } :=
     match n with
@@ -62,7 +61,7 @@ Section Vbuild.
   Qed.
   Next Obligation.
     destruct_call Vbuild_spec. simpl.
-    destruct n0. discriminate.
+    destruct n. discriminate.
     inversion Heq_n. subst.
     destruct ip.
     simplify_eqs. destruct x0. unfold dom_build. pi.
@@ -71,12 +70,17 @@ Section Vbuild.
 
   Program Definition Vbuild n gen : vector A n := Vbuild_spec gen.
 
+  Lemma Vnth_Vbuild n (i : dom_lt n) gen : Vnth (Vbuild gen) i = gen i.
+  Proof.
+  Admitted.
+
 End Vbuild.
 
 Require Import List.
 
 Section vec_of_list.
 
+  Variable A : Type.
   Fixpoint vec_of_list (l : list A) : vector A (length l) :=
     match l with
     | nil => Vnil
@@ -87,20 +91,31 @@ End vec_of_list.
 
 Section Vforall2.
 
-  Variable R : A -> A -> Prop.
+  Variable A B : Type.
+  Variable R : A -> B -> Prop.
 
-  Fixpoint Vforall2_aux n1 (v1 : vector A n1) n2 (v2 : vector A n2) {struct v1} : Prop :=
+  Fixpoint Vforall2_aux n1 (v1 : vector A n1) n2 (v2 : vector B n2) {struct v1} : Prop :=
     match v1, v2 with
     | Vnil, Vnil => True
     | Vcons a _ v, Vcons b _ w => R a b /\ Vforall2_aux v w
     | _, _ => False
     end.
 
-  Definition Vforall2 n (v1 v2 : vector A n) := Vforall2_aux v1 v2.
+  Definition Vforall2 n (v1 : vector A n) (v2 : vector B n) := Vforall2_aux v1 v2.
+
+  Lemma Vforall2_elim n (v1 : vector A n) (v2 : vector B n) : 
+    Vforall2 v1 v2 -> 
+    forall ip, R (Vnth v1 ip) (Vnth v2 ip).
+  Proof.
+  Admitted.
+
+  Lemma Vforall2_intro n (v1 : vector A n) (v2 : vector B n) : 
+    (forall ip, R (Vnth v1 ip) (Vnth v2 ip)) ->
+    Vforall2 v1 v2.
+  Proof.
+  Admitted.
 
 End Vforall2.
-
-End vector.
 
 Section VCheck_n.
 
@@ -128,5 +143,10 @@ Section VCheck_n.
   Proof.
     omega.
   Qed.
+
+  Lemma Vcheck_n_holds : 
+    (forall (ip : dom_lt n), P ip) -> Vcheck_n.
+  Proof.
+  Admitted.
 
 End VCheck_n.
