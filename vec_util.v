@@ -36,12 +36,29 @@ Section Vnth.
 
 End Vnth.
 
+Notation "v '[[' p ']]'" := (Vnth v p) (at level 50) : vec_scope.
+
+Delimit Scope vec_scope with vec.
+Local Open Scope vec_scope.
+
+Section Vmap.
+
+  Variables (A B : Type) (f : A -> B).
+
+  Fixpoint Vmap n (v : vector A n) {struct v} : vector B n :=
+    match v with
+    | Vnil => Vnil
+    | Vcons a _ v' => Vcons (f a) (Vmap v')
+    end.
+
+End Vmap.
+
 Section Vbuild.
 
   Variable A : Type.
 
   Program Fixpoint Vbuild_spec n (gen : dom_lt n -> A) :
-    { v : vector A n | forall (ip : dom_lt n), Vnth v ip = gen ip } :=
+    { v : vector A n | forall (ip : dom_lt n), v[[ip]] = gen ip } :=
     match n with
     | 0 => Vnil
     | S p => 

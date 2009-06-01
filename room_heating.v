@@ -3,6 +3,7 @@ Require Export vec_util.
 Require Import c_util.
 Require Import nat_util.
 Require Import Program.
+Require square_abstraction.
 Require Import CRln.
 
 Set Implicit Arguments.
@@ -45,6 +46,7 @@ Module Type RoomHeatingSpec.
 End RoomHeatingSpec.
 
 Local Open Scope CR_scope.
+Local Open Scope vec_scope.
 
 (** * Instantiation of room heating to a given 
       specification *)
@@ -56,6 +58,12 @@ Module RoomHeating (Import RHS : RoomHeatingSpec).
   | HeaterOn   (**r there is heater and it's on *)
   | HeaterOff  (**r there is heater and it's off *)
   .
+
+  Definition hasHeater rs :=
+    match rs with
+    | HeaterOn | HeaterOff => true
+    | NoHeater => false
+    end.
 
    (** The discreet state of the system consists of
        states of all the rooms. *)
@@ -69,17 +77,14 @@ Module RoomHeating (Import RHS : RoomHeatingSpec).
   Definition ds : State -> DS := fst.
   Definition cs : State -> CS := snd.
 
-  Program Definition temp (cs : CS) (ip : dom_lt n) : CR :=
-    Vnth cs ip.
-
    (** initial state predicate *)
   Definition initial (s : State) : Prop :=
-    let init_room ip :=
-      match Vnth initHeaters ip with 
+    let init_room i :=
+      match initHeaters [[i]] with 
       | false => NoHeater
       | true =>
-          let temp := Vnth initTemp ip in
-          let threshold := Vnth on ip in
+          let temp := initTemp [[i]] in
+          let threshold := on [[i]] in
             match Qlt_le_dec temp threshold with
             | left _ => HeaterOn
             | right _ => HeaterOff
@@ -90,17 +95,18 @@ Module RoomHeating (Import RHS : RoomHeatingSpec).
       ds s = Vbuild init_room /\
       Vforall2 check_temp (cs s) initTemp.
 
+   (** invariant *)
   Definition invariant (s : State) : Prop :=
-    let check_room ip :=
-      let temp := Vnth (cs s) ip in
-      let roomState := Vnth (ds s) ip in
+    let check_room i :=
+      let temp := (cs s) [[i]] in
+      let roomState := (ds s) [[i]] in
         match roomState with
           (* no heater, no invariant *)
         | NoHeater => True
           (* heater on, temperature below [off] threshold *)
-        | HeaterOn => temp <= '(Vnth off ip)
+        | HeaterOn => temp <= '(off [[i]])
           (* heater off, temperature above [on] threshold *)
-        | HeaterOff => '(Vnth on ip) <= temp
+        | HeaterOff => '(on [[i]]) <= temp
         end
     in
       Vcheck_n check_room.
@@ -111,13 +117,38 @@ Module RoomHeating (Import RHS : RoomHeatingSpec).
     simpl in *. subst.
     apply Vcheck_n_holds. intros. simpl in *.
     unfold roomState. rewrite Vnth_Vbuild.
-    destruct (Vnth initHeaters ip)...
-    unfold temp0.
-    destruct (Qlt_le_dec (Vnth initTemp ip) (Vnth on ip));
+    destruct (initHeaters [[ip]])...
+    unfold temp.
+    destruct (Qlt_le_dec (initTemp [[ip]]) (on [[ip]]));
       rewrite (Vforall2_elim _ _ _ init_cS ip);
       eapply (proj2 (CRle_Qle _ _))...
-    apply Qlt_le_weak. apply Qlt_trans with (Vnth on ip)...
+    apply Qlt_le_weak. apply Qlt_trans with (on [[ip]])...
     apply (Vforall2_elim _ _ _ on_lt_off).
   Qed.
+
+  Definition temp_reset (l1 l2 : DS) : square_abstraction.Reset :=
+    square_abstraction.Reset_id.
+
+  Definition reset (l1 l2 : DS) (cs : CS) : CS :=
+    Vmap (square_abstraction.apply_Reset (temp_reset l1 l2)) cs.
+
+  Definition guard (s : State) (l2 : DS) : Prop :=
+    let (l1, cs) := s in
+      (* a heater is moved from room [j] to room [i] *)
+      exists i, exists j,
+         (* rooms other than [i] and [j] remain unchanged *)
+        (forall p : dom_lt n, 
+          dom_lt_val p <> dom_lt_val i -> 
+          dom_lt_val p <> dom_lt_val j ->
+          l1 [[p]] = l2 [[p]]) /\
+         (* room [i] had no heater and now gets one *)
+        hasHeater (l1 [[i]]) = false /\ hasHeater (l2 [[i]]) = true /\
+         (* room [j] had a heater and now it's removed *)
+        hasHeater (l1 [[j]]) = true  /\ hasHeater (l2 [[j]]) = false /\
+         (* temperature in room [i] is <= [get_i] *)
+        cs [[i]] <= '(get [[i]]) /\
+         (* the difference of temperatures in rooms [j] and [i] is at 
+            least [diff_i] *)
+        '(diff [[i]]) <= (cs [[j]]) - (cs [[i]]).
 
 End RoomHeating.
