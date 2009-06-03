@@ -12,7 +12,7 @@ Set Implicit Arguments.
 
 Definition abs_sys := abs.system milli.
 
-Definition vs := abstract_as_graph.vertices abs_sys.
+Definition vs := abstract_as_graph.vertices abs.ap.
 Definition g := abstract_as_graph.g abs_sys.
 Definition graph := flat_map (@digraph.edges g) vs.
 
@@ -25,7 +25,7 @@ Definition unsafe_abstract_states :=
 
 Definition unsafe_abstracts_cover_unsafe_concretes:
   forall s, conc.state_unsafe s ->
-  forall r, abstract.abs abs_sys s r -> In r unsafe_abstract_states.
+  forall r, abstract.abs abs.ap s r -> In r unsafe_abstract_states.
 Proof with auto.
   intros [l [c t]] H [l' [ci ti]] [H0 [_ tin]].
   subst.
@@ -46,7 +46,7 @@ Theorem unsafe_correct: unsafe = false -> Safe.
 Proof with auto.
   unfold unsafe, Safe.
   intros srf [l [px py]] su.
-  apply (abstract_as_graph.states_unreachable (ahs:=abs_sys) conc.state_unsafe unsafe_abstract_states)...
+  apply (abstract_as_graph.states_unreachable abs_sys conc.state_unsafe unsafe_abstract_states)...
   apply unsafe_abstracts_cover_unsafe_concretes.
 Qed.
 

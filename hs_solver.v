@@ -119,7 +119,7 @@ Ltac hs_unfolds :=
       Basics.compose,
       in_orange, in_osquare, orange_left, orange_right,
       square_abstraction.in_region,
-      square_abstraction.absInterval;
+      square_abstraction.select_region;
     simpl).
 
 Ltac CRle_solve :=

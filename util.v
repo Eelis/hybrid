@@ -188,3 +188,8 @@ Proof. destruct o. destruct x. reflexivity. intros. absurd P; auto. Qed.
 Program Definition weaken_decision (P: Prop) (d: decision P):
   overestimation P := d: bool.
 Next Obligation. destruct d; firstorder. Qed.
+
+Definition LazyProp (T: Prop): Prop := () -> T.
+Definition force (T: Prop) (l: LazyProp T): T := l ().
+
+Hint Constructors unit.

@@ -132,26 +132,32 @@ Proof. hs_solver. Qed.
 Lemma NoDup_temp_intervals: NoDup temp_intervals.
 Proof. hs_solver. Qed.
 
-Lemma regions_cover_invariants l p:
-  invariant (l, p) ->
-  square_abstraction.in_region ClockInterval_bounds TempInterval_bounds p
-    (square_abstraction.absInterval absClockInterval absTempInterval p).
-Proof with auto.
-  destruct p.
-  unfold invariant.
-  unfold square_abstraction.in_region, square_abstraction.absInterval,
-    absClockInterval, absTempInterval.
-  simplify_hyps. simplify_proj. split...
+Lemma absClockInterval_correct p l (i: invariant (l, p)):
+  in_orange (ClockInterval_bounds (absClockInterval (fst p))) (fst p).
+Proof.
+  intros.
+  unfold absClockInterval.
+  destruct_call s_absClockInterval.
+  destruct i; auto.
 Qed.
+
+Lemma absTempInterval_correct p l (i: invariant (l, p)):
+  in_orange (TempInterval_bounds (absTempInterval (snd p))) (snd p).
+Proof.
+  intros.
+  unfold absTempInterval.
+  destruct_call s_absTempInterval.
+  destruct i; auto.
+Qed.
+
+Definition ap: abstract.Parameters conc.system :=
+  @square_abstraction.ap _ _ _ _ _ _ _ _ _
+  NoDup_clock_intervals NoDup_temp_intervals
+  _ _ _ _ _ _ _ _ _ _ _ _ _ absClockInterval_correct absTempInterval_correct.
 
 Definition Region: Set := prod ClockInterval TempInterval.
 
-Let in_region := square_abstraction.in_region ClockInterval_bounds TempInterval_bounds.
-
-Definition in_region_wd: forall (x x': concrete.Point conc_thermo.system),
-  x[=]x' -> forall r, in_region x r -> in_region x' r
-  := @square_abstraction.in_region_wd _ _ Location
-    _ _ _ _ _ _ ClockInterval_bounds TempInterval_bounds.
+Let in_region := abstract.in_region ap.
 
 (* Abstracted initial: *)
 
@@ -167,8 +173,11 @@ Proof.
   simpl. rewrite H2. auto.
 Qed.
 
-Let initial_dec := square_abstraction.initial_dec
-  ClockInterval_bounds TempInterval_bounds _ _ initial_representative .
+Let initial_dec := @square_abstraction.initial_dec
+  _ _ _ _ _ _ _ _ _ NoDup_clock_intervals NoDup_temp_intervals
+  _ _ _ _ _ _ initial_invariant _ _ invariant_wd NoDup_locations
+  _ _ absClockInterval_correct absTempInterval_correct
+  _ _ initial_representative.
 
 (* Abstracted invariant: *)
 
@@ -212,75 +221,55 @@ Let guard_dec := square_abstraction.guard_dec
 
 (* Hints: *)
 
-Definition he (f: Flow CRasCSetoid) (flow_inc: forall x, strongly_increasing (f x)) (t: Time) (x b: CR):
-  b <= x -> f x t <= b -> t <= '0.
+Definition clock_hints (l: Location) (r r': Region): r <> r' ->
+  option (abstraction.AltHint ap l r r').
 Proof with auto.
-  intros.
-  apply (@strongly_increasing_inv_mild (f x) (flow_inc x))...
-  rewrite (flow_zero f).
-  apply CRle_trans with b...
-Qed.
-
-Definition clock_hints (l: Location) (r r': Region): r <> r' -> option
-  (abstraction.AltHint conc_thermo.system in_region l r r').
-Proof with auto.
-  intros.
+  intros l [ci ti] [ci' ti'] H.
   unfold abstraction.AltHint, in_region, square_abstraction.in_region,
     square_abstraction.square, in_osquare.
-  simpl.
-  destruct r. destruct r'.
-  unfold in_orange at 1 3.
-  unfold ClockInterval_bounds.
-  simpl.
-  destruct (ClockInterval_qbounds c).
-  destruct (ClockInterval_qbounds c0).
-  destruct x. destruct x0.
-  destruct o1. destruct o4.
-      simpl.
-      destruct (Qeq_dec q q0).
-        constructor.
-        intros.
-        destruct H0. destruct H1. destruct H0. destruct H1.
-        apply (@he (clock_flow l) ) with (fst p) ('q)...
-        simpl.
-        rewrite q1...
-      exact None.
-    exact None.
-  exact None.
+  simpl abstract.in_region.
+  unfold square_abstraction.in_region, in_osquare,
+    in_orange at 1 3, ClockInterval_bounds.
+  simpl @fst. simpl @snd.
+  destruct (ClockInterval_qbounds ci) as [[ci_lo ci_hi] ci_le].
+  destruct (ClockInterval_qbounds ci') as [[ci'_lo ci'_hi] ci'_le].
+  destruct ci_lo; [idtac | exact None].
+  destruct ci'_hi; [idtac | exact None].
+  destruct (Qeq_dec q q0) as [A|B]; [idtac | exact None].
+  apply Some.
+  intros p [[H0 H4] H2] t [[H1 H5] H3].
+  apply (strongly_increasing_inv_mild) with (clock_flow l (fst p))...
+  rewrite flow_zero.
+  apply CRle_trans with ('q)...
+  rewrite A...
 Defined.
 
 Definition temp_hints (l: Location) (r r': Region): r <> r' -> option
-  (abstraction.AltHint conc_thermo.system in_region l r r').
+  (abstraction.AltHint ap l r r').
 Proof with auto.
-  intros.
-  destruct r. destruct r'.
-  destruct l.
-      unfold abstraction.AltHint, in_region, square_abstraction.in_region,
-        square_abstraction.square, in_osquare.
-      simpl.
-      unfold in_orange at 2 4.
-      unfold orange_right at 1. unfold orange_left at 2.
-      unfold TempInterval_bounds.
-      destruct (TempInterval_qbounds t).
-      destruct (TempInterval_qbounds t0).
-      destruct x.
-      destruct x0.
-      destruct o1.
-        destruct o4.
-          simpl.
-          destruct (Qeq_dec q q0).
-            constructor.
-            intros.
-            destruct H0. destruct H1.
-            destruct H2. destruct H3.
-            apply (@he (temp_flow Heat)) with (snd p) ('q)...
-              unfold temp_flow...
-            rewrite q1...
-          exact None.
-        exact None.
-      exact None.
-    exact None.
-  exact None.
+  intros l [ci ti] [ci' ti'] H.
+  destruct l; [idtac | exact None | exact None].
+  unfold abstraction.AltHint, in_region, square_abstraction.in_region,
+   square_abstraction.square, in_osquare.
+  simpl abstract.in_region.
+  unfold square_abstraction.in_region, in_osquare.
+  simpl @fst. simpl @snd.
+  unfold in_orange at 2 4.
+  unfold orange_right at 1. unfold orange_left at 2.
+  unfold TempInterval_bounds.
+  destruct (TempInterval_qbounds ti) as [[ti_lo ti_hi] ti_le].
+  destruct (TempInterval_qbounds ti') as [[ti'_lo ti'_hi] ti'_le].
+  destruct ti_lo; [idtac | exact None].
+  destruct ti'_hi; [idtac | exact None].
+  simpl.
+  destruct (Qeq_dec q q0); [idtac | exact None].
+  apply Some.
+  intros p [H0 [H2 H4]] t [H1 [H3 H5]].
+  apply (strongly_increasing_inv_mild) with (temp_flow Heat (snd p))...
+    unfold temp_flow...
+  rewrite flow_zero.
+  apply CRle_trans with ('q)...
+  rewrite q1...
 Defined.
 
 Definition hints (l: Location) (r r': Region) (E: r <> r') :=
@@ -288,26 +277,27 @@ Definition hints (l: Location) (r r': Region) (E: r <> r') :=
 
 (* The abstract system: *)
 
-Definition system (eps: Qpos): abstract.System conc_thermo.system.
-Proof with auto.
-  intro eps.
-  eapply (@abstraction.abstract_system _ _ _ (square_abstraction.NoDup_squareIntervals NoDup_clock_intervals NoDup_temp_intervals) conc_thermo.system in_region
-   in_region_wd _
-   (fun x => @regions_cover_invariants (fst x) (snd x))
-(abstraction.dealt_hints in_region_wd hints)
+Let invariant_dec :=
+  square_abstraction.invariant_dec ClockInterval_bounds TempInterval_bounds _ _ invariant_squares_correct.
+
+Lemma reset_components p l l': reset l l' p =
+  (square_abstraction.apply_Reset (clock_reset l l') (fst p),
+  square_abstraction.apply_Reset (temp_reset l l') (snd p)).
+Proof. reflexivity. Qed.
+
+Let disc_trans_dec eps :=
+  square_abstraction.disc_trans
+    NoDup_clock_intervals NoDup_temp_intervals
+    clock_flow temp_flow _ initial_invariant reset invariant_wd NoDup_locations
+    absClockInterval absTempInterval
+    (invariant_dec eps) clock_reset temp_reset reset_components
+    absClockInterval_correct absTempInterval_correct (guard_dec eps) eps.
+
+Let cont_trans eps := abstraction.cont_trans
+    (@abstraction.dealt_hints _ ap hints)
     (square_abstraction.cont_trans_cond_dec
-    ClockInterval_bounds TempInterval_bounds clock_flow temp_flow
-    clock_flow_inv temp_flow_inv clock_rfis temp_rfis _ _ _ _ _ _ invariant_squares_correct _ _ eps)
-    (initial_dec eps)  regions_cover_invariants).
-    Focus 2.
-    apply (square_abstraction.NoDup_disc_trans
-      NoDup_clock_intervals NoDup_temp_intervals
-      (square_abstraction.invariant_dec ClockInterval_bounds TempInterval_bounds _ _ invariant_squares_correct eps)
-      NoDup_locations
-      clock_reset temp_reset (guard_dec eps) eps).
-  apply (square_abstraction.respects_disc absClockInterval absTempInterval)...
-    unfold absClockInterval. intros.
-    destruct (s_absClockInterval (fst p))... destruct H...
-  unfold absTempInterval. intros.
-  destruct (s_absTempInterval (snd p))...
-Defined.
+      clock_flow_inv temp_flow_inv clock_rfis temp_rfis
+      invariant_squares invariant_squares_correct eps).
+
+Definition system (eps: Qpos): abstract.System ap :=
+  abstract.Build_System (initial_dec eps) (disc_trans_dec eps) (cont_trans eps).

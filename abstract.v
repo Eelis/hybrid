@@ -1,6 +1,7 @@
 Require Import reachability.
 Require Import List Bool.
 Require Import util list_util.
+Require Import CSetoids.
 Set Implicit Arguments.
 Require EquivDec.
 Require concrete.
@@ -32,33 +33,25 @@ Section contents.
 
   Implicit Arguments State [].
 
-  Record System: Type :=
+  Record Parameters: Type :=
     { Region: Set
     ; Region_eq_dec: EquivDec.EqDec Region eq
     ; regions: ExhaustiveList Region
     ; NoDup_regions: NoDup regions
     ; in_region: concrete.Point chs -> Region -> Prop
-    ; select_region: forall l p, concrete.invariant (l, p) -> exists r, in_region p r
-    ; Initial: State Region -> Prop
-      := fun s => exists p, in_region p (snd s) /\ concrete.initial (fst s, p)
-    ; initial_dec: forall s, overestimation (Initial s)
-    ; disc_trans: State Region -> list (State Region)
-    ; NoDup_disc_trans: forall s, NoDup (disc_trans s)
-    ; disc_resp: forall s1 s2 : concrete.State chs,
-        let (l1, p1) := s1 in
-        let (l2, p2) := s2 in
-          concrete.disc_trans s1 s2 ->
-          forall r1, in_region p1 r1 ->
-            exists r2, in_region p2 r2 /\ In (l2, r2) (disc_trans (l1, r1))
-    ; cont_trans: State Region -> list Region
-    ; NoDup_cont_trans: forall s, NoDup (cont_trans s)
-    ; cont_resp: forall l s1 s2,
-        concrete.can_flow chs l s1 s2 ->
-        forall r1, in_region s1 r1 ->
-          exists r2, in_region s2 r2 /\ In r2 (cont_trans (l, r1))
+    ; in_region_wd: forall x x', cs_eq x x' -> forall r, in_region x r -> in_region x' r
+    ; select_region: forall l p, concrete.invariant (l, p) -> sig (in_region p)
     }.
 
-  (* Note that the definition of cont_resp above is no longer the traditional
+  Variable ap: Parameters.
+
+  Definition ContRespect :=
+   fun (s: State (Region ap)) (l: list (Region ap)) =>
+     forall p, in_region ap p (region s) ->
+     forall q, concrete.can_flow chs (location s) p q ->
+       exists r', in_region ap q r' /\ In r' l.
+
+  (* Note that this is no longer the traditional
       "there is an abstract continuous transition between regions A and B
       if there is a concrete continuous transition between a point in A
       and a point in B"
@@ -69,23 +62,41 @@ Section contents.
    The former implies the latter, so the latter is weaker (and therefore better).
    In particular, the former does not let us avoid drift, while the latter does. *)
 
+  Definition DiscRespect :=
+    fun (s: State (Region ap)) (l: list (State (Region ap))) =>
+      forall p1 (s2 : concrete.State chs) ,
+        concrete.disc_trans (fst s, p1) s2 ->
+        in_region ap p1 (snd s) ->
+         exists r2, in_region ap (concrete.point s2) r2 /\ In (concrete.location s2, r2) l.
+
+  Definition Initial (s: State (Region ap)): Prop :=
+    exists p, in_region ap p (snd s) /\ concrete.initial (fst s, p).
+
+  Record System: Type :=
+    { initial_dec: forall s, overestimation (Initial s)
+    ; disc_trans: forall s: State (Region ap),
+      { l: list (State (Region ap)) | LazyProp (NoDup l /\ DiscRespect s l) }
+    ; cont_trans: forall s: State (Region ap),
+      { l: list (Region ap) | LazyProp (NoDup l /\ ContRespect s l) }
+    }.
+
   Variable ahs: System.
 
-  Let State := State (Region ahs).
+  Let State := State (Region ap).
   Let c_State := concrete.State chs.
 
   Definition abs (s: c_State) (s': State): Prop :=
     concrete.location s = fst s' /\
-    in_region ahs (snd s) (snd s').
+    in_region ap (snd s) (snd s').
   Hint Unfold abs.
 
   Definition trans (b : bool) (s1 s2 : State) : Prop :=
     let (l1, p1) := s1 in
     let (l2, p2) := s2 in
       if b then
-        l1 = l2 /\ In p2 (cont_trans _ s1)
+        l1 = l2 /\ In p2 (proj1_sig (cont_trans ahs s1))
       else
-        In s2 (disc_trans _ s1).
+        In s2 (proj1_sig (disc_trans ahs s1)).
 
   Definition reachable (s : State) : Prop :=
     exists is : State, 
@@ -99,33 +110,35 @@ Section contents.
    (exists is, (initial_dec ahs is: bool) = true /\ exists s', abs s s' /\ end_with trans (negb b) is s').
   Proof with eauto.
     intros i s H b H0.
-    induction H0.
+    induction H0 as [| b i (l, p) H0 IH [l' p']].
       destruct s as [l cp].
-      destruct (select_region ahs l cp).
+      destruct (select_region ap l cp).
         apply (concrete.invariant_initial chs _ H).
       exists (l, x).
       split.
         apply overestimation_true...
       exists (l, x)...
-    intuition.
-    destruct H2 as [x0 [H2 [x1 [H3 H4]]]].
-    exists x0. split...
-    rewrite negb_involutive in H4.
-    destruct y.
-    destruct H3.
+    destruct IH as [ir [H2 [[al r] [[H3 H5] H4]]]]...
+    exists ir. split...
+    pose proof (end_with_next (negb b) H4). clear H4.
     simpl in H3.
     subst.
-    destruct x1 as [l0 r].
-    destruct z as [l s0].
-    destruct b.
-      destruct (disc_resp ahs (l0, s) (l, s0) H1 _ H5) as [x2 [H3 H6]].
-      exists (l, x2)...
+    cut (exists r0, in_region ap p' r0 /\ trans (negb b) (al, r) (l', r0)).
+      intros [x H3].
+      exists (l', x).
+      intuition.
+    destruct b; simpl in H0 |- *.
+      destruct (disc_trans ahs (al, r)).
+      simpl.
+      destruct l...
+      destruct (H4 p (l', p') H1 H5)...
+    destruct (cont_trans ahs (al, r)).
+    simpl.
+    destruct l...
     destruct H1.
-    destruct (cont_resp ahs H3 r H5) as [x2 [H6 H7]].
-    exists (l, x2).
-    split...
-    apply end_with_next with (l0, r)...
-    simpl...
+    destruct (H4 p H5 _ H7).
+    exists x0.
+    intuition.
   Qed.
 
   Lemma reachable_concrete_abstract (s : concrete.State chs) :
@@ -150,6 +163,3 @@ End contents.
 
 Hint Resolve Region_eq_dec regions: typeclass_instances.
 Implicit Arguments State [].
-Implicit Arguments initial_dec [s].
-Implicit Arguments cont_trans [s].
-Implicit Arguments disc_trans [s].

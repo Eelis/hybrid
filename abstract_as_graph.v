@@ -7,14 +7,16 @@ Set Implicit Arguments.
 
 Section using_duplication.
 
-  Variable chs: concrete.System.
-  Variable ahs: abstract.System chs.
+  Variables
+    (chs: concrete.System)
+    (ap: abstract.Parameters chs)
+    (ahs: abstract.System ap).
 
   Inductive TransKind := Cont | Disc.
 
   Instance transKinds: ExhaustiveList TransKind :=
     { exhaustive_list := Cont :: Disc :: [] }.
-  Proof. destruct x; firstorder. Defined.
+  Proof. destruct x; clear; firstorder. Defined.
 
   Instance TransKind_eq_dec: EquivDec.EqDec TransKind eq.
   Proof. repeat intro. cut (decision (x = y)). auto. dec_eq. Defined.
@@ -22,11 +24,11 @@ Section using_duplication.
   Definition flip (k: TransKind) :=
     match k with Cont => Disc | Disc => Cont end.
 
-  Let a_State := abstract.State chs (abstract.Region ahs).
+  Let a_State := abstract.State chs (abstract.Region ap).
 
   Let V := (TransKind * a_State)%type.
 
-  Definition all_abstract_states := @abstract.states chs _ (abstract.regions ahs).
+  Definition all_abstract_states := @abstract.states chs _ (abstract.regions ap).
 
   Definition states_to_verts (s : list a_State) := map (pair Cont) s ++ map (pair Disc) s.
 
@@ -37,8 +39,8 @@ Section using_duplication.
     match k with
     | Cont => 
         let (l, r) := s in
-          map (pair l) (abstract.cont_trans _ s)
-    | Disc => abstract.disc_trans _ s
+          map (pair l) (proj1_sig (abstract.cont_trans ahs s))
+    | Disc => proj1_sig (abstract.disc_trans ahs s)
     end.
      
   Definition next (v: V) : list V :=
@@ -49,8 +51,8 @@ Section using_duplication.
     intros. apply NoDup_map...
     destruct v. destruct a. destruct t; simpl. 
     apply NoDup_map...
-    apply abstract.NoDup_cont_trans.
-    apply abstract.NoDup_disc_trans.
+    destruct_call abstract.cont_trans. simpl. destruct l0...
+    destruct_call abstract.disc_trans. simpl. destruct l0...
   Qed.
 
   Lemma NoDup_states_to_verts s : NoDup s -> NoDup (states_to_verts s).
@@ -61,12 +63,12 @@ Section using_duplication.
   Qed.
 
   Definition g : digraph.DiGraph :=
-    @digraph.Build (TransKind * abstract.State chs (abstract.Region ahs)) _ _ _ NoDup_next.
+    @digraph.Build (TransKind * abstract.State chs (abstract.Region ap)) _ _ _ NoDup_next.
 
   Lemma respect (s : a_State) : 
-    abstract.reachable _ s ->
+    abstract.reachable ahs s ->
     exists k, exists v : digraph.Vertex g,
-    (abstract.initial_dec chs (snd v): bool) = true /\
+    (@abstract.initial_dec chs ap ahs (snd v): bool) = true /\
     digraph.reachable v (k, s).
   Proof with auto.
     intros s [absS [init [tt reach_alt]]].
@@ -86,12 +88,12 @@ Section using_duplication.
   Qed.
 
   Definition graph_unreachable_prop s (v : digraph.Vertex g) : Prop :=
-    (abstract.initial_dec chs (snd v): bool) = true ->
+    (@abstract.initial_dec _ _ ahs (snd v): bool) = true ->
     ~digraph.reachable v (Cont, s) /\ ~digraph.reachable v (Disc, s).
 
   Lemma respect_inv (s: a_State) :
     (forall v: digraph.Vertex g, graph_unreachable_prop s v) ->
-    ~abstract.reachable _ s.
+    ~abstract.reachable ahs s.
   Proof with auto.
     intros s rc abs_reach.
     destruct (respect abs_reach) as [tt [v [init reach]]].
@@ -100,21 +102,21 @@ Section using_duplication.
   Qed.
 
   Definition init_verts : list V :=
-    let is_initial v := abstract.initial_dec chs v in
+    let is_initial v := @abstract.initial_dec chs ap ahs v in
     let init_states := filter is_initial all_abstract_states in
       states_to_verts init_states.
 
   Lemma init_verts_eq_aux (tt : TransKind) ss :
-    map (pair tt) (filter (fun v => abstract.initial_dec chs (s:=ahs) v) ss) =
-    filter (fun s => abstract.initial_dec chs (snd s)) (map (pair tt) ss).
+    map (pair tt) (filter (fun v => abstract.initial_dec ahs v) ss) =
+    filter (fun s => abstract.initial_dec ahs (snd s)) (map (pair tt) ss).
   Proof.
     induction ss. ref. simpl.
-    destruct (abstract.initial_dec chs a); destruct x; simpl; rewrite IHss; ref.
+    destruct (abstract.initial_dec ahs a); destruct x; simpl; rewrite IHss; ref.
   Qed.
 
   Lemma init_verts_eq  :
     init_verts = 
-    filter (fun s => abstract.initial_dec chs (snd s))
+    filter (fun s => abstract.initial_dec ahs (snd s))
     vertices.
   Proof.
     unfold init_verts, states_to_verts.
@@ -168,12 +170,12 @@ Section using_duplication.
     List.existsb (state_reachable reachable_verts) ss.
 
   Lemma states_unreachable (P: concrete.State chs -> Prop) (ss : list a_State):
-    (forall s, P s -> forall r, abstract.abs ahs s r -> In r ss) ->
+    (forall s, P s -> forall r, abstract.abs ap s r -> In r ss) ->
     some_reachable ss = false ->
     forall cs, P cs -> ~ concrete.reachable cs.
   Proof with auto.
     intros.
-    apply (@abstract.safe chs ahs).
+    apply (@abstract.safe chs ap ahs).
     unfold some_reachable in H0.
     intros.
     intro.

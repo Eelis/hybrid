@@ -69,14 +69,20 @@ Section contents.
   Definition in_region (p: Point) (s: SquareInterval): Prop :=
     in_osquare p (square s).
 
-  Variables
-    (absXinterval: CR -> Xinterval)
-    (absYinterval: CR -> Yinterval).
-
-  Definition absInterval (p: Point): SquareInterval :=
-    (absXinterval (fst p), absYinterval (snd p)).
-
-  Variable initial: Location -> Xinterval -> Yinterval -> bool.
+  Lemma in_region_wd x x': x [=] x' -> forall r, in_region x r -> in_region x' r.
+  Proof with auto.
+    unfold in_region.
+    intros.
+    destruct H0.
+    destruct r.
+    simpl in H0, H1. unfold square. simpl.
+    destruct x. destruct x'.
+    simpl in H0, H1.
+    inversion_clear H.
+    split; simpl.
+      apply (@in_orange_wd (Xinterval_range x0) (Xinterval_range x0)) with s; try reflexivity...
+    apply (@in_orange_wd (Yinterval_range y) (Yinterval_range y)) with s0; try reflexivity...
+  Qed.
 
   Variables
     (xflow yflow: Location -> Flow CRasCSetoid)
@@ -93,6 +99,17 @@ Section contents.
       concrete_initial p -> concrete_invariant p)
     (concrete_guard: Location * geometry.Point -> Location -> Prop)
     (reset: Location -> Location -> Point -> Point).
+
+  Hypothesis invariant_wd: forall l l', l = l' -> forall p p', p[=]p' ->
+    (concrete_invariant (l, p) <-> concrete_invariant (l', p')).
+
+  Hypothesis NoDup_locations: NoDup locations.
+
+  Variables
+    (absXinterval: CR -> Xinterval)
+    (absYinterval: CR -> Yinterval).
+
+  Variable initial: Location -> Xinterval -> Yinterval -> bool.
 
   Definition abstract_guard (l: Location) (s: SquareInterval) (l': Location): Prop
     := exists p, geometry.in_osquare p (square s) /\
@@ -127,12 +144,7 @@ Ltac bool_contradict id :=
     apply (overestimation_false _ H), osquares_share_point with p...
   Qed.
 
-  Variable  invariant_decider: forall s, overestimation (abstract_invariant s).
-
-  Hypothesis invariant_wd: forall l l', l = l' -> forall p p', p[=]p' ->
-    (concrete_invariant (l, p) <-> concrete_invariant (l', p')).
-
-  Hypothesis NoDup_locations: NoDup locations.
+  Variable invariant_decider: forall s, overestimation (abstract_invariant s).
 
   Variables (reset_x reset_y: Location -> Location -> Reset).
 
@@ -147,17 +159,6 @@ Ltac bool_contradict id :=
     (absXinterval_wd: forall x x', x == x' -> absXinterval x = absXinterval x')
     (absYinterval_wd: forall y y', y == y' -> absYinterval y = absYinterval y').
 
-  Lemma absInterval_wd (p p': Point): p [=] p' -> absInterval p = absInterval p'.
-  Proof with auto.
-    intros.
-    unfold absInterval.
-    destruct p. destruct p'.
-    inversion_clear H.
-    f_equal.
-      apply absXinterval_wd...
-    apply absYinterval_wd...
-  Qed.
-
   Instance SquareInterval_eq_dec: EquivDec.EqDec SquareInterval eq.
     repeat intro.
     cut (decision (x = y)). auto.
@@ -171,6 +172,17 @@ Ltac bool_contradict id :=
       (fun l: Location => product_flow (xflow l) (yflow l))
       concrete_guard reset.
 
+  Program Definition select_region (l: concrete.Location concrete_system)
+    (p: concrete.Point concrete_system) (I: concrete.invariant (l, p)): sig (in_region p) :=
+      (absXinterval (fst p), absYinterval (snd p)).
+  Next Obligation.
+    split; simpl; eauto using absXinterval_correct, absYinterval_correct.
+  Qed.
+
+  Definition ap: abstract.Parameters concrete_system :=
+    abstract.Build_Parameters concrete_system _ _
+      NoDup_squareIntervals in_region in_region_wd select_region.
+
   Section initial_dec.
 
     Variables (initial_location: Location) (initial_square: OpenSquare)
@@ -183,7 +195,7 @@ Ltac bool_contradict id :=
     Obligation Tactic := idtac.
 
     Program Definition initial_dec (eps: Qpos) s: overestimation
-      (abstraction.initial_condition concrete_system in_region s) :=
+      (abstract.Initial ap s) :=
         (overestimate_conj (osquares_overlap_dec eps (initial_square) (square (snd s)))
           (weaken_decision (Location_eq_dec (fst s) initial_location))).
     Next Obligation. Proof with auto.
@@ -275,14 +287,14 @@ Ltac bool_contradict id :=
      in flat_map (fun x => filter (fun s => invariant_decider (l', s)) (map (pair x) ys)) xs
    else [].
 
-  Definition disc_trans (eps: Qpos) (s: State): list State :=
+  Definition raw_disc_trans (eps: Qpos) (s: State): list State :=
     let (l, r) := s in
     flat_map (fun l' => map (pair l') (disc_trans_regions eps l l' r)) locations.
 
-  Lemma NoDup_disc_trans eps s: NoDup (disc_trans eps s).
+  Lemma NoDup_disc_trans eps s: NoDup (raw_disc_trans eps s).
   Proof with auto.
     intros.
-    unfold disc_trans.
+    unfold raw_disc_trans.
     destruct s.
     apply NoDup_flat_map...
       intros.
@@ -314,21 +326,6 @@ Ltac bool_contradict id :=
     destruct (reset_x l x)...
   Qed.
 
-  Lemma in_region_wd x x': x [=] x' -> forall r, in_region x r -> in_region x' r.
-  Proof with auto.
-    unfold in_region.
-    intros.
-    destruct H0.
-    destruct r.
-    simpl in H0, H1. unfold square. simpl.
-    destruct x. destruct x'.
-    simpl in H0, H1.
-    inversion_clear H.
-    split; simpl.
-      apply (@in_orange_wd (Xinterval_range x0) (Xinterval_range x0)) with s; try reflexivity...
-    apply (@in_orange_wd (Yinterval_range y) (Yinterval_range y)) with s0; try reflexivity...
-  Qed.
-
   Hint Resolve absXinterval_correct absYinterval_correct.
   Hint Resolve in_map_orange.
 
@@ -337,7 +334,7 @@ Ltac bool_contradict id :=
     let (l2, p2) := s2 in
     concrete.disc_trans s1 s2 -> forall i1, in_region p1 i1 ->
     exists i2, in_region p2 i2 /\
-    In (l2, i2) (disc_trans eps (l1, i1)).
+    In (l2, i2) (raw_disc_trans eps (l1, i1)).
   Proof with simpl; auto.
     destruct s1. destruct s2.
     intros.
@@ -348,7 +345,7 @@ Ltac bool_contradict id :=
     simpl in H1.
     subst s0.
     simpl @fst in H.
-    unfold disc_trans.
+    unfold raw_disc_trans.
     cut (exists i2: SquareInterval, in_region (reset l l0 s) i2 /\
          In i2 (disc_trans_regions eps l l0 i1)).
       intro.
@@ -452,10 +449,24 @@ Ltac bool_contradict id :=
     simpl. exists s... split... split...
   Qed.
 
-  Obligation Tactic := idtac.
+  Program Definition disc_trans (eps: Qpos) (s: State):
+    sig (fun l: list State => LazyProp (NoDup l /\ abstract.DiscRespect ap s l))
+    := raw_disc_trans eps s.
+  Next Obligation. Proof with auto.
+    split.
+      apply NoDup_disc_trans.
+    repeat intro.
+    set (respects_disc eps (fst s, p1) s2).
+    simpl in y.
+    destruct s2.
+    destruct (y H0 _ H1).
+    destruct H2.
+    destruct s.
+    eauto.
+  Qed.
 
   Program Definition cont_trans_cond_dec eps l r r':
-    overestimation (abstraction.cont_trans_cond concrete_system in_region l r r') :=
+    overestimation (abstraction.cont_trans_cond ap l r r') :=
       square_flow_conditions.decide_practical
         (xflow_invr l) (yflow_invr l) (square r) (square r') eps &&
       invariant_dec eps (l, r) &&
