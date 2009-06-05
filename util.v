@@ -3,6 +3,8 @@ Require Import Fourier.
 Require Import List.
 Require Import Bool.
 Require Export Program.
+Require Import EquivDec.
+
 Set Implicit Arguments.
 Open Local Scope R_scope.
 
@@ -92,12 +94,13 @@ Proof with auto.
   intros. unfold Rmin. destruct (Rle_dec x y)...
 Qed.
 
-Definition option_eq_dec A (Adec: forall a a': A, decision (a = a'))
-  (o o': option A): decision (o = o').
+Instance option_eq_dec `(Bdec: EquivDec.EqDec B eq): EquivDec.EqDec (option B) eq.
 Proof with auto.
-  intros.
+  intros B e Bdec o o'.
+  unfold equiv.
   destruct o; destruct o'...
-      destruct (Adec a a0).
+      destruct (Bdec b b0).
+        unfold equiv in *.
         subst...
       right. intro. inversion H...
     right. intro. discriminate.
