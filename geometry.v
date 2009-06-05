@@ -97,6 +97,9 @@ Definition OpenRange: Type := sig (uncurry OCRle).
 Definition above (c: CR): OpenRange := exist _ (Some c, None) I.
 Definition below (c: CR): OpenRange := exist _ (None, Some c) I.
 
+Definition qabove (q: Q): OpenQRange := exist _ (Some q, None) I.
+Definition qbelow (q: Q): OpenQRange := exist _ (None, Some q) I.
+
 Program Definition unoqrange (r: OpenQRange): OpenRange
   := (option_map inject_Q (fst r), option_map inject_Q (snd r)).
 

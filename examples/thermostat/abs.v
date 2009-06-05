@@ -87,34 +87,27 @@ Instance temp_intervals: ExhaustiveList TempInterval
   := { exhaustive_list := TI_5 :: TI5_6 :: TI6_8 :: TI8_9 :: TI9_10 :: TI10_ :: nil }.
 Proof. hs_solver. Defined.
 
-Program Definition s_absClockInterval (r: CR):
-    { i | '0 <= r -> in_orange (ClockInterval_bounds i) r } :=
-  if CR_le_le_dec r ('centi) then CI0_C else
-  if CR_le_le_dec r ('(1#2)) then CIC_12 else
-  if CR_le_le_dec r ('(1+centi)) then CI12_1 else
-  if CR_le_le_dec r ('(2-centi)) then CI1_2 else
-  if CR_le_le_dec r ('3) then CI2_3 else CI3_.
+Program Definition clock_interval (p: Point):
+    { i | forall l, invariant (l, p) -> in_orange (ClockInterval_bounds i) (fst p) } :=
+  if CR_le_le_dec (fst p) ('centi) then CI0_C else
+  if CR_le_le_dec (fst p) ('(1#2)) then CIC_12 else
+  if CR_le_le_dec (fst p) ('(1+centi)) then CI12_1 else
+  if CR_le_le_dec (fst p) ('(2-centi)) then CI1_2 else
+  if CR_le_le_dec (fst p) ('3) then CI2_3 else CI3_.
 
-Program Definition s_absTempInterval (r: CR):
-    { i | in_orange (TempInterval_bounds i) r } :=
-  if CR_le_le_dec r ('(5-centi)) then TI_5 else
-  if CR_le_le_dec r ('6) then TI5_6 else
-  if CR_le_le_dec r ('8) then TI6_8 else
-  if CR_le_le_dec r ('(9-deci)) then TI8_9 else
-  if CR_le_le_dec r ('10) then TI9_10 else TI10_.
+Obligation Tactic := idtac.
 
-Program Definition absClockInterval (r: CR): ClockInterval := s_absClockInterval r.
-Program Definition absTempInterval (r: CR): TempInterval := s_absTempInterval r.
+Next Obligation. intros p H l [A _]. split; assumption. Qed.
 
-Lemma absClockInterval_wd (r r': CR): st_eq r r' -> absClockInterval r = absClockInterval r'.
-Proof.
-  unfold absClockInterval, s_absClockInterval. hs_solver.
-Qed.
+Obligation Tactic := split; program_simpl.
 
-Lemma absTempInterval_wd (r r': CR): st_eq r r' -> absTempInterval r = absTempInterval r'.
-Proof.
-  unfold absTempInterval, s_absTempInterval. hs_solver.
-Qed.
+Program Definition temp_interval (p: Point):
+    { i | forall l, invariant (l, p) -> in_orange (TempInterval_bounds i) (snd p) } :=
+  if CR_le_le_dec (snd p) ('(5-centi)) then TI_5 else
+  if CR_le_le_dec (snd p) ('6) then TI5_6 else
+  if CR_le_le_dec (snd p) ('8) then TI6_8 else
+  if CR_le_le_dec (snd p) ('(9-deci)) then TI8_9 else
+  if CR_le_le_dec (snd p) ('10) then TI9_10 else TI10_.
 
 Instance ClockInterval_eq_dec: EquivDec.EqDec ClockInterval eq.
 Proof. hs_solver. Defined.
@@ -128,26 +121,13 @@ Proof. hs_solver. Qed.
 Lemma NoDup_temp_intervals: NoDup temp_intervals.
 Proof. hs_solver. Qed.
 
-Lemma absClockInterval_correct p l (i: invariant (l, p)):
-  in_orange (ClockInterval_bounds (absClockInterval (fst p))) (fst p).
-Proof.
-  intros p l [A B]. unfold absClockInterval.
-  destruct_call s_absClockInterval. auto.
-Qed.
-
-Lemma absTempInterval_correct p l (i: invariant (l, p)):
-  in_orange (TempInterval_bounds (absTempInterval (snd p))) (snd p).
-Proof.
-  intros p l [A B]. unfold absTempInterval.
-  destruct_call s_absTempInterval. auto.
-Qed.
-
 Definition ap: abstract.Parameters conc.system :=
   square_abstraction.ap NoDup_clock_intervals NoDup_temp_intervals
-  _ _ _ _ _ _ _ _ _ _ _ _ _ absClockInterval_correct absTempInterval_correct.
+  _ _ _ _ _ _ _ _ _ _ _ clock_interval temp_interval.
 
 (* Abstracted initial: *)
 
+Obligation Tactic := CRle_constants.
 Program Definition initial_square: OpenSquare := (('0, '0), ('5, '10)): Square.
 Definition initial_location := Heat.
 
@@ -163,10 +143,11 @@ Qed.
 Let initial_dec := @square_abstraction.initial_dec
   _ _ _ _ _ _ _ _ _ NoDup_clock_intervals NoDup_temp_intervals
   _ _ _ _ _ _ initial_invariant _ _ invariant_wd NoDup_locations
-  _ _ absClockInterval_correct absTempInterval_correct
-  _ _ initial_representative.
+  clock_interval temp_interval _ _ initial_representative.
 
 (* Abstracted invariant: *)
+
+Obligation Tactic := program_simpl; CRle_constants.
 
 Program Definition invariant_squares (l: Location): OpenSquare :=
   match l with
@@ -271,9 +252,9 @@ Program Definition disc_trans_dec eps :=
   square_abstraction.disc_trans
     NoDup_clock_intervals NoDup_temp_intervals
     clock_flow temp_flow _ initial_invariant reset invariant_wd NoDup_locations
-    absClockInterval absTempInterval
+    clock_interval temp_interval
     (invariant_dec eps) clock_reset temp_reset _
-    absClockInterval_correct absTempInterval_correct (guard_dec eps) eps.
+    (guard_dec eps) eps.
 
 Let cont_trans eps := abstraction.cont_trans
     (@abstraction.dealt_hints _ ap hints)
@@ -318,5 +299,5 @@ Definition system (eps: Qpos): abstract.System ap :=
     LazyProp (forall s, unsafe s -> forall r, abstract.abs ap s r -> In r ss))
       := square_abstraction.unsafe_abstract
         NoDup_clock_intervals NoDup_temp_intervals
-        _ _ _ _ absClockInterval_correct absTempInterval_correct unsafe
+        _ _ clock_interval temp_interval unsafe
         _ unsafe_squares_representative.

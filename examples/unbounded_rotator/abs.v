@@ -1,9 +1,10 @@
 Require Import util list_util.
+Require Import bnat.
 Require Import geometry.
 Require Import monotonic_flow.
 Require Import hs_solver.
 Require decreasing_exponential_flow.
-Require abstract abstraction square_abstraction.
+Require abstract abstraction square_abstraction interval_spec.
 Require EquivDec.
 
 Require Import unbounded_rotator.conc.
@@ -14,55 +15,21 @@ Open Local Scope CR_scope.
 
 (* Abstraction intervals *)
 
-Inductive Interval: Set := OI_1 | OI12 | OI23 | OI34 | OI4_.
+Program Definition spec: interval_spec.IntervalSpec 1 3 :=
+  (interval_spec.bound 1 _
+  (interval_spec.bound (19#10) _
+  (interval_spec.bound (31#10) _
+  (interval_spec.highest 4)))).
 
-Instance intervals: ExhaustiveList Interval
-  := { exhaustive_list := OI_1 :: OI12 :: OI23 :: OI34 :: OI4_ :: nil }.
-Proof. hs_solver. Defined.
-
-Instance Interval_eq_dec: EquivDec.EqDec Interval eq.
-Proof. hs_solver. Defined.
-
-Obligation Tactic := Qle_constants.
-
-Program Definition Interval_bounds (i: Interval): OpenRange :=
-  match i with
-  | OI_1 => below ('1)
-  | OI12 => (1, 19#10): QRange
-  | OI23 => (19#10, 31#10): QRange
-  | OI34 => (31#10, 4): QRange
-  | OI4_ => above ('4)
-  end.
-
-Lemma NoDup_intervals: NoDup intervals.
-Proof. hs_solver. Qed.
-
-Definition interval' (r: CR): { i: Interval | in_orange (Interval_bounds i) r }.
-Proof with auto.
-  intro.
-  unfold in_orange, orange_left, orange_right.
-  destruct (CR_le_le_dec r ('1)). exists OI_1. simpl...
-  destruct (CR_le_le_dec r ('(19#10))). exists OI12...
-  destruct (CR_le_le_dec r ('(31#10))). exists OI23...
-  destruct (CR_le_le_dec r ('4)). exists OI34...
-  exists OI4_. simpl...
-Defined.
-
-Definition interval (r: CR): Interval := ` (interval' r).
-
-Lemma interval_correct_fst p l (i: invariant (l, p)):
-  in_orange (Interval_bounds (interval (fst p))) (fst p).
-Proof. intros. unfold interval. destruct_call interval'. assumption. Qed.
-
-Lemma interval_correct_snd p l (i: invariant (l, p)):
-  in_orange (Interval_bounds (interval (snd p))) (snd p).
-Proof. intros. unfold interval. destruct_call interval'. assumption. Qed.
+Definition Interval_bounds := interval_spec.bounds spec.
+Definition xinterval (p: Point) := interval_spec.select_interval fst invariant spec p.
+Definition yinterval (p: Point) := interval_spec.select_interval snd invariant spec p.
 
 (* Abstraction parameters *)
 
 Definition ap: abstract.Parameters system :=
-  square_abstraction.ap NoDup_intervals NoDup_intervals
-  _ _ _ _ _ _ _ _ _ _ _ _ _ interval_correct_fst interval_correct_snd.
+  square_abstraction.ap (NoDup_bnats 5) (NoDup_bnats 5)
+  Interval_bounds Interval_bounds _ _ _ _ _ _ _ _ _ xinterval yinterval.
 
 (* Flow inverses *)
 
@@ -116,9 +83,9 @@ Lemma initial_representative: forall s: concrete.State system,
 Proof. intros [l s] [H [H0 H1]]. repeat split; auto. Qed.
 
 Let initial_dec := @square_abstraction.initial_dec
-  _ _ _ _ _ _ _ _ _ NoDup_intervals NoDup_intervals
-  _ _ _ _ _ _ (fun _ _ => I) _ _ invariant_wd NoDup_locations
-  _ _ interval_correct_fst interval_correct_snd
+  _ _ _ _ _ _ _ _ _ (NoDup_bnats 5) (NoDup_bnats 5)
+  Interval_bounds Interval_bounds _ _ _ _ initial_invariant _ _ invariant_wd NoDup_locations
+  xinterval yinterval
   _ _ initial_representative.
 
 Obligation Tactic := idtac.
@@ -160,10 +127,9 @@ Let guard_dec := square_abstraction.guard_dec
 (* Abstract discrete transitions *)
 
 Program Definition disc_trans_dec eps := square_abstraction.disc_trans
-  NoDup_intervals NoDup_intervals
+  (NoDup_bnats 5) (NoDup_bnats 5)
   xf yf initial initial_invariant reset invariant_wd NoDup_locations
-  interval interval (invariant_dec eps) xreset yreset _
-  interval_correct_fst interval_correct_snd (guard_dec eps) eps.
+  xinterval yinterval (invariant_dec eps) xreset yreset _ (guard_dec eps) eps.
 Next Obligation. reflexivity. Qed.
 
 (* Abstract continuous transitions *)
@@ -214,6 +180,6 @@ Definition system (eps: Qpos): abstract.System ap :=
     sig (fun ss: list (abstract.State conc.system (abstract.Region ap)) =>
     LazyProp (forall s, unsafe s -> forall r, abstract.abs ap s r -> In r ss))
       := square_abstraction.unsafe_abstract
-        NoDup_intervals NoDup_intervals
-        _ _ _ _ interval_correct_fst interval_correct_snd unsafe
-        _ unsafe_squares_representative.
+        (NoDup_bnats 5) (NoDup_bnats 5)
+        Interval_bounds Interval_bounds xinterval yinterval
+        unsafe _ unsafe_squares_representative.

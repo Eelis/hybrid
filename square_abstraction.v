@@ -105,12 +105,6 @@ Section contents.
 
   Hypothesis NoDup_locations: NoDup locations.
 
-  Variables
-    (absXinterval: CR -> Xinterval)
-    (absYinterval: CR -> Yinterval).
-
-  Variable initial: Location -> Xinterval -> Yinterval -> bool.
-
   Definition abstract_guard (l: Location) (s: SquareInterval) (l': Location): Prop
     := exists p, geometry.in_osquare p (square s) /\
 	concrete_guard (l, p) l'.
@@ -119,6 +113,15 @@ Section contents.
     exists p,
       geometry.in_osquare p (square (snd ls)) /\
       concrete_invariant (fst ls, p).
+
+  Variables
+    (absXinterval: forall p: Point, { i: Xinterval |
+      forall l, concrete_invariant (l, p) -> in_orange (Xinterval_range i) (fst p) })
+    (absYinterval: forall p: Point, { i: Yinterval |
+      forall l, concrete_invariant (l, p) -> in_orange (Yinterval_range i) (snd p) }).
+        (* No need for LazyProp, because these are not used in computation anyway. *)
+
+  Variable initial: Location -> Xinterval -> Yinterval -> bool.
 
   (* If one's invariants can be expressed as a single square for each
    location, we can decide it for the abstract system by computing
@@ -151,14 +154,6 @@ Ltac bool_contradict id :=
   Hypothesis reset_components: forall p l l',
     reset l l' p = (apply_Reset (reset_x l l') (fst p), apply_Reset (reset_y l l') (snd p)).
 
-  Variables
-    (absXinterval_correct: forall p l, concrete_invariant (l, p) ->
-      in_orange (Xinterval_range (absXinterval (fst p))) (fst p))
-    (absYinterval_correct: forall p l, concrete_invariant (l, p) ->
-      in_orange (Yinterval_range (absYinterval (snd p))) (snd p))
-    (absXinterval_wd: forall x x', x == x' -> absXinterval x = absXinterval x')
-    (absYinterval_wd: forall y y', y == y' -> absYinterval y = absYinterval y').
-
   Instance SquareInterval_eq_dec: EquivDec.EqDec SquareInterval eq.
     repeat intro.
     cut (decision (x = y)). auto.
@@ -174,9 +169,12 @@ Ltac bool_contradict id :=
 
   Program Definition select_region (l: concrete.Location concrete_system)
     (p: concrete.Point concrete_system) (I: concrete.invariant (l, p)): sig (in_region p) :=
-      (absXinterval (fst p), absYinterval (snd p)).
+      (` (absXinterval p), ` (absYinterval p)).
   Next Obligation.
-    split; simpl; eauto using absXinterval_correct, absYinterval_correct.
+    destruct p.
+    destruct_call absXinterval.
+    destruct_call absYinterval.
+    split; eauto.
   Qed.
 
   Definition ap: abstract.Parameters concrete_system :=
@@ -325,7 +323,6 @@ Ltac bool_contradict id :=
     destruct (reset_x l x)...
   Qed.
 
-  Hint Resolve absXinterval_correct absYinterval_correct.
   Hint Resolve in_map_orange.
 
   Lemma respects_disc (eps: Qpos) (s1 s2 : concrete.State concrete_system):
@@ -357,22 +354,30 @@ Ltac bool_contradict id :=
     rewrite reset_components.
     set (xi := match reset_x l l0 with
       | Reset_id => fst i1
-      | Reset_const c => absXinterval c
-      | Reset_map f => absXinterval (proj1_sigT _ _ f (fst s))
+      | Reset_const c => ` (absXinterval (c, apply_Reset (reset_y l l0) (snd s)))
+      | Reset_map f => ` (absXinterval (proj1_sigT _ _ f (fst s), apply_Reset (reset_y l l0) (snd s)))
       end).
     set (yi := match reset_y l l0 with
       | Reset_id => snd i1
-      | Reset_const c => absYinterval c
-      | Reset_map f => absYinterval (proj1_sigT _ _ f (snd s))
+      | Reset_const c => ` (absYinterval (apply_Reset (reset_x l l0) (fst s), c))
+      | Reset_map f => ` (absYinterval (apply_Reset (reset_x l l0) (fst s), proj1_sigT _ _ f (snd s)))
       end).
     exists (xi, yi).
     rewrite reset_components in H4.
     split.
       split; simpl.
         subst xi. clear yi.
-        destruct (reset_x l l0); auto; apply (absXinterval_correct H4).
+        destruct (reset_x l l0)...
+          destruct_call absXinterval. simpl.
+          destruct c. eauto.
+        destruct_call absXinterval.
+        simpl in *. eauto.
       subst yi. clear xi.
-      destruct (reset_y l l0); auto; apply (absYinterval_correct H4).
+      destruct (reset_y l l0)...
+        destruct_call absYinterval. simpl.
+        destruct c. eauto.
+      destruct_call absYinterval.
+      simpl in *. eauto.
     unfold disc_trans_regions.
     destruct (guard_decider l i1 l0).
     simpl overestimation_bool at 1.
@@ -394,7 +399,8 @@ Ltac bool_contradict id :=
             intro. apply n1...
             apply oranges_share_point with c...
               simpl. split...
-            apply (absXinterval_correct H4).
+            destruct_call absXinterval.
+            simpl. destruct c. eauto.
           simpl in H4.
           apply in_filter; auto.
           apply not_false_is_true.
@@ -404,7 +410,8 @@ Ltac bool_contradict id :=
             unfold map_orange'.
             destruct m.
             apply in_map_orange...
-          apply (absXinterval_correct H4).
+          destruct_call absXinterval.
+          simpl. apply i with l0...
         apply in_filter.
           apply in_map.
           subst yi.
@@ -415,7 +422,8 @@ Ltac bool_contradict id :=
             intro. apply n1...
             apply oranges_share_point with c...
               simpl. split...
-            apply (absYinterval_correct H4).
+            destruct_call absYinterval.
+            simpl. destruct c. eauto.
           simpl in H4.
           apply in_filter; auto.
           apply not_false_is_true.
@@ -425,7 +433,8 @@ Ltac bool_contradict id :=
             unfold map_orange'.
             destruct m.
             apply in_map_orange...
-          apply (absYinterval_correct H4).
+          destruct_call absYinterval. simpl.
+          apply i with l0. eauto.
         apply not_false_is_true.
         intro.
         apply (overestimation_false _ H1).
@@ -435,9 +444,15 @@ Ltac bool_contradict id :=
         split...
         split; simpl.
           subst xi.
-          destruct (reset_x l l0); auto; apply (absXinterval_correct H4).
+          destruct (reset_x l l0)...
+            destruct_call absXinterval. destruct c. eauto.
+          destruct_call absXinterval.
+          simpl. apply i with l0. eauto.
         subst yi.
-        destruct (reset_y l l0); auto; apply (absYinterval_correct H4).
+        destruct (reset_y l l0)...
+          destruct_call absYinterval. destruct c. eauto.
+        destruct_call absYinterval.
+        simpl. apply i with l0. eauto.
       simpl.
       apply n0...
       unfold abstract_invariant.
