@@ -94,6 +94,9 @@ Definition CRmin_of_upper_bounds (a b: option CR): option CR :=
 Definition OpenQRange: Set := sig OQle.
 Definition OpenRange: Type := sig (uncurry OCRle).
 
+Definition above (c: CR): OpenRange := exist _ (Some c, None) I.
+Definition below (c: CR): OpenRange := exist _ (None, Some c) I.
+
 Program Definition unoqrange (r: OpenQRange): OpenRange
   := (option_map inject_Q (fst r), option_map inject_Q (snd r)).
 

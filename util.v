@@ -193,3 +193,7 @@ Definition LazyProp (T: Prop): Prop := () -> T.
 Definition force (T: Prop) (l: LazyProp T): T := l ().
 
 Hint Constructors unit.
+
+Require Import Ensembles.
+Notation "x ⊆ y" := (Ensembles.Included _ x y) (at level 40).
+Implicit Arguments Complement [U].

@@ -185,12 +185,11 @@ Ltac bool_contradict id :=
 
   Section initial_dec.
 
-    Variables (initial_location: Location) (initial_square: OpenSquare)
-      (initial_representative:
-        forall (s : concrete.State concrete_system),
-          let (l, p) := s in
-            concrete.initial s ->
-            l = initial_location /\ in_osquare p initial_square).
+    Variables
+      (initial_location: concrete.Location concrete_system)
+      (initial_square: OpenSquare)
+      (initial_representative: forall s, concrete.initial s ->
+        fst s = initial_location /\ in_osquare (snd s) initial_square).
 
     Obligation Tactic := idtac.
 
@@ -204,7 +203,7 @@ Ltac bool_contradict id :=
       simpl.
       intros H [[a b] [H0 H1]].
       apply n...
-      destruct (initial_representative (l, (a, b)) H1).
+      destruct (initial_representative H1).
       split...
       apply osquares_share_point with (a, b)...
     Qed.
@@ -512,5 +511,42 @@ Ltac bool_contradict id :=
   (* If one's initial location can be expressed as a simple square
    in a single location, we can decide it for the abstract system
    by checking overlap with regions. *)
+
+  Section square_safety.
+
+    (* If the safety condition can be overestimated by a list of unsafe
+     osquares, then we can select the unsafe abstract states automatically. *)
+
+    Variables
+      (unsafe_concrete: concrete.State concrete_system -> Prop)
+      (unsafe_squares: Location -> list OpenSquare)
+      (unsafe_squares_correct: forall s, unsafe_concrete s -> exists q,
+        In q (unsafe_squares (fst s)) /\ in_osquare (snd s) q)
+      (eps: Qpos).
+
+    Program Definition unsafe_abstract:
+      sig (fun ss => LazyProp (forall s, unsafe_concrete s ->
+       forall r, abstract.abs ap s r -> In r ss))
+      := flat_map (fun l => map (pair l) (flat_map (fun q =>
+        filter (fun s => osquares_overlap_dec eps q (square s)) exhaustive_list
+        ) (unsafe_squares l))) locations.
+
+    Next Obligation. Proof with auto.
+      intros _ s H r H0.
+      apply <- in_flat_map.
+      destruct H0.
+      destruct s.
+      exists l.
+      split...
+      destruct r.
+      simpl in H0.
+      subst.
+      apply (in_map (pair l0)).
+      destruct (unsafe_squares_correct H) as [x [H0 H2]].
+      apply <- in_flat_map.
+      eauto 10 using overestimation_true, osquares_share_point, in_filter.
+    Qed.
+
+  End square_safety.
 
 End contents.

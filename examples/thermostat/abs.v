@@ -15,11 +15,7 @@ Open Local Scope CR_scope.
 
 Definition half_pos: CRpos ('(1#2)) := Qpos_CRpos (1#2).
 Definition two_pos: CRpos ('2) := positive_CRpos 2.
-
 Hint Resolve two_pos.
-
-Definition above (c: CR): OpenRange := exist _ (Some c, None) I.
-Definition below (c: CR): OpenRange := exist _ (None, Some c) I.
 
 (* Flow inverses *)
 
@@ -135,29 +131,20 @@ Proof. hs_solver. Qed.
 Lemma absClockInterval_correct p l (i: invariant (l, p)):
   in_orange (ClockInterval_bounds (absClockInterval (fst p))) (fst p).
 Proof.
-  intros.
-  unfold absClockInterval.
-  destruct_call s_absClockInterval.
-  destruct i; auto.
+  intros p l [A B]. unfold absClockInterval.
+  destruct_call s_absClockInterval. auto.
 Qed.
 
 Lemma absTempInterval_correct p l (i: invariant (l, p)):
   in_orange (TempInterval_bounds (absTempInterval (snd p))) (snd p).
 Proof.
-  intros.
-  unfold absTempInterval.
-  destruct_call s_absTempInterval.
-  destruct i; auto.
+  intros p l [A B]. unfold absTempInterval.
+  destruct_call s_absTempInterval. auto.
 Qed.
 
 Definition ap: abstract.Parameters conc.system :=
-  @square_abstraction.ap _ _ _ _ _ _ _ _ _
-  NoDup_clock_intervals NoDup_temp_intervals
+  square_abstraction.ap NoDup_clock_intervals NoDup_temp_intervals
   _ _ _ _ _ _ _ _ _ _ _ _ _ absClockInterval_correct absTempInterval_correct.
-
-Definition Region: Set := prod ClockInterval TempInterval.
-
-Let in_region := abstract.in_region ap.
 
 (* Abstracted initial: *)
 
@@ -165,8 +152,8 @@ Program Definition initial_square: OpenSquare := (('0, '0), ('5, '10)): Square.
 Definition initial_location := Heat.
 
 Lemma initial_representative: forall s: concrete.State conc_thermo.system,
-  let (l, p) := s in
-    concrete.initial s -> l = initial_location /\ in_osquare p initial_square.
+  concrete.initial s -> loc s = initial_location /\
+  in_osquare (point s) initial_square.
 Proof.
   intros [l s] [H [H0 [H1 H2]]].
   unfold in_osquare, in_orange.
@@ -190,9 +177,11 @@ Program Definition invariant_squares (l: Location): OpenSquare :=
 
 Lemma invariant_squares_correct (l : Location) (p : Point):
   invariant (l, p) -> in_osquare p (invariant_squares l).
-Proof.
-  unfold invariant. grind ltac:(destruct l).
-Qed.
+Proof. unfold invariant. grind ltac:(destruct l). Qed.
+
+Let invariant_dec :=
+  square_abstraction.invariant_dec
+    ClockInterval_bounds TempInterval_bounds _ _ invariant_squares_correct.
 
 (* Abstracted guard: *)
 
@@ -221,13 +210,13 @@ Let guard_dec := square_abstraction.guard_dec
 
 (* Hints: *)
 
-Definition clock_hints (l: Location) (r r': Region): r <> r' ->
+Definition clock_hints (l: Location) (r r': abstract.Region ap): r <> r' ->
   option (abstraction.AltHint ap l r r').
 Proof with auto.
   intros l [ci ti] [ci' ti'] H.
-  unfold abstraction.AltHint, in_region, square_abstraction.in_region,
+  unfold abstraction.AltHint, abstract.in_region, square_abstraction.in_region,
     square_abstraction.square, in_osquare.
-  simpl abstract.in_region.
+  simpl.
   unfold square_abstraction.in_region, in_osquare,
     in_orange at 1 3, ClockInterval_bounds.
   simpl @fst. simpl @snd.
@@ -244,14 +233,14 @@ Proof with auto.
   rewrite A...
 Defined.
 
-Definition temp_hints (l: Location) (r r': Region): r <> r' -> option
+Definition temp_hints (l: Location) (r r': abstract.Region ap): r <> r' -> option
   (abstraction.AltHint ap l r r').
 Proof with auto.
   intros l [ci ti] [ci' ti'] H.
   destruct l; [idtac | exact None | exact None].
-  unfold abstraction.AltHint, in_region, square_abstraction.in_region,
+  unfold abstraction.AltHint, abstract.in_region, square_abstraction.in_region,
    square_abstraction.square, in_osquare.
-  simpl abstract.in_region.
+  simpl.
   unfold square_abstraction.in_region, in_osquare.
   simpl @fst. simpl @snd.
   unfold in_orange at 2 4.
@@ -271,26 +260,19 @@ Proof with auto.
   apply CRle_trans with ('q)...
   rewrite q1...
 Defined.
+  (* Todo: Automate these two above. *)
 
-Definition hints (l: Location) (r r': Region) (E: r <> r') :=
+Definition hints (l: Location) (r r': abstract.Region ap) (E: r <> r') :=
   options (clock_hints l E) (temp_hints l E).
 
 (* The abstract system: *)
 
-Let invariant_dec :=
-  square_abstraction.invariant_dec ClockInterval_bounds TempInterval_bounds _ _ invariant_squares_correct.
-
-Lemma reset_components p l l': reset l l' p =
-  (square_abstraction.apply_Reset (clock_reset l l') (fst p),
-  square_abstraction.apply_Reset (temp_reset l l') (snd p)).
-Proof. reflexivity. Qed.
-
-Let disc_trans_dec eps :=
+Program Definition disc_trans_dec eps :=
   square_abstraction.disc_trans
     NoDup_clock_intervals NoDup_temp_intervals
     clock_flow temp_flow _ initial_invariant reset invariant_wd NoDup_locations
     absClockInterval absTempInterval
-    (invariant_dec eps) clock_reset temp_reset reset_components
+    (invariant_dec eps) clock_reset temp_reset _
     absClockInterval_correct absTempInterval_correct (guard_dec eps) eps.
 
 Let cont_trans eps := abstraction.cont_trans
@@ -301,3 +283,40 @@ Let cont_trans eps := abstraction.cont_trans
 
 Definition system (eps: Qpos): abstract.System ap :=
   abstract.Build_System (initial_dec eps) (disc_trans_dec eps) (cont_trans eps).
+
+(* Abstract safety *)
+
+  (* The concrete unsafety condition was specified as a predicate on
+   concrete states. Our task is to come up with a list of corresponding abstract
+   states. The square_abstraction module can generate this list if we can
+   overestimate the concrete unsafety condition with a list of open squares, which
+   we can. So let us define these, first. *)
+
+  Obligation Tactic := Qle_constants.
+  Program Definition unsafe_square: OpenSquare :=
+    (unbounded_range, below ('(45#10))).
+
+  Definition unsafe_squares (l: Location): list OpenSquare := unsafe_square :: nil.
+
+  (* Of course, we must prove that these actually cover the unsafe
+  concrete states: *)
+
+  Definition unsafe_squares_representative s: unsafe s ->
+    exists q, In q (unsafe_squares (fst s)) /\ in_osquare (snd s) q.
+  Proof.
+    unfold unsafe. intuition.
+    exists unsafe_square.
+    simpl. repeat split; auto.
+  Qed.
+
+  (* We can now invoke square_abstraction's unsafe_abstract to obtain a list
+  of abstract states that cover the unsafe concrete states. This list will be a key
+  ingredient in safe.v. *)
+
+  Definition unsafe_abstract: Qpos ->
+    sig (fun ss: list (abstract.State conc.system (abstract.Region ap)) =>
+    LazyProp (forall s, unsafe s -> forall r, abstract.abs ap s r -> In r ss))
+      := square_abstraction.unsafe_abstract
+        NoDup_clock_intervals NoDup_temp_intervals
+        _ _ _ _ absClockInterval_correct absTempInterval_correct unsafe
+        _ unsafe_squares_representative.

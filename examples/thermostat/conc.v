@@ -1,4 +1,4 @@
-Require Import List.
+Require Import List Ensembles.
 Require Import util.
 Require Import list_util.
 Require Import geometry.
@@ -48,11 +48,9 @@ Definition invariant (s: State): Prop :=
 
 Lemma invariant_wd: forall l l', l = l' ->
   forall (p p': Point), p[=]p' -> (invariant (l, p) <-> invariant (l', p')).
-Proof.
-  unfold invariant. grind ltac:(destruct l').
-Qed.
+Proof. unfold invariant. grind ltac:(destruct l'). Qed.
 
-(* Initial state *)
+(* Initial *)
 
 Definition initial (s: State): Prop :=
   loc s = Heat /\
@@ -60,10 +58,7 @@ Definition initial (s: State): Prop :=
   clock s == '0.
 
 Lemma initial_invariant (s: State): initial s -> invariant s.
-Proof.
-  unfold initial, invariant.
-  hs_solver.
-Qed.
+Proof. unfold initial, invariant. hs_solver. Qed.
 
 (* Flow *)
 
@@ -104,10 +99,35 @@ Definition guard (s: State) (l: Location): Prop :=
   | _, _ => False
   end.
 
-(* Concrete system *)
+(* Concrete system itself *)
 
 Definition system: System :=
-  Build_System _ _ NoDup_locations initial invariant
-  initial_invariant invariant_wd flow guard reset.
+  Build_System
+  _ _
+  NoDup_locations
+  initial
+  invariant
+  initial_invariant
+  invariant_wd
+  flow
+  guard
+  reset.
 
-Definition state_unsafe (s: State): Prop := temp s <= '(45#10).
+(* Safety *)
+
+  Definition unsafe: Ensemble (concrete.State system) :=
+    fun s => temp s <= '(45#10).
+
+  Definition UnsafeUnreachable: Prop := unsafe ⊆ unreachable.
+    (* This is proved in safe.v. *)
+
+  (* We can also phrase the property less negatively: *)
+
+  Definition safe := Complement unsafe.
+
+  Definition ReachablesSafe: Prop := reachable ⊆ safe.
+
+  (* Of course, the negative version implies the positive one: *)
+
+  Goal UnsafeUnreachable -> ReachablesSafe.
+  Proof. intros H s A B. apply H with s; assumption. Qed.

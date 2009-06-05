@@ -128,6 +128,8 @@ Section transitions_and_reachability.
   Definition reachable (s: State): Prop :=
     exists i: State, initial i /\ reachable trans i s.
 
+  Definition unreachable (s: State): Prop := ~ reachable s.
+
   Hint Unfold reachable.
 
   Definition reachable_alternating (s: State): Prop :=
@@ -164,5 +166,7 @@ Section transitions_and_reachability.
 
 End transitions_and_reachability.
 
+Implicit Arguments reachable [[system]].
+Implicit Arguments unreachable [[system]].
 Hint Unfold cont_trans.
 Hint Unfold can_flow.

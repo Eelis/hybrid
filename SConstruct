@@ -1,7 +1,8 @@
 import os, glob, string
 corn_dir = '/data/home/eelis/soft/CoRN'
 
-Rs = [(corn_dir, 'CoRN'), ('thermostat', 'thermostat')]
+Rs = [(corn_dir, 'CoRN')]
+for f in glob.glob('examples/*'): Rs += [(f, f.split('/')[-1])]
 Rs = string.join(map(lambda (x,y): '-R "' + x + '" ' + y, Rs))
 
 coqc = 'coqc ' + Rs
@@ -17,5 +18,6 @@ env = DefaultEnvironment(ENV = os.environ)
 env.Append(BUILDERS = {'Coq' : Builder(action = coqc + ' $SOURCE', suffix = '.vo', src_suffix = '.v')})
 env.Append(SCANNERS = Scanner(skeys = ['.v'], function = coq_scan))
 
-fs = glob.glob('*.v') + glob.glob('thermostat/*.v')
+fs = glob.glob('*.v')
+for e in glob.glob('examples/*'): fs += glob.glob(e + '/*.v')
 for f in fs: env.Coq(f)

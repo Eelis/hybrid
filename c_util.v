@@ -1113,4 +1113,7 @@ Section BSM.
 
 End BSM.
 
-Ltac CRle_constants := apply inject_Q_le; compute; discriminate.
+Ltac Qle_constants := vm_compute; repeat intro; discriminate.
+  (* Solves goals of the form [x <= y] where x and y are constants in Q. *)
+Ltac CRle_constants := apply inject_Q_le; Qle_constants.
+  (* Solves goals of the form ['x <= 'y]. *)
