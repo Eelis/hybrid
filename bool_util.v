@@ -1,4 +1,30 @@
 Require Export Bool.
+Require Setoid.
+
+Set Implicit Arguments.
+
+Section beq.
+
+  Variable A : Type.
+  Variable beq : A -> A -> bool.
+  Variable beq_ok : forall x y, beq x y = true <-> x = y.
+
+  Lemma beq_refl : forall x, beq x x = true.
+  Proof.
+    intros. rewrite (beq_ok x x). reflexivity.
+  Qed.
+
+End beq.
+
+Lemma andb_intro : forall a b, a = true -> b = true -> a && b = true.
+Proof.
+  intros. subst. reflexivity.
+Qed.
+
+Lemma andb_elim : forall a b, a && b = true -> a = true /\ b = true.
+Proof.
+  destruct a; destruct b; intuition.
+Qed.
 
 Lemma band_discr : forall b1 b2,
   b1 = true ->
