@@ -72,6 +72,71 @@ Module RoomHeating (Import RHS : RoomHeatingSpec).
        states of all the rooms. *)
   Definition DS := vector RoomState n.
 
+  Instance DS_eq_dec: EquivDec.EqDec DS eq.
+  Proof.
+    unfold EquivDec.EqDec. apply eq_vec_dec.
+    decide equality.
+  Defined.
+
+  Fixpoint exhaustiveRS (n : nat) : list (vector RoomState n) :=
+    match n with
+    | 0%nat => [ Vnil ]
+    | S p => 
+        let all rs := List.map (fun vs => Vcons rs vs) (exhaustiveRS p) in
+          all NoHeater ++ all HeaterOn ++ all HeaterOff
+    end.
+
+  Ltac in_or_app_proof :=
+    solve 
+    [ apply in_map; auto
+    | apply in_or_app; left; in_or_app_proof
+    | apply in_or_app; right; in_or_app_proof
+    ].
+
+  Lemma exhaustiveRS_correct x : In x (exhaustiveRS n).
+  Proof with auto.
+    induction x.
+    left. ref.
+    simpl. destruct a; in_or_app_proof.
+  Qed.
+
+  Instance locations : ExhaustiveList DS :=
+    { exhaustive_list := exhaustiveRS n }.
+  Proof.
+    apply exhaustiveRS_correct.
+  Defined.
+
+  Lemma exhaustiveRS_NoDup n : NoDup (exhaustiveRS n).
+  Proof with auto.
+    induction n0; simpl.
+    constructor...
+    repeat apply NoDup_app; intros;
+      try solve 
+      [ apply NoDup_map; auto; intros;
+        match goal with
+        | H: Vcons ?a ?x = Vcons ?b ?y |- _ =>
+            set (w := Vcons_eq a b x y); intuition
+        end
+      | intro;
+        match goal with
+        | H: In _ (_ ++ _) |- _ =>
+            destruct (in_app_or H); clear H
+        | _ => idtac
+        end;
+        match goal with
+        | H: In ?x _, H': In ?x _ |- _ =>
+          let l := fresh "l" in set (l := ListUtil.in_map_elim H);
+          let r := fresh "r" in set (r := ListUtil.in_map_elim H')
+        end;
+        decomp; subst; discriminate
+      ].
+  Qed.
+
+  Lemma NoDup_locations : NoDup locations.
+  Proof.
+    apply exhaustiveRS_NoDup.
+  Qed.
+
    (** The continuous state of the system consists of
        temperatures of all the rooms. *)
   Definition CS := vector CR n.
@@ -151,6 +216,12 @@ Module RoomHeating (Import RHS : RoomHeatingSpec).
         cs [@ip] <= '(get [@ip]) /\
          (* the difference of temperatures in rooms [j] and [i] is at 
             least [diff_i] *)
-        '(diff [[i]]) <= (cs [[j]]) - (cs [[i]]).
+        '(diff [@ip]) <= (cs [@jp]) - (cs [@ip]).
+
+(*
+  Definition concrete_system: concrete.System :=
+    concrete.Build_System _ _ NoDup_locations initial invariant
+    initial_invariant invariant_wd flow guard reset.
+*)
 
 End RoomHeating.
