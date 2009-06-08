@@ -39,30 +39,42 @@ Section contents.
   Open Scope CR_scope.
 
   Definition spec_interval b n (s: IntervalSpec b n) (p: Point):
-   sig (fun i => geometry.in_orange (spec_bounds s i) (component p)) + { component p <= 'b }.
+   sig (fun i => geometry.in_orange (spec_bounds s i) (component p)) + (component p < 'b).
   Proof with simpl; auto.
     induction s; intro p'.
       simpl spec_bounds.
-      destruct (CR_le_le_dec ('b) (component p'))...
+      destruct (CR_le_lt_dec ('b) (component p'))...
       left. exists (bO 0). unfold geometry.in_orange...
-    destruct (CR_le_le_dec ('nb) (component p')); [left | right]...
+    destruct (CR_le_lt_dec ('nb) (component p')); [left | right]...
     destruct (IHs p').
       destruct s0.
       exists (bS x)...
     exists (bO (S l)).
     unfold geometry.in_orange...
-  Defined.
+  Qed.
 
-  Definition select_interval b n (s: IntervalSpec b n) (p: Point):
-    sig (fun i => forall (l: Location), invariant (l, p) -> geometry.in_orange (bounds s i) (component p)).
-  Proof with auto.
+  Definition select_interval b n (s: IntervalSpec b n) l (p: Point): invariant (l, p) ->
+    sig (fun i => geometry.in_orange (bounds s i) (component p)).
+  Proof with simpl; auto.
     intros.
     destruct (spec_interval s p).
       destruct s0.
       exists (bS x)...
     exists (bO (S n)).
-    split... exact I.
-  Defined.
+    split...
+  Qed.
+
+  Definition select_interval' b n (s: IntervalSpec b n)
+    (inv_lower: forall l p, invariant (l, p) -> 'b <= component p) l (p: Point): invariant (l, p) ->
+    sig (fun i => geometry.in_orange (spec_bounds s i) (component p)).
+  Proof with auto.
+    intros.
+    destruct (spec_interval s p).
+      destruct s0.
+      exists x...
+    elimtype False.
+    apply CRlt_le_asym with (component p) ('b); eauto.
+  Qed.
 
 End contents.
 

@@ -22,8 +22,8 @@ Program Definition spec: interval_spec.IntervalSpec 1 3 :=
   (interval_spec.highest 4)))).
 
 Definition Interval_bounds := interval_spec.bounds spec.
-Definition xinterval (p: Point) := interval_spec.select_interval fst invariant spec p.
-Definition yinterval (p: Point) := interval_spec.select_interval snd invariant spec p.
+Definition xinterval := interval_spec.select_interval fst invariant spec.
+Definition yinterval := interval_spec.select_interval snd invariant spec.
 
 (* Abstraction parameters *)
 

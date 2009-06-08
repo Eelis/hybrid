@@ -1,7 +1,8 @@
-Require Import util list_util.
+Require Import util list_util bnat.
 Require Import geometry.
 Require Import monotonic_flow.
 Require Import hs_solver.
+Require Import interval_spec.
 Require decreasing_exponential_flow.
 Require abstract abstraction square_abstraction.
 Require EquivDec.
@@ -51,78 +52,29 @@ Qed.
 
 (* Abstract regions: *)
 
-Inductive ClockInterval: Set := CI0_C | CIC_12 | CI12_1 | CI1_2 | CI2_3 | CI3_.
-Inductive TempInterval: Set := TI_5 | TI5_6 | TI6_8 | TI8_9 | TI9_10 | TI10_.
+Program Definition clock_spec: interval_spec.IntervalSpec 0 5 :=
+  (interval_spec.bound 0 _
+  (interval_spec.bound centi _
+  (interval_spec.bound (1#2) _
+  (interval_spec.bound (1+centi) _
+  (interval_spec.bound (2-centi) _
+  (interval_spec.highest 3)))))).
 
-Program Definition ClockInterval_qbounds (i: ClockInterval): OpenQRange :=
-  (match i with
-  | CI0_C => (0, centi): QRange
-  | CIC_12 => (centi, 1#2): QRange
-  | CI12_1 => (1#2, 1+centi): QRange
-  | CI1_2 => (1+centi, 2-centi): QRange
-  | CI2_3 => (2-centi, 3): QRange
-  | CI3_ => (Some 3, None)
-  end)%Q.
+Program Definition temp_spec: interval_spec.IntervalSpec (5-centi) 4 :=
+  (interval_spec.bound (5-centi) _
+  (interval_spec.bound 6 _
+  (interval_spec.bound 8 _
+  (interval_spec.bound (9-deci) _
+  (interval_spec.highest 10))))).
 
-Definition ClockInterval_bounds (i: ClockInterval): OpenRange := ClockInterval_qbounds i.
+Definition ClockInterval_bounds := interval_spec.spec_bounds clock_spec.
+Definition TempInterval_bounds := interval_spec.bounds temp_spec.
 
-Program Definition TempInterval_qbounds (i: TempInterval): OpenQRange :=
-  (match i with
-  | TI_5 => (None, Some (5-centi))
-  | TI5_6 => (5-centi, 6): QRange
-  | TI6_8 => (6, 8): QRange
-  | TI8_9 => (8, 9-deci): QRange
-  | TI9_10 => (9-deci, 10): QRange
-  | TI10_ => (Some 10, None)
-  end)%Q.
-
-Definition TempInterval_bounds (i: TempInterval): OpenRange :=
-  TempInterval_qbounds i.
-
-Instance clock_intervals: ExhaustiveList ClockInterval
-  := { exhaustive_list := CI0_C :: CIC_12 :: CI12_1 :: CI1_2 :: CI2_3 :: CI3_ :: nil }.
-Proof. hs_solver. Defined.
-
-Instance temp_intervals: ExhaustiveList TempInterval
-  := { exhaustive_list := TI_5 :: TI5_6 :: TI6_8 :: TI8_9 :: TI9_10 :: TI10_ :: nil }.
-Proof. hs_solver. Defined.
-
-Program Definition clock_interval (p: Point):
-    { i | forall l, invariant (l, p) -> in_orange (ClockInterval_bounds i) (fst p) } :=
-  if CR_le_le_dec (fst p) ('centi) then CI0_C else
-  if CR_le_le_dec (fst p) ('(1#2)) then CIC_12 else
-  if CR_le_le_dec (fst p) ('(1+centi)) then CI12_1 else
-  if CR_le_le_dec (fst p) ('(2-centi)) then CI1_2 else
-  if CR_le_le_dec (fst p) ('3) then CI2_3 else CI3_.
-
-Obligation Tactic := idtac.
-
-Next Obligation. intros p H l [A _]. split; assumption. Qed.
-
-Obligation Tactic := split; program_simpl.
-
-Program Definition temp_interval (p: Point):
-    { i | forall l, invariant (l, p) -> in_orange (TempInterval_bounds i) (snd p) } :=
-  if CR_le_le_dec (snd p) ('(5-centi)) then TI_5 else
-  if CR_le_le_dec (snd p) ('6) then TI5_6 else
-  if CR_le_le_dec (snd p) ('8) then TI6_8 else
-  if CR_le_le_dec (snd p) ('(9-deci)) then TI8_9 else
-  if CR_le_le_dec (snd p) ('10) then TI9_10 else TI10_.
-
-Instance ClockInterval_eq_dec: EquivDec.EqDec ClockInterval eq.
-Proof. hs_solver. Defined.
-
-Instance TempInterval_eq_dec: EquivDec.EqDec TempInterval eq.
-Proof. hs_solver. Defined.
-
-Lemma NoDup_clock_intervals: NoDup clock_intervals.
-Proof. hs_solver. Qed.
-
-Lemma NoDup_temp_intervals: NoDup temp_intervals.
-Proof. hs_solver. Qed.
+Definition clock_interval := interval_spec.select_interval' fst invariant clock_spec (fun _ _ => fst).
+Definition temp_interval := interval_spec.select_interval snd invariant temp_spec.
 
 Definition ap: abstract.Parameters conc.system :=
-  square_abstraction.ap NoDup_clock_intervals NoDup_temp_intervals
+  square_abstraction.ap (NoDup_bnats 6) (NoDup_bnats 6)
   _ _ _ _ _ _ _ _ _ _ _ clock_interval temp_interval.
 
 (* Abstracted initial: *)
@@ -141,7 +93,7 @@ Proof.
 Qed.
 
 Let initial_dec := @square_abstraction.initial_dec
-  _ _ _ _ _ _ _ _ _ NoDup_clock_intervals NoDup_temp_intervals
+  _ _ _ _ _ _ _ _ _ (NoDup_bnats 6) (NoDup_bnats 6)
   _ _ _ _ _ _ initial_invariant _ _ invariant_wd NoDup_locations
   clock_interval temp_interval _ _ initial_representative.
 
@@ -196,13 +148,11 @@ Definition clock_hints (l: Location) (r r': abstract.Region ap): r <> r' ->
 Proof with auto.
   intros l [ci ti] [ci' ti'] H.
   unfold abstraction.AltHint, abstract.in_region, square_abstraction.in_region,
-    square_abstraction.square, in_osquare.
-  simpl.
-  unfold square_abstraction.in_region, in_osquare,
-    in_orange at 1 3, ClockInterval_bounds.
+    square_abstraction.square, in_osquare, ap, square_abstraction.ap,
+    square_abstraction.in_region, square_abstraction.square, prod_map.
   simpl @fst. simpl @snd.
-  destruct (ClockInterval_qbounds ci) as [[ci_lo ci_hi] ci_le].
-  destruct (ClockInterval_qbounds ci') as [[ci'_lo ci'_hi] ci'_le].
+  destruct (spec_bounds clock_spec ci) as [[ci_lo ci_hi] ci_le].
+  destruct (spec_bounds clock_spec ci') as [[ci'_lo ci'_hi] ci'_le].
   destruct ci_lo; [idtac | exact None].
   destruct ci'_hi; [idtac | exact None].
   destruct (Qeq_dec q q0) as [A|B]; [idtac | exact None].
@@ -221,17 +171,13 @@ Proof with auto.
   destruct l; [idtac | exact None | exact None].
   unfold abstraction.AltHint, abstract.in_region, square_abstraction.in_region,
    square_abstraction.square, in_osquare.
-  simpl.
-  unfold square_abstraction.in_region, in_osquare.
+  unfold ap, square_abstraction.ap, square_abstraction.in_region,
+   square_abstraction.square, prod_map.
   simpl @fst. simpl @snd.
-  unfold in_orange at 2 4.
-  unfold orange_right at 1. unfold orange_left at 2.
-  unfold TempInterval_bounds.
-  destruct (TempInterval_qbounds ti) as [[ti_lo ti_hi] ti_le].
-  destruct (TempInterval_qbounds ti') as [[ti'_lo ti'_hi] ti'_le].
+  destruct (bounds temp_spec ti) as [[ti_lo ti_hi] ti_le].
+  destruct (bounds temp_spec ti') as [[ti'_lo ti'_hi] ti'_le].
   destruct ti_lo; [idtac | exact None].
   destruct ti'_hi; [idtac | exact None].
-  simpl.
   destruct (Qeq_dec q q0); [idtac | exact None].
   apply Some.
   intros p [H0 [H2 H4]] t [H1 [H3 H5]].
@@ -250,7 +196,7 @@ Definition hints (l: Location) (r r': abstract.Region ap) (E: r <> r') :=
 
 Program Definition disc_trans_dec eps :=
   square_abstraction.disc_trans
-    NoDup_clock_intervals NoDup_temp_intervals
+    (NoDup_bnats 6) (NoDup_bnats 6)
     clock_flow temp_flow _ initial_invariant reset invariant_wd NoDup_locations
     clock_interval temp_interval
     (invariant_dec eps) clock_reset temp_reset _
@@ -298,6 +244,6 @@ Definition system (eps: Qpos): abstract.System ap :=
     sig (fun ss: list (abstract.State conc.system (abstract.Region ap)) =>
     LazyProp (forall s, unsafe s -> forall r, abstract.abs ap s r -> In r ss))
       := square_abstraction.unsafe_abstract
-        NoDup_clock_intervals NoDup_temp_intervals
+        (NoDup_bnats 6) (NoDup_bnats 6)
         _ _ clock_interval temp_interval unsafe
         _ unsafe_squares_representative.

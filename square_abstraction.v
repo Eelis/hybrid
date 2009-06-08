@@ -115,10 +115,10 @@ Section contents.
       concrete_invariant (fst ls, p).
 
   Variables
-    (absXinterval: forall p: Point, { i: Xinterval |
-      forall l, concrete_invariant (l, p) -> in_orange (Xinterval_range i) (fst p) })
-    (absYinterval: forall p: Point, { i: Yinterval |
-      forall l, concrete_invariant (l, p) -> in_orange (Yinterval_range i) (snd p) }).
+    (absXinterval: forall l (p: Point), concrete_invariant (l, p) ->
+      sig (fun i: Xinterval => in_orange (Xinterval_range i) (fst p)))
+    (absYinterval: forall l (p: Point), concrete_invariant (l, p) ->
+      sig (fun i: Yinterval => in_orange (Yinterval_range i) (snd p))).
         (* No need for LazyProp, because these are not used in computation anyway. *)
 
   Variable initial: Location -> Xinterval -> Yinterval -> bool.
@@ -169,9 +169,10 @@ Ltac bool_contradict id :=
 
   Program Definition select_region (l: concrete.Location concrete_system)
     (p: concrete.Point concrete_system) (I: concrete.invariant (l, p)): sig (in_region p) :=
-      (` (absXinterval p), ` (absYinterval p)).
+      (` (absXinterval I), ` (absYinterval I)).
   Next Obligation.
     destruct p.
+    intros.
     destruct_call absXinterval.
     destruct_call absYinterval.
     split; eauto.
@@ -325,6 +326,39 @@ Ltac bool_contradict id :=
 
   Hint Resolve in_map_orange.
 
+  Obligation Tactic := program_simpl.
+
+  Definition is_id_reset (r: Reset): bool :=
+    match r with
+    | Reset_id => true
+    | _ => false
+    end.
+
+  Program Definition absReset (p: concrete.Point concrete_system) (s: SquareInterval)
+    (is: in_region p s)
+    (l l0: concrete.Location concrete_system) (i: concrete.invariant (l0, reset l l0 p)):
+    sig (fun r: SquareInterval => in_region (reset l l0 p) r) :=
+    ( if is_id_reset (reset_x l l0) then fst s else
+        ` (@absXinterval l0 (apply_Reset (reset_x l l0) (fst p), apply_Reset (reset_y l l0) (snd p)) _)
+    , if is_id_reset (reset_y l l0) then snd s else
+       ` (@absYinterval l0 (apply_Reset (reset_x l l0) (fst p), apply_Reset (reset_y l l0) (snd p)) _)).
+
+  Next Obligation. rewrite reset_components in i. assumption. Qed.
+  Next Obligation. rewrite reset_components in i. assumption. Qed.
+
+  Next Obligation. Proof with auto.
+    rewrite reset_components.
+    split; simpl.
+      destruct_call absXinterval.
+      destruct (reset_x l l0)...
+      destruct is...
+    destruct_call absYinterval.
+    destruct (reset_y l l0)...
+    destruct is...
+  Qed.
+
+  Hint Unfold abstract_guard abstract_invariant.
+
   Lemma respects_disc (eps: Qpos) (s1 s2 : concrete.State concrete_system):
     let (l1, p1) := s1 in
     let (l2, p2) := s2 in
@@ -337,7 +371,7 @@ Ltac bool_contradict id :=
     unfold concrete.Point, concrete_system in s, s0.
     unfold concrete.Location, concrete_system in l, l0.
     unfold concrete.disc_trans in H.
-    destruct H. destruct H0. destruct H1. destruct H3.
+    destruct H. set (Q := H0). clearbody Q. destruct H0. destruct H1. destruct H3.
     simpl in H1.
     subst s0.
     simpl @fst in H.
@@ -350,117 +384,58 @@ Ltac bool_contradict id :=
       destruct H1.
       split...
       apply <- in_flat_map.
-      exists l0...
-    rewrite reset_components.
-    set (xi := match reset_x l l0 with
-      | Reset_id => fst i1
-      | Reset_const c => ` (absXinterval (c, apply_Reset (reset_y l l0) (snd s)))
-      | Reset_map f => ` (absXinterval (proj1_sigT _ _ f (fst s), apply_Reset (reset_y l l0) (snd s)))
-      end).
-    set (yi := match reset_y l l0 with
-      | Reset_id => snd i1
-      | Reset_const c => ` (absYinterval (apply_Reset (reset_x l l0) (fst s), c))
-      | Reset_map f => ` (absYinterval (apply_Reset (reset_x l l0) (fst s), proj1_sigT _ _ f (snd s)))
-      end).
-    exists (xi, yi).
-    rewrite reset_components in H4.
+      eauto.
+    exists (` (absReset Q H4)).
     split.
-      split; simpl.
-        subst xi. clear yi.
-        destruct (reset_x l l0)...
-          destruct_call absXinterval. simpl.
-          destruct c. eauto.
-        destruct_call absXinterval.
-        simpl in *. eauto.
-      subst yi. clear xi.
-      destruct (reset_y l l0)...
-        destruct_call absYinterval. simpl.
-        destruct c. eauto.
-      destruct_call absYinterval.
-      simpl in *. eauto.
+      destruct_call absReset...
     unfold disc_trans_regions.
-    destruct (guard_decider l i1 l0).
-    simpl overestimation_bool at 1.
-    destruct x.
-      destruct (invariant_decider (l, i1)).
-      simpl overestimation_bool at 1.
-      destruct x.
-        simpl andb.
-        cbv iota.
-        apply <- in_flat_map.
-        exists xi.
-        split.
-          clear yi.
-          subst xi.
-          destruct (reset_x l l0); auto.
-            apply in_filter; auto.
-            apply not_false_is_true.
-            destruct_call oranges_overlap_dec...
-            intro. apply n1...
-            apply oranges_share_point with c...
-              simpl. split...
-            destruct_call absXinterval.
-            simpl. destruct c. eauto.
-          simpl in H4.
-          apply in_filter; auto.
-          apply not_false_is_true.
-          destruct_call oranges_overlap_dec...
-          intro. apply n1...
-          apply oranges_share_point with (proj1_sigT _ _ m (fst s))...
-            unfold map_orange'.
-            destruct m.
-            apply in_map_orange...
-          destruct_call absXinterval.
-          simpl. apply i with l0...
-        apply in_filter.
-          apply in_map.
-          subst yi.
-          destruct (reset_y l l0); auto.
-            apply in_filter; auto.
-            apply not_false_is_true.
-            destruct_call oranges_overlap_dec...
-            intro. apply n1...
-            apply oranges_share_point with c...
-              simpl. split...
-            destruct_call absYinterval.
-            simpl. destruct c. eauto.
-          simpl in H4.
-          apply in_filter; auto.
-          apply not_false_is_true.
-          destruct_call oranges_overlap_dec...
-          intro. apply n1...
-          apply oranges_share_point with (proj1_sigT _ _ m (snd s))...
-            unfold map_orange'.
-            destruct m.
-            apply in_map_orange...
-          destruct_call absYinterval. simpl.
-          apply i with l0. eauto.
-        apply not_false_is_true.
-        intro.
-        apply (overestimation_false _ H1).
-        unfold abstract_invariant.
-        simpl.
-        exists (apply_Reset (reset_x l l0) (fst s), apply_Reset (reset_y l l0) (snd s)).
+    rewrite (overestimation_true (guard_decider l i1 l0)); [| eauto 20].
+    rewrite (overestimation_true (invariant_decider (l, i1))); [| eauto 20].
+    simpl andb.
+    cbv iota.
+    apply <- in_flat_map.
+    exists (fst (proj1_sig (absReset Q H4))).
+    split.
+      simpl @fst.
+      destruct_call absXinterval.
+      simpl proj1_sig.
+      destruct (reset_x l l0); auto.
+        apply in_filter; auto.
+        apply overestimation_true.
+        apply oranges_share_point with c...
         split...
-        split; simpl.
-          subst xi.
-          destruct (reset_x l l0)...
-            destruct_call absXinterval. destruct c. eauto.
-          destruct_call absXinterval.
-          simpl. apply i with l0. eauto.
-        subst yi.
-        destruct (reset_y l l0)...
-          destruct_call absYinterval. destruct c. eauto.
-        destruct_call absYinterval.
-        simpl. apply i with l0. eauto.
-      simpl.
-      apply n0...
-      unfold abstract_invariant.
-      simpl. exists s... split... split...
+      apply in_filter; auto.
+      apply overestimation_true.
+      apply oranges_share_point with (proj1_sigT _ _ m (fst s))...
+      unfold map_orange'.
+      destruct m...
+    apply in_filter.
+      simpl proj1_sig.
+      apply in_map.
+      destruct_call absYinterval.
+      destruct (reset_y l l0); auto.
+        apply in_filter; auto.
+        apply overestimation_true.
+        apply oranges_share_point with c...
+        split...
+      simpl in H4.
+      apply in_filter; auto.
+      apply overestimation_true.
+      apply oranges_share_point with (proj1_sigT _ _ m (snd s))...
+      unfold map_orange'.
+      destruct m.
+      apply in_map_orange...
+    apply overestimation_true.
+    unfold abstract_invariant.
     simpl.
-    apply n...
-    unfold abstract_guard.
-    simpl. exists s... split... split...
+    exists (apply_Reset (reset_x l l0) (fst s), apply_Reset (reset_y l l0) (snd s)).
+    split...
+      split; simpl.
+        destruct_call absXinterval.
+        destruct (reset_x l l0)...
+      destruct_call absYinterval.
+      destruct (reset_y l l0)...
+    rewrite <- reset_components...
   Qed.
 
   Program Definition disc_trans (eps: Qpos) (s: State):
@@ -478,6 +453,8 @@ Ltac bool_contradict id :=
     destruct s.
     eauto.
   Qed.
+
+  Obligation Tactic := idtac.
 
   Program Definition cont_trans_cond_dec eps l r r':
     overestimation (abstraction.cont_trans_cond ap l r r') :=

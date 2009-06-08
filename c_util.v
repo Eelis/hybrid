@@ -924,6 +924,14 @@ Lemma CR_le_le_dec x y: {x<=y}+{y<=x}.
   destruct s; [left | right]; apply CRlt_le; assumption.
 Defined.
 
+Definition CR_le_lt_dec x y: (x <= y) + (y < x).
+Proof with auto.
+  intros x y.
+  destruct (CR_lt_eq_dec x y).
+    left. rewrite s. apply CRle_refl.
+  destruct s...
+Qed.
+
 Lemma CR_le_le_dec_wd: forall x x' y y', x == x' -> y == y' ->
   unsumbool (CR_le_le_dec x y) =
   unsumbool (CR_le_le_dec x' y').
