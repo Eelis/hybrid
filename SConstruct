@@ -1,6 +1,7 @@
 import os, glob, string
-corn_dir = '/home/koper/coq_libs/CoRN'
-color_dir = '/home/koper/coq_libs/color/color/trunk/color'
+libs = os.environ["COQLIBS"]
+corn_dir = libs + '/CoRN'
+color_dir = libs + '/color/color/trunk/color'
 
 Rs = [(corn_dir, 'CoRN'), (color_dir, 'CoLoR'), ('.', 'hybrid')]
 Rs = string.join(map(lambda (x,y): '-R "' + x + '" ' + y, Rs))
