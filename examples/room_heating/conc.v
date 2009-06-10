@@ -1,62 +1,26 @@
-Require Import QArith.
-Require Import util.
-Require Import c_util.
-Require Import nat_util.
-Require Import list_util.
-Require Import Program.
-Require Import CRln.
-Require Import hs_solver.
-Require Import monotonic_flow.
-Require Import CoLoR.Util.Vector.VecUtil.
-Require Import vector_setoid.
-Require square_abstraction.
-Require decreasing_exponential_flow.
+Require  Coq.Program.Program.
+
+Require Import CoRN.reals.fast.CRln.
+
+Require Export hybrid.examples.room_heating.params.
+Require Import hybrid.util.
+Require Import hybrid.c_util.
+Require Import hybrid.nat_util.
+Require Import hybrid.list_util.
+Require Import hybrid.hs_solver.
+Require Import hybrid.monotonic_flow.
+Require Import hybrid.vector_setoid.
+Require Import hybrid.square_abstraction.
+Require Import hybrid.decreasing_exponential_flow.
 
 Set Implicit Arguments.
-
-Definition vectorQ := vector Q.
-
-(** * Parametrization of the room heating example *)
-Module Type RoomHeatingSpec.
-
-   (** number of rooms *)
-  Parameter n : nat.
-  Parameter nPos : (n > 0)%nat.
-
-   (** [initHeaters_i] indicates whether initially there
-       is a heater in room [i]. This parameter induces
-       the total number of heaters in the system. *)
-  Parameter initHeaters : vector bool n.
-
-   (** The [on] and [off] thresholds for thermostats
-       in all rooms. *)
-  Parameter on : vectorQ n.
-  Parameter off : vectorQ n.
-
-   (** For every room the [on] threshold needs to be strictly 
-       smaller than the [off] threshold. *)
-  Parameter on_lt_off : Vforall2n (fun on off => (on < off)%Q) on off.
-
-   (** heater can be moved to room [i] only if the 
-       temperature in this room is below [get_i]. *)
-  Parameter get : vectorQ n.
-
-   (** heater can be moved from room [j] to room [i] 
-       only if the temperature in room [j] is higher 
-       than that in room [i] by at least [diff_i]. *)
-  Parameter diff : vectorQ n.
-
-   (** initial temperature in all rooms. *)
-  Parameter initTemp : vectorQ n.
-
-End RoomHeatingSpec.
 
 Local Open Scope CR_scope.
 Local Open Scope vec_scope.
 
 (** * Instantiation of room heating to a given 
       specification *)
-Module RoomHeating (Import RHS : RoomHeatingSpec).
+Module RoomHeatingConcrete (Import RHS : RoomHeatingSpec).
 
    (** A state of the room. *)
   Inductive RoomState :=
@@ -245,4 +209,4 @@ Module RoomHeating (Import RHS : RoomHeatingSpec).
     concrete.Build_System _ _ NoDup_locations initial invariant
     initial_invariant invariant_wd flow guard reset.
 
-End RoomHeating.
+End RoomHeatingConcrete.

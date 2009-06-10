@@ -26,7 +26,7 @@ examples: $(EXAMPLES_BIN)
 	ocamlopt $*.mli $*_patched.ml $*_test.ml -o $@
 	
 config:
-	$(COQBIN)/coq_makefile -R . HS -R $(CoRN) CoRN -R $(CoLoR) CoLoR `find ./*.v` > Makefile.coq
+	$(COQBIN)/coq_makefile -R . hybrid -R $(CoRN) CoRN -R $(CoLoR) CoLoR `find ./*.v` > Makefile.coq
 	$(COQMAKE) depend
 
 clean:

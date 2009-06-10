@@ -1,6 +1,6 @@
-Require Import room_heating.
-Require Import QArith.
-Require Import Program.
+Require Import hybrid.examples.room_heating.conc.
+
+Require Import Coq.Program.Program.
 
 Ltac ref := reflexivity.
 
@@ -19,14 +19,13 @@ Module RHS <: RoomHeatingSpec.
   Definition initHeaters := vec_of_list [true; true; false].
   Definition initTemp := vec_of_list [20:Q; 20:Q; 20:Q].
 
-  Lemma on_lt_off : Vforall2 (fun on off => on < off) on off.
+  Lemma on_lt_off : Vforall2n (fun on off => on < off) on off.
   Proof.
-    apply Vforall2_intro. intros.
-    destruct ip.
-    do 3 (destruct x; [vm_compute; trivial | idtac]).
-    simpl in l. elimtype False. omega.    
+    apply Vforall2n_intro. intros.
+    do 3 (destruct i; [vm_compute; trivial | idtac]).
+    simpl in ip. elimtype False. omega.    
   Qed.
 
 End RHS.
 
-Module RHSex := RoomHeating RHS.
+Module RHSex := RoomHeatingConcrete RHS.
