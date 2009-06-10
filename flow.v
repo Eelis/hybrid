@@ -47,8 +47,7 @@ Section product_flow.
   Definition product_flow: Flow (ProdCSetoid X Y).
   Proof with auto.
     apply (Build_Flow fm); destruct x; simpl.
-    destruct fm. simpl.
-      split; apply flow_zero.
+    split; apply flow_zero.
     split; apply flow_additive.
   Defined.
 
@@ -240,3 +239,38 @@ Section contents.
 
 End contents.
 End negative_linear.
+
+Require Import vector_setoid.
+Require Import VecEq.
+
+Section vector_flow.
+
+  Variable n : nat.
+  Variable X : CSetoid. 
+  Variable vec_f : vector (Flow X) n.
+
+  Let f (vec_x : vecCSetoid X n) (t : Time) : vecCSetoid X n :=
+    let flow_dim i ip :=
+      let f := Vnth vec_f ip in
+      let x := Vnth vec_x ip in
+        f x t
+    in
+      Vbuild flow_dim.
+
+  Let fm : binary_setoid_morphism (vecCSetoid X n) CRasCSetoid (vecCSetoid X n).
+  Proof with auto.
+    apply (Build_binary_setoid_morphism _ _ _ f). intros.
+    simpl. apply Vforall2n_intro. intros.
+    unfold f. repeat rewrite Vbuild_nth.
+    simpl. apply bsm_mor... admit.
+  Defined.
+
+  Definition vector_flow : Flow (vecCSetoid X n).
+  Proof with auto.
+    apply (Build_Flow fm); intros; simpl; apply Veq_vec_nth; intros;
+      unfold f; repeat rewrite Vbuild_nth; simpl.
+    apply flow_zero.
+    apply flow_additive.
+  Defined.
+
+End vector_flow.

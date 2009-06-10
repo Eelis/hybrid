@@ -6,8 +6,11 @@ Require Import list_util.
 Require Import Program.
 Require Import CRln.
 Require Import hs_solver.
+Require Import monotonic_flow.
 Require Import CoLoR.Util.Vector.VecUtil.
+Require Import vector_setoid.
 Require square_abstraction.
+Require decreasing_exponential_flow.
 
 Set Implicit Arguments.
 
@@ -32,7 +35,7 @@ Module Type RoomHeatingSpec.
 
    (** For every room the [on] threshold needs to be strictly 
        smaller than the [off] threshold. *)
-  Parameter on_lt_off : Vforall2n (fun on off => on < off) on off.
+  Parameter on_lt_off : Vforall2n (fun on off => (on < off)%Q) on off.
 
    (** heater can be moved to room [i] only if the 
        temperature in this room is below [get_i]. *)
@@ -139,7 +142,7 @@ Module RoomHeating (Import RHS : RoomHeatingSpec).
 
    (** The continuous state of the system consists of
        temperatures of all the rooms. *)
-  Definition CS := vector CR n.
+  Definition CS := vecCSetoid CRasCSetoid n.
 
   Definition State := (DS * CS)%type.
   Definition ds : State -> DS := fst.
@@ -194,6 +197,18 @@ Module RoomHeating (Import RHS : RoomHeatingSpec).
     apply (Vforall2n_nth _ _ _ ip on_lt_off).
   Qed.
 
+  Lemma invariant_wd: forall l l', l = l' ->
+    forall (p p': CS), p [=] p' -> (invariant (l, p) <-> invariant (l', p')).
+  Proof.
+    unfold invariant. intros. subst.
+    apply check_n_equiv. intros. simpl.
+    destruct (l')[@ip].
+    tauto.
+     (* FIXME: This should be handled by simple rewrite with setoid! *)
+    rewrite (Vnth_Cmorph ip _ _ H0). tauto.
+    rewrite (Vnth_Cmorph ip _ _ H0). tauto.
+  Qed.
+
   Definition temp_reset (l1 l2 : DS) : square_abstraction.Reset :=
     square_abstraction.Reset_id.
 
@@ -218,10 +233,16 @@ Module RoomHeating (Import RHS : RoomHeatingSpec).
             least [diff_i] *)
         '(diff [@ip]) <= (cs [@jp]) - (cs [@ip]).
 
-(*
+  Definition room_flow (rs : RoomState) : Flow CRasCSetoid :=
+    match rs with
+    | HeaterOn => flow.scale.flow ('2) flow.positive_linear.f
+    | HeaterOff | NoHeater => decreasing_exponential_flow.f
+    end.
+
+  Definition flow (l : DS) := vector_flow (Vmap room_flow l).
+
   Definition concrete_system: concrete.System :=
     concrete.Build_System _ _ NoDup_locations initial invariant
     initial_invariant invariant_wd flow guard reset.
-*)
 
 End RoomHeating.
