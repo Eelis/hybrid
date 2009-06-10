@@ -5,7 +5,7 @@ Require abstract.
 Require abstract_as_graph.
 Require Import Program.
 
-Require thermostat.conc thermostat.abs.
+Require hybrid.examples.thermostat.conc hybrid.examples.thermostat.abs.
 Module conc := thermostat.conc.
 Module abs := thermostat.abs.
 

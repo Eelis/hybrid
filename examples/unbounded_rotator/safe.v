@@ -2,7 +2,7 @@ Require Import util c_util.
 Require abstract abstract_as_graph.
 Require Import Program.
 
-Require unbounded_rotator.conc unbounded_rotator.abs.
+Require hybrid.examples.unbounded_rotator.conc hybrid.examples.unbounded_rotator.abs.
 Module conc := unbounded_rotator.conc.
 Module abs := unbounded_rotator.abs.
 
