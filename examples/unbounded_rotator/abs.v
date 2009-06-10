@@ -7,7 +7,7 @@ Require decreasing_exponential_flow.
 Require abstract abstraction square_abstraction interval_spec.
 Require EquivDec.
 
-Require Import unbounded_rotator.conc.
+Require Import hybrid.examples.unbounded_rotator.conc.
 
 Set Implicit Arguments.
 

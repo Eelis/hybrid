@@ -7,7 +7,7 @@ Require decreasing_exponential_flow.
 Require abstract abstraction square_abstraction.
 Require EquivDec.
 
-Require Import thermostat.conc.
+Require Import hybrid.examples.thermostat.conc.
 Module conc_thermo := thermostat.conc.
 
 Set Implicit Arguments.

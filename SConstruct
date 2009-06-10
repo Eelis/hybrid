@@ -1,8 +1,7 @@
 import os, glob, string
 corn_dir = '/data/home/eelis/soft/CoRN'
 
-Rs = [(corn_dir, 'CoRN')]
-for f in glob.glob('examples/*'): Rs += [(f, f.split('/')[-1])]
+Rs = [(corn_dir, 'CoRN'), ('.', 'hybrid')]
 Rs = string.join(map(lambda (x,y): '-R "' + x + '" ' + y, Rs))
 
 coqc = 'coqc ' + Rs
