@@ -1,17 +1,27 @@
 Require geometry.
 Require Import bnat.
-Require Import c_util.
+Require Import util c_util.
+Require abstract abstraction.
 
 Set Implicit Arguments.
 
+Open Scope CR_scope.
+
 Section contents.
+
+  Variables
+    (chs: concrete.System)
+    (component: unary_setoid_morphism (concrete.Point chs) CRasCSetoid).
+
+  Add Morphism component with signature (@cs_eq _) ==> (@cs_eq _) as component_mor.
+  Proof. intros. apply usm_wd; auto. Qed.
 
   Inductive IntervalSpec: Q -> nat -> Type :=
     | highest b: IntervalSpec b 0
     | bound: forall (nb ob: Q) (p: (nb <= ob)%Q) (l: nat),
         IntervalSpec ob l -> IntervalSpec nb (S l).
 
-  Definition spec_bounds r n: IntervalSpec r n -> bnat (S n) -> geometry.OpenQRange.
+  Definition spec_bounds b n: IntervalSpec b n -> bnat (S n) -> geometry.OpenQRange.
     apply (IntervalSpec_rect
       (fun cr n _ => bnat (S n) -> geometry.OpenQRange) (fun q _ => geometry.qabove q)).
     intros nb ob.
@@ -25,20 +35,14 @@ Section contents.
     assumption.
   Defined.
 
-  Definition bounds r n: IntervalSpec r n -> bnat (S (S n)) -> geometry.OpenQRange.
-    intros.
-    destruct (bnat_cases H0) as [[p A] | B].
-      exact (spec_bounds H p).
-    exact (geometry.qbelow r).
+  Definition bounds b n: IntervalSpec b n -> bnat (S (S n)) -> geometry.OpenQRange.
+    intros b n s i.
+    destruct (bnat_cases i) as [[p A] | B].
+      exact (spec_bounds s p).
+    exact (geometry.qbelow b).
   Defined.
 
-  Variables (Location Point: Type)
-    (component: Point -> CR)
-    (invariant: Location * Point -> Prop).
-
-  Open Scope CR_scope.
-
-  Definition spec_interval b n (s: IntervalSpec b n) (p: Point):
+  Definition spec_interval b n (s: IntervalSpec b n) (p: concrete.Point chs):
    sig (fun i => geometry.in_orange (spec_bounds s i) (component p)) + (component p < 'b).
   Proof with simpl; auto.
     induction s; intro p'.
@@ -53,7 +57,7 @@ Section contents.
     unfold geometry.in_orange...
   Qed.
 
-  Definition select_interval b n (s: IntervalSpec b n) l (p: Point): invariant (l, p) ->
+  Definition select_interval b n (s: IntervalSpec b n) l p: concrete.invariant (l, p) ->
     sig (fun i => geometry.in_orange (bounds s i) (component p)).
   Proof with simpl; auto.
     intros.
@@ -65,7 +69,8 @@ Section contents.
   Qed.
 
   Definition select_interval' b n (s: IntervalSpec b n)
-    (inv_lower: forall l p, invariant (l, p) -> 'b <= component p) l (p: Point): invariant (l, p) ->
+    (inv_lower: forall l p, concrete.invariant (l, p) -> 'b <= component p)
+    l p: concrete.invariant (l, p) ->
     sig (fun i => geometry.in_orange (spec_bounds s i) (component p)).
   Proof with auto.
     intros.
@@ -75,6 +80,19 @@ Section contents.
     elimtype False.
     apply CRlt_le_asym with (component p) ('b); eauto.
   Qed.
+
+  Variables (b: Q) (n: nat) (s: IntervalSpec b n).
+
+  Definition Region := bnat (S (S n)).
+
+  Require interval_abstraction.
+
+  Definition ap: abstract.Parameters chs :=
+    interval_abstraction.parameters chs component (NoDup_bnats _) (bounds s) (select_interval s).
+
+  Definition ap' (UH: forall l p, concrete.invariant (l, p) -> ' b <= component p):
+    abstract.Parameters chs :=
+      interval_abstraction.parameters chs component (NoDup_bnats _) (spec_bounds s) (select_interval' s UH).
 
 End contents.
 

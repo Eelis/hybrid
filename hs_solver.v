@@ -117,9 +117,7 @@ Ltac hs_unfolds :=
   repeat progress (
     unfold 
       Basics.compose,
-      in_orange, in_osquare, orange_left, orange_right,
-      square_abstraction.in_region,
-      square_abstraction.select_region;
+      in_orange, in_osquare, orange_left, orange_right;
     simpl).
 
 Ltac CRle_solve :=

@@ -1,4 +1,4 @@
-Require abstraction.
+Require abstraction interval_abstraction.
 Require square_flow_conditions.
 Require Import util.
 Require Import list_util.
@@ -40,49 +40,13 @@ Section contents.
     {Xintervals: ExhaustiveList Xinterval}
     {Yintervals: ExhaustiveList Yinterval}.
 
-  Definition SquareInterval: Set := (Xinterval * Yinterval)%type.
-
   Variables
     (NoDup_Xintervals: NoDup Xintervals)
     (NoDup_Yintervals: NoDup Yintervals).
 
-  Lemma NoDup_squareIntervals: NoDup (@ExhaustivePairList Xinterval Yinterval _ _).
-  Proof with auto.
-    unfold exhaustive_list.
-    simpl.
-    apply NoDup_flat_map; intros...
-      destruct (fst (in_map_iff (pair a) Yintervals x) H1).
-      destruct (fst (in_map_iff (pair b) Yintervals x) H2).
-      destruct H3. destruct H4.
-      subst. inversion H4...
-    apply NoDup_map...
-    intros. inversion H2...
-  Qed.
-
   Variables
-    (Xinterval_range: Xinterval -> OpenRange)
-    (Yinterval_range: Yinterval -> OpenRange).
-
-  Definition square: SquareInterval -> OpenSquare :=
-    prod_map Xinterval_range Yinterval_range.
-
-  Definition in_region (p: Point) (s: SquareInterval): Prop :=
-    in_osquare p (square s).
-
-  Lemma in_region_wd x x': x [=] x' -> forall r, in_region x r -> in_region x' r.
-  Proof with auto.
-    unfold in_region.
-    intros.
-    destruct H0.
-    destruct r.
-    simpl in H0, H1. unfold square. simpl.
-    destruct x. destruct x'.
-    simpl in H0, H1.
-    inversion_clear H.
-    split; simpl.
-      apply (@in_orange_wd (Xinterval_range x0) (Xinterval_range x0)) with s; try reflexivity...
-    apply (@in_orange_wd (Yinterval_range y) (Yinterval_range y)) with s0; try reflexivity...
-  Qed.
+    (Xinterval_range: Xinterval -> OpenQRange)
+    (Yinterval_range: Yinterval -> OpenQRange).
 
   Variables
     (xflow yflow: Location -> Flow CRasCSetoid)
@@ -105,14 +69,12 @@ Section contents.
 
   Hypothesis NoDup_locations: NoDup locations.
 
-  Definition abstract_guard (l: Location) (s: SquareInterval) (l': Location): Prop
-    := exists p, geometry.in_osquare p (square s) /\
-	concrete_guard (l, p) l'.
-
-  Definition abstract_invariant (ls: Location * SquareInterval): Prop :=
-    exists p,
-      geometry.in_osquare p (square (snd ls)) /\
-      concrete_invariant (fst ls, p).
+  Definition concrete_system: concrete.System :=
+    @concrete.Build_System Point Location Location_eq_dec
+      locations NoDup_locations concrete_initial
+      concrete_invariant concrete_invariant_initial invariant_wd
+      (fun l: Location => product_flow (xflow l) (yflow l))
+      concrete_guard reset.
 
   Variables
     (absXinterval: forall l (p: Point), concrete_invariant (l, p) ->
@@ -120,6 +82,23 @@ Section contents.
     (absYinterval: forall l (p: Point), concrete_invariant (l, p) ->
       sig (fun i: Yinterval => in_orange (Yinterval_range i) (snd p))).
         (* No need for LazyProp, because these are not used in computation anyway. *)
+
+  Definition ap: abstract.Parameters concrete_system :=
+    abstract.param_prod
+      (interval_abstraction.parameters concrete_system fst_mor NoDup_Xintervals Xinterval_range absXinterval)
+      (interval_abstraction.parameters concrete_system snd_mor NoDup_Yintervals Yinterval_range absYinterval).
+
+  Definition square: abstract.Region ap -> OpenQSquare :=
+    prod_map Xinterval_range Yinterval_range.
+
+  Definition abstract_guard (l: Location) (s: abstract.Region ap) (l': Location): Prop
+    := exists p, abstract.in_region ap p s /\
+	concrete_guard (l, p) l'.
+
+  Definition abstract_invariant (ls: Location * abstract.Region ap): Prop :=
+    exists p,
+      abstract.in_region ap p (snd ls) /\
+      concrete_invariant (fst ls, p).
 
   Variable initial: Location -> Xinterval -> Yinterval -> bool.
 
@@ -140,7 +119,7 @@ Ltac bool_contradict id :=
   end.
 
   Obligation Tactic := idtac.
-  Program Definition invariant_dec eps (li : Location * SquareInterval): overestimation (abstract_invariant li) :=
+  Program Definition invariant_dec eps (li : Location * abstract.Region ap): overestimation (abstract_invariant li) :=
     osquares_overlap_dec eps (invariant_squares (fst li)) (square (snd li)).
   Next Obligation. Proof with auto.
     intros eps li H [p [B C]].
@@ -153,34 +132,6 @@ Ltac bool_contradict id :=
 
   Hypothesis reset_components: forall p l l',
     reset l l' p = (apply_Reset (reset_x l l') (fst p), apply_Reset (reset_y l l') (snd p)).
-
-  Instance SquareInterval_eq_dec: EquivDec.EqDec SquareInterval eq.
-    repeat intro.
-    cut (decision (x = y)). auto.
-    dec_eq. apply Yinterval_eq_dec. apply Xinterval_eq_dec.
-  Defined.
-
-  Definition concrete_system: concrete.System :=
-    @concrete.Build_System Point Location Location_eq_dec
-      locations NoDup_locations concrete_initial
-      concrete_invariant concrete_invariant_initial invariant_wd
-      (fun l: Location => product_flow (xflow l) (yflow l))
-      concrete_guard reset.
-
-  Program Definition select_region (l: concrete.Location concrete_system)
-    (p: concrete.Point concrete_system) (I: concrete.invariant (l, p)): sig (in_region p) :=
-      (` (absXinterval I), ` (absYinterval I)).
-  Next Obligation.
-    destruct p.
-    intros.
-    destruct_call absXinterval.
-    destruct_call absYinterval.
-    split; eauto.
-  Qed.
-
-  Definition ap: abstract.Parameters concrete_system :=
-    abstract.Build_Parameters concrete_system _ _
-      NoDup_squareIntervals in_region in_region_wd select_region.
 
   Section initial_dec.
 
@@ -263,9 +214,9 @@ Ltac bool_contradict id :=
   Definition map_orange' (f: sigT increasing): OpenRange -> OpenRange
     := let (_, y) := f in map_orange y.
 
-  Let State := prod Location SquareInterval.
+  Let State := prod Location (abstract.Region ap).
 
-  Definition disc_trans_regions (eps: Qpos) (l l': Location) (r: SquareInterval): list SquareInterval
+  Definition disc_trans_regions (eps: Qpos) (l l': Location) (r: abstract.Region ap): list (abstract.Region ap)
     :=
     if guard_decider l r l' && invariant_decider (l, r) then
     let xs := match reset_x l l' with
@@ -306,7 +257,7 @@ Ltac bool_contradict id :=
       intros.
       inversion_clear H2...
     unfold disc_trans_regions.
-    destruct (guard_decider l s x && invariant_decider (l, s))...
+    destruct (guard_decider l r x && invariant_decider (l, r))...
     apply NoDup_flat_map...
         intros.
         destruct (fst (filter_In _ _ _) H2).
@@ -334,10 +285,10 @@ Ltac bool_contradict id :=
     | _ => false
     end.
 
-  Program Definition absReset (p: concrete.Point concrete_system) (s: SquareInterval)
-    (is: in_region p s)
+  Program Definition absReset (p: concrete.Point concrete_system) (s: abstract.Region ap)
+    (is: abstract.in_region ap p s)
     (l l0: concrete.Location concrete_system) (i: concrete.invariant (l0, reset l l0 p)):
-    sig (fun r: SquareInterval => in_region (reset l l0 p) r) :=
+    sig (fun r => abstract.in_region ap (reset l l0 p) r) :=
     ( if is_id_reset (reset_x l l0) then fst s else
         ` (@absXinterval l0 (apply_Reset (reset_x l l0) (fst p), apply_Reset (reset_y l l0) (snd p)) _)
     , if is_id_reset (reset_y l l0) then snd s else
@@ -362,8 +313,8 @@ Ltac bool_contradict id :=
   Lemma respects_disc (eps: Qpos) (s1 s2 : concrete.State concrete_system):
     let (l1, p1) := s1 in
     let (l2, p2) := s2 in
-    concrete.disc_trans s1 s2 -> forall i1, in_region p1 i1 ->
-    exists i2, in_region p2 i2 /\
+    concrete.disc_trans s1 s2 -> forall i1, abstract.in_region ap p1 i1 ->
+    exists i2, abstract.in_region ap p2 i2 /\
     In (l2, i2) (raw_disc_trans eps (l1, i1)).
   Proof with simpl; auto.
     destruct s1. destruct s2.
@@ -376,7 +327,7 @@ Ltac bool_contradict id :=
     subst s0.
     simpl @fst in H.
     unfold raw_disc_trans.
-    cut (exists i2: SquareInterval, in_region (reset l l0 s) i2 /\
+    cut (exists i2, abstract.in_region ap (reset l l0 s) i2 /\
          In i2 (disc_trans_regions eps l l0 i1)).
       intro.
       destruct H1.
@@ -450,8 +401,8 @@ Ltac bool_contradict id :=
     destruct s2.
     destruct (y H0 _ H1).
     destruct H2.
-    destruct s.
-    eauto.
+    destruct s...
+    exists x...
   Qed.
 
   Obligation Tactic := idtac.
@@ -481,9 +432,9 @@ Ltac bool_contradict id :=
         destruct p. destruct q. inversion cteq.
         destruct pi. destruct qi. simpl in H1, H2, H3, H4.
         split.
-          apply in_orange_wd with (Xinterval_range (fst i2)) s1...
+          apply in_orange_wd with ((Xinterval_range (fst i2)): OpenRange) s1...
           symmetry...
-        apply in_orange_wd with (Yinterval_range (snd i2)) s2...
+        apply in_orange_wd with ((Yinterval_range (snd i2)): OpenRange) s2...
         symmetry...
       apply (overestimation_false _ e0).
       unfold abstract_invariant.

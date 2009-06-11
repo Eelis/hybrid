@@ -1,4 +1,4 @@
-Require Import util list_util.
+Require Import util list_util c_util.
 Require Import bnat.
 Require Import geometry.
 Require Import monotonic_flow.
@@ -22,8 +22,8 @@ Program Definition spec: interval_spec.IntervalSpec 1 3 :=
   (interval_spec.highest 4)))).
 
 Definition Interval_bounds := interval_spec.bounds spec.
-Definition xinterval := interval_spec.select_interval fst invariant spec.
-Definition yinterval := interval_spec.select_interval snd invariant spec.
+Definition xinterval := interval_spec.select_interval system fst_mor spec.
+Definition yinterval := interval_spec.select_interval system snd_mor spec.
 
 (* Abstraction parameters *)
 
@@ -92,10 +92,8 @@ Obligation Tactic := idtac.
 
 (* Abstract invariant *)
 
-Program Definition invariant_dec (eps: Qpos)
-  (li : Location * square_abstraction.SquareInterval):
-    overestimation (square_abstraction.abstract_invariant
-      Interval_bounds Interval_bounds invariant li) := true.
+Program Definition invariant_dec (eps: Qpos) (li : Location * abstract.Region ap):
+    overestimation (square_abstraction.abstract_invariant li) := true.
 
 Next Obligation. intros. discriminate. Qed.
 
@@ -121,15 +119,14 @@ Proof.
   destruct l; destruct l'; repeat split; simpl; auto; intros [[A B] [C D]]; auto.
 Qed.
 
-Let guard_dec := square_abstraction.guard_dec
-  Interval_bounds Interval_bounds guard_square guard_squares_correct.
+Let guard_dec: Qpos -> forall l (r : abstract.Region ap) l',
+  overestimation (square_abstraction.abstract_guard l r l')
+   := square_abstraction.guard_dec guard_square guard_squares_correct.
 
 (* Abstract discrete transitions *)
 
 Program Definition disc_trans_dec eps := square_abstraction.disc_trans
-  (NoDup_bnats 5) (NoDup_bnats 5)
-  xf yf initial initial_invariant reset invariant_wd NoDup_locations
-  xinterval yinterval (invariant_dec eps) xreset yreset _ (guard_dec eps) eps.
+  (invariant_dec eps) xreset yreset _ (guard_dec eps) eps.
 Next Obligation. reflexivity. Qed.
 
 (* Abstract continuous transitions *)

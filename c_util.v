@@ -1095,9 +1095,17 @@ Section function_properties.
 End function_properties.
 
 Record unary_setoid_morphism (A B: CSetoid): Type :=
-  { usm: A -> B
+  { usm:> A -> B
   ; usm_wd: forall a a', a [=] a' -> usm a [=] usm a'
   }.
+
+Program Definition fst_mor {A B}: unary_setoid_morphism (ProdCSetoid A B) A :=
+  Build_unary_setoid_morphism (ProdCSetoid A B) A fst _.
+Next Obligation. inversion_clear H. assumption. Qed.
+
+Program Definition snd_mor {A B}: unary_setoid_morphism (ProdCSetoid A B) B :=
+  Build_unary_setoid_morphism (ProdCSetoid A B) B snd _.
+Next Obligation. inversion_clear H. assumption. Qed.
 
 Section BSM.
 

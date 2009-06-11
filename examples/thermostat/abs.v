@@ -70,8 +70,8 @@ Program Definition temp_spec: interval_spec.IntervalSpec (5-centi) 4 :=
 Definition ClockInterval_bounds := interval_spec.spec_bounds clock_spec.
 Definition TempInterval_bounds := interval_spec.bounds temp_spec.
 
-Definition clock_interval := interval_spec.select_interval' fst invariant clock_spec (fun _ _ => fst).
-Definition temp_interval := interval_spec.select_interval snd invariant temp_spec.
+Definition clock_interval := interval_spec.select_interval' system fst_mor clock_spec (fun _ _ => fst).
+Definition temp_interval := interval_spec.select_interval system snd_mor temp_spec.
 
 Definition ap: abstract.Parameters conc.system :=
   square_abstraction.ap (NoDup_bnats 6) (NoDup_bnats 6)
@@ -112,9 +112,10 @@ Lemma invariant_squares_correct (l : Location) (p : Point):
   invariant (l, p) -> in_osquare p (invariant_squares l).
 Proof. unfold invariant. grind ltac:(destruct l). Qed.
 
-Let invariant_dec :=
-  square_abstraction.invariant_dec
-    ClockInterval_bounds TempInterval_bounds _ _ invariant_squares_correct.
+Let invariant_dec: Qpos -> forall li : Location * abstract.Region ap,
+  overestimation (square_abstraction.abstract_invariant li)
+    := square_abstraction.invariant_dec
+      invariant_squares invariant_squares_correct.
 
 (* Abstracted guard: *)
 
@@ -138,56 +139,51 @@ Proof.
   destruct l; destruct l'; repeat split; simpl; auto; intros [[A B] [C D]]; auto.
 Qed.
 
-Let guard_dec := square_abstraction.guard_dec
-  ClockInterval_bounds TempInterval_bounds guard_square guard_squares_correct.
+Let guard_dec: Qpos -> forall l (r: abstract.Region ap) l',
+  overestimation (square_abstraction.abstract_guard l r l')
+ := square_abstraction.guard_dec guard_square guard_squares_correct.
 
 (* Hints: *)
+
+Lemma invariant_implies_lower_clock_bound l (p: concrete.Point system):
+   concrete.invariant (l, p) -> ' 0 <= fst_mor p.
+Proof. intros l p [H _]. assumption. Defined.
 
 Definition clock_hints (l: Location) (r r': abstract.Region ap): r <> r' ->
   option (abstraction.AltHint ap l r r').
 Proof with auto.
-  intros l [ci ti] [ci' ti'] H.
-  unfold abstraction.AltHint, abstract.in_region, square_abstraction.in_region,
-    square_abstraction.square, in_osquare, ap, square_abstraction.ap,
-    square_abstraction.in_region, square_abstraction.square, prod_map.
-  simpl @fst. simpl @snd.
-  destruct (spec_bounds clock_spec ci) as [[ci_lo ci_hi] ci_le].
-  destruct (spec_bounds clock_spec ci') as [[ci'_lo ci'_hi] ci'_le].
-  destruct ci_lo; [idtac | exact None].
-  destruct ci'_hi; [idtac | exact None].
-  destruct (Qeq_dec q q0) as [A|B]; [idtac | exact None].
-  apply Some.
-  intros p [[H0 H4] H2] t [[H1 H5] H3].
-  apply (strongly_increasing_inv_mild) with (clock_flow l (fst p))...
-  rewrite flow_zero.
-  apply CRle_trans with ('q)...
-  rewrite A...
+  unfold ap, abstraction.AltHint.
+  unfold square_abstraction.ap, abstract.in_region, abstract.param_prod,
+   abstract.in_region, interval_abstraction.parameters,
+   interval_abstraction.in_region, abstract.Region.
+  intros.
+  assert (forall x, strongly_increasing (fst_mor ∘ concrete.flow system l x)).
+    intros. cut (strongly_increasing (clock_flow l (fst x)))...
+  apply (util.flip (@option_map _ _) (@interval_abstraction.hints system fst_mor _ _ _ (NoDup_bnats 6)
+   (interval_spec.spec_bounds clock_spec)
+   (interval_spec.select_interval' system fst_mor clock_spec
+     invariant_implies_lower_clock_bound)
+   (fst r) (fst r') (concrete.flow system l) X)).
+ intuition. apply H0 with p...
 Defined.
 
 Definition temp_hints (l: Location) (r r': abstract.Region ap): r <> r' -> option
   (abstraction.AltHint ap l r r').
 Proof with auto.
-  intros l [ci ti] [ci' ti'] H.
-  destruct l; [idtac | exact None | exact None].
-  unfold abstraction.AltHint, abstract.in_region, square_abstraction.in_region,
-   square_abstraction.square, in_osquare.
-  unfold ap, square_abstraction.ap, square_abstraction.in_region,
-   square_abstraction.square, prod_map.
-  simpl @fst. simpl @snd.
-  destruct (bounds temp_spec ti) as [[ti_lo ti_hi] ti_le].
-  destruct (bounds temp_spec ti') as [[ti'_lo ti'_hi] ti'_le].
-  destruct ti_lo; [idtac | exact None].
-  destruct ti'_hi; [idtac | exact None].
-  destruct (Qeq_dec q q0); [idtac | exact None].
-  apply Some.
-  intros p [H0 [H2 H4]] t [H1 [H3 H5]].
-  apply (strongly_increasing_inv_mild) with (temp_flow Heat (snd p))...
+  destruct l; intros; [| exact None | exact None].
+  unfold abstraction.AltHint, ap, square_abstraction.ap, abstract.in_region, abstract.param_prod,
+   abstract.in_region, interval_abstraction.parameters,
+   interval_abstraction.in_region, abstract.Region.
+  intros.
+  assert (forall x, strongly_increasing (snd_mor ∘ concrete.flow system Heat x)).
+    intros. cut (strongly_increasing (temp_flow Heat (snd x)))...
     unfold temp_flow...
-  rewrite flow_zero.
-  apply CRle_trans with ('q)...
-  rewrite q1...
+  apply (util.flip (@option_map _ _) (@interval_abstraction.hints system snd_mor _ _ _ (NoDup_bnats 6)
+   (interval_spec.bounds temp_spec)
+   (interval_spec.select_interval system snd_mor temp_spec)
+   (snd r) (snd r') (concrete.flow system Heat) X)).
+  intuition. apply H0 with p...
 Defined.
-  (* Todo: Automate these two above. *)
 
 Definition hints (l: Location) (r r': abstract.Region ap) (E: r <> r') :=
   options (clock_hints l E) (temp_hints l E).
@@ -196,9 +192,6 @@ Definition hints (l: Location) (r r': abstract.Region ap) (E: r <> r') :=
 
 Program Definition disc_trans_dec eps :=
   square_abstraction.disc_trans
-    (NoDup_bnats 6) (NoDup_bnats 6)
-    clock_flow temp_flow _ initial_invariant reset invariant_wd NoDup_locations
-    clock_interval temp_interval
     (invariant_dec eps) clock_reset temp_reset _
     (guard_dec eps) eps.
 
