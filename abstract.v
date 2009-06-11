@@ -43,6 +43,39 @@ Section contents.
     ; select_region: forall l p, concrete.invariant (l, p) -> sig (in_region p)
     }.
 
+  Existing Instance Region_eq_dec.
+  Existing Instance regions.
+
+  (* Given two sets of abstraction parameters, we can combine these to make
+   finer-grained abstraction parameters where each region corresponds to the
+   intersection of two regions of the respective abstraction parameters.
+
+   For instance, for a hybrid system whose continuous state space is the plane,
+   we could first define abstraction parameters with regions corresponding to X
+   intervals, then define abstraction parameters with regions corresponding to
+   Y intervals, and then finally combine these using param_prod below to
+   produce abstraction parameters with regions corresponding to squares. *)
+
+  Section param_prod.
+
+    Variables ap ap': Parameters.
+
+    Let in_region p r := in_region ap p (fst r) /\ in_region ap' p (snd r).
+
+    Let in_region_wd x x': x[=]x' -> forall r, in_region x r -> in_region x' r.
+    Proof. intros x x' H r [H0 H1]. split; eauto using in_region_wd. Qed.
+
+    Program Let select_region l p (H: concrete.invariant (l, p)): sig (in_region p)
+      := (select_region ap _ _ H, select_region ap' _ _ H).
+
+    Next Obligation. split; simpl; destruct_call select_region; assumption. Qed.
+
+    Definition param_prod: Parameters := Build_Parameters  _ _
+      (NoDup_ExhaustivePairList (NoDup_regions ap) (NoDup_regions ap'))
+      in_region in_region_wd select_region.
+
+  End param_prod.
+
   Variable ap: Parameters.
 
   Definition ContRespect :=
