@@ -58,7 +58,7 @@ Ltac qrange := unfold uncurry; vm_compute; intuition; discriminate.
 
 Ltac equiv_dec := repeat intro; 
   match goal with
-  | |- {Equivalence.equiv ?x ?y} + {_} =>
+  | |- {Equivalence.equiv _ _ ?x ?y} + {_} =>
     cut (decision (x = y)); [auto | dec_eq]
   end.
 
