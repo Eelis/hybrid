@@ -103,7 +103,6 @@ Definition system: System :=
     _ _
     NoDup_locations
     initial
-    invariant
     initial_invariant
     invariant_wd
     (fun l => product_flow (xf l) (yf l))

@@ -101,26 +101,21 @@ Section contents.
   Definition morphism: binary_setoid_morphism CRasCSetoid CRasCSetoid CRasCSetoid.
     apply (Build_binary_setoid_morphism _ _ _ raw).
     unfold raw.
-    intros.
-    apply bsm_wd.
-      assumption.
-    rewrite H0.
-    reflexivity.
+    intros a a' e b b' e'.
+    rewrite e, e'. reflexivity.
   Defined.
 
   Definition flow: Flow CRasCSetoid.
     apply (Build_Flow morphism); intros; simpl bsm; unfold raw.
-      assert (x [=] x) by reflexivity.
-      rewrite (bsm_wd f x x H (s * '0) ('0)).
-        apply flow_zero.
-      apply CRmult_0_r.
-    assert (x [=] x) by reflexivity.
-    rewrite (bsm_wd f x x H (s * (t + t')) (s * t + s * t')).
-      apply flow_additive.
-    rewrite (Rmul_comm CR_ring_theory).
-    rewrite (Rmul_comm CR_ring_theory s t).
-    rewrite (Rmul_comm CR_ring_theory s t').
-    apply (Rdistr_l CR_ring_theory).
+      rewrite CRmult_0_r.
+      apply flow_zero.
+    rewrite
+      <- flow_additive,
+      (Rmul_comm CR_ring_theory),
+      (Rmul_comm CR_ring_theory s t),
+      (Rmul_comm CR_ring_theory s t'),
+      (Rdistr_l CR_ring_theory).
+    reflexivity.
   Defined.
 
   Lemma inc: (forall x, strongly_increasing (f x)) ->
@@ -164,7 +159,7 @@ Section contents.
       rewrite (Rmul_comm CR_ring_theory (CRinv s (CRpos_apart_0 sp))).
       rewrite CRinv_mult.
       apply (Rmul_1_l CR_ring_theory).
-    apply (in_orange_wd (scale_orange sinv_nonneg (old_inv a b)) H1 H2 H3).
+    rewrite <- H3.
     apply in_scale_orange...
   Qed.
 

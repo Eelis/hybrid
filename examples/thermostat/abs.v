@@ -75,7 +75,7 @@ Definition temp_interval := interval_spec.select_interval system snd_mor temp_sp
 
 Definition ap: abstract.Parameters conc.system :=
   square_abstraction.ap (NoDup_bnats 6) (NoDup_bnats 6)
-  _ _ _ _ _ _ _ _ _ _ _ clock_interval temp_interval.
+  _ _ _ _ _ _ _ _ _ _ clock_interval temp_interval.
 
 (* Abstracted initial: *)
 

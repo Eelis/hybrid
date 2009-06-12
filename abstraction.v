@@ -40,19 +40,10 @@ Section contents.
       abstract.in_region ap (concrete.flow chs l p t) r' -> t <= '0).
 
   Lemma dealt_hint l r r': AltHint l r r' -> Hint l r r'.
-  Proof with auto.
+  Proof with eauto.
     repeat intro.
-    set (H p H0 _ H2). clearbody c. clear H.
-    set (snd (CRle_def t ('0)) (conj c H1)). clearbody s.
-    apply (abstract.in_region_wd ap) with p...
-    simpl bsm.
-    transitivity (concrete.flow chs l p ('0)).
-      symmetry.
-      apply flow_zero.
-    destruct (concrete.flow chs l).
-    simpl.
-    apply bsm_wd...
-    symmetry...
+    assert (t [=] '0). apply (CRle_def t ('0))...
+    rewrite H3, flow_zero...
   Qed.
 
   Variable hints: forall (l: Location) (r r': abstract.Region ap), r <> r' -> option (Hint l r r').
@@ -78,13 +69,6 @@ Section contents.
     cont_dec l r_src r_dst &&
     negb (hints' l r_src r_dst).
 
-  Add Morphism (concrete.inv_curried chs)
-    with signature (@eq _) ==> (@cs_eq _) ==> iff
-    as inv_mor.
-  Proof.
-    intros. apply concrete.invariant_wd; trivial.
-  Qed.
-
   Definition raw_cont_trans (s : State) : list (abstract.Region ap) :=
     filter (cont_trans_b s) (abstract.regions ap).
 
@@ -104,21 +88,10 @@ Section contents.
       split.
         intros.
         simpl.
-        rewrite concrete.curry_inv.
-        assert (concrete.flow chs l p t [=] p).
-          transitivity (concrete.flow chs l p ('0))...
-            set (concrete.flow chs l).
-            clearbody f .
-            destruct f.
-            simpl.
-            destruct flow_morphism.
-            simpl.
-            apply bsm_wd...
-            symmetry.
-            apply (snd (CRle_def ('0) t)).
-            split...
-          apply flow_zero.
-        rewrite H3...
+        rewrite (curry_eq concrete.invariant).
+        assert ('0 [=] t). apply (snd (CRle_def ('0) t))...
+        rewrite <- H3.
+        rewrite flow_zero...
       simpl.
       rewrite flow_zero...
     simpl.
@@ -135,20 +108,20 @@ Section contents.
   Proof with auto with real.
     intros l p p' [t [inv f]] r rin.
     assert (concrete.invariant (l, p')).
-      apply (concrete.invariant_wd chs (refl_equal l) _ _ f).
+      rewrite (curry_eq concrete.invariant).
+      rewrite <- f.
       apply inv...
       apply -> CRnonNeg_le_zero...
     destruct (abstract.select_region ap l p' H) as [r' rin'].
     case_eq (hints' l r r'); intros.
       exists r.
       split.
-        apply abstract.in_region_wd with (concrete.flow chs l p (`t))...
+        rewrite <- f.
         apply i...
           apply -> CRnonNeg_le_zero...
-        apply abstract.in_region_wd with p'...
-        symmetry...
+        rewrite f...
       apply cont_refl with p...
-      rewrite concrete.curry_inv.
+      rewrite (curry_eq concrete.invariant).
       rewrite <- (flow_zero (concrete.flow chs l) p).
       apply inv...
       apply -> CRnonNeg_le_zero...

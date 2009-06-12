@@ -34,6 +34,8 @@ Notation "g ∘ f" := (compose g f) (at level 40, left associativity).
 Definition uncurry A B C (f: A -> B -> C) (ab: A * B): C := f (fst ab) (snd ab).
 Definition curry A B C (f: A * B -> C) (a: A) (b: B): C := f (a, b).
 
+Definition curry_eq A B C (f: A * B -> C) a b: f (a, b) = curry f a b := refl_equal _.
+
 Definition conj_pair {A B: Prop} (P: A /\ B): A * B :=
   match P with conj a b => (a, b) end.
 
@@ -227,3 +229,9 @@ exact (eq_rect_eq__eq_dep_eq U eq_rect_eq).
 Qed.
 
 End eq_dep.
+
+Definition proj1_sig_relation (T: Type) (P: T -> Prop) (R: relation T): relation (sig P) :=
+  fun x y => R (`x) (`y).
+
+Definition product_conj_relation (T T': Type) (R: relation T) (R': relation T'): relation (T * T') :=
+  fun p p' => R (fst p) (fst p') /\ R' (snd p) (snd p').

@@ -16,8 +16,7 @@ Record System: Type :=
   ; initial: Location * Point -> Prop
   ; invariant: Location * Point -> Prop
   ; invariant_initial: forall s, initial s -> invariant s
-  ; invariant_wd: forall l l', l = l' -> forall p p', cs_eq p p' ->
-      (invariant (l, p) <-> invariant (l', p'))
+  ; invariant_mor: Morphism ((@eq _) ==> (@cs_eq _) ==> iff) (curry invariant)
 
   ; flow: Location -> Flow Point
 
@@ -27,6 +26,8 @@ Record System: Type :=
     the paper allows having different transitions from a given (l, x) to
     some (l', x'), because you can have different transitions. we only allow one! *)
   }.
+
+Existing Instance invariant_mor.
 
 Hint Resolve Location_eq_dec locations: typeclass_instances.
 
@@ -63,26 +64,14 @@ Section transitions_and_reachability.
   Notation "s ->_D s'" := (disc_trans s s') (at level 70).
   Notation "s ->_T s'" := (trans s s') (at level 90).
 
-  Definition inv_curried: Location system -> Point system -> Prop :=
-    curry invariant.
-
-  Definition curry_inv l p: invariant (l, p) = inv_curried l p.
-  Proof. reflexivity. Qed.
-
-  Add Morphism inv_curried
-    with signature (@eq _) ==> (@cs_eq _) ==> iff
-    as inv_mor.
-  Proof. intros. apply invariant_wd; auto. Qed.
-    (* hm, isn't there a way to declare curry as a general
-     morphism transformer or something? *)
-
   Lemma cont_trans_refl s: invariant s -> s ->_C s.
   Proof with auto.
     intros [l p] H.
     split...
     exists NonNegCR_zero.
     split. intros.
-      rewrite curry_inv, (snd (CRle_def t ('0)%CR)), flow_zero...
+      rewrite (curry_eq (@invariant system)),
+       (snd (CRle_def t ('0)%CR)), flow_zero...
     apply flow_zero.
   Qed.
 
@@ -101,7 +90,7 @@ Section transitions_and_reachability.
       simpl proj1_sig in *.
       destruct (CR_lt_eq_dec t'' t) as [eq | [gt | lt]]...
         apply i... rewrite eq...
-      rewrite curry_inv, (t11 t t''), flow_additive, f.
+      rewrite (curry_eq (@invariant system)), (t11 t t''), flow_additive, f.
       apply i'.
         apply (CRnonNeg_le_zero (t'' - t)%CR), CRpos_nonNeg...
       rewrite (t11 t t').
@@ -137,25 +126,22 @@ Section transitions_and_reachability.
     induction src_reach_dst as [ | s [l' p'] [l'' p''] R IH T].
       apply invariant_initial...
     destruct T as [[_ [_ [_ H]]] | [A [B [C D]]]]...
-    simpl in *. subst.
-    rewrite curry_inv.
+    simpl in A. subst.
+    rewrite (curry_eq invariant).
     rewrite <- D.
     apply C...
     apply (CRnonNeg_le_zero (`B))...
   Qed.
 
-  Hint Resolve reachable_invariant.
-
   Lemma alternating_reachable s: reachable s -> reachable_alternating s.
-  Proof with simpl; eauto 20.
-    unfold reachable, reachable_alternating.
+  Proof with eauto.
     intros s [x [H H0]].
     exists x. split...
-    induction H0.
-      exists true...
+    induction H0. exists true...
     destruct IHreachable...
     destruct H1; [exists true | exists false]; destruct x...
       apply end_with_next with b...
+      simpl. eauto 20 using reachable_invariant.
     inversion_clear H2...
   Qed.
 

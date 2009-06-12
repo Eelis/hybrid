@@ -100,7 +100,6 @@ Definition system: System :=
   _ _
   NoDup_locations
   initial
-  invariant
   initial_invariant
   invariant_wd
   flow

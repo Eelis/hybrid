@@ -2,6 +2,7 @@ Require Import reachability.
 Require Import List Bool.
 Require Import util list_util.
 Require Import CSetoids.
+Require Import Morphisms.
 Set Implicit Arguments.
 Require EquivDec.
 Require concrete.
@@ -39,12 +40,13 @@ Section contents.
     ; regions: ExhaustiveList Region
     ; NoDup_regions: NoDup regions
     ; in_region: concrete.Point chs -> Region -> Prop
-    ; in_region_wd: forall x x', cs_eq x x' -> forall r, in_region x r -> in_region x' r
+    ; in_region_mor: Morphism (@cs_eq _ ==> eq ==> iff) in_region
     ; select_region: forall l p, concrete.invariant (l, p) -> sig (in_region p)
     }.
 
   Existing Instance Region_eq_dec.
   Existing Instance regions.
+  Existing Instance in_region_mor.
 
   (* Given two sets of abstraction parameters, we can combine these to make
    finer-grained abstraction parameters where each region corresponds to the
@@ -62,8 +64,8 @@ Section contents.
 
     Let in_region p r := in_region ap p (fst r) /\ in_region ap' p (snd r).
 
-    Let in_region_wd x x': x[=]x' -> forall r, in_region x r -> in_region x' r.
-    Proof. intros x x' H r [H0 H1]. split; eauto using in_region_wd. Qed.
+    Let in_region_mor: Morphism (@cs_eq _ ==> eq ==> iff) in_region.
+    Proof. unfold in_region. intros x x' e r r' e'. rewrite e, e'. split; auto. Qed.
 
     Program Let select_region l p (H: concrete.invariant (l, p)): sig (in_region p)
       := (select_region ap _ _ H, select_region ap' _ _ H).
@@ -72,7 +74,7 @@ Section contents.
 
     Definition param_prod: Parameters := Build_Parameters  _ _
       (NoDup_ExhaustivePairList (NoDup_regions ap) (NoDup_regions ap'))
-      in_region in_region_wd select_region.
+      in_region_mor select_region.
 
   End param_prod.
 
@@ -194,5 +196,8 @@ Section contents.
 
 End contents.
 
-Hint Resolve Region_eq_dec regions: typeclass_instances.
+Existing Instance Region_eq_dec.
+Existing Instance regions.
+Existing Instance in_region_mor.
+
 Implicit Arguments State [].

@@ -29,7 +29,7 @@ Definition yinterval := interval_spec.select_interval system snd_mor spec.
 
 Definition ap: abstract.Parameters system :=
   square_abstraction.ap (NoDup_bnats 5) (NoDup_bnats 5)
-  Interval_bounds Interval_bounds _ _ _ _ _ _ _ _ _ xinterval yinterval.
+  Interval_bounds Interval_bounds _ _ _ _ _ _ _ _ xinterval yinterval.
 
 (* Flow inverses *)
 

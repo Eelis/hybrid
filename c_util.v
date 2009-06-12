@@ -1100,10 +1100,9 @@ Record unary_setoid_morphism (A B: CSetoid): Type :=
   ; usm_wd: forall a a', a [=] a' -> usm a [=] usm a'
   }.
 
-Program Instance usm_mor (A B: CSetoid): Morphism
-  ((@eq _) ==> (@cs_eq _) ==> (@cs_eq _))
-  (@usm A B).
-Next Obligation. intros x [f wd] E. subst. assumption. Qed.
+Instance usm_mor (A B: CSetoid): Morphism
+  ((@eq _) ==> (@cs_eq _) ==> (@cs_eq _)) (@usm A B).
+Proof. intros a b x [f wd] E. subst. assumption. Qed.
 
 Program Definition fst_mor {A B}: unary_setoid_morphism (ProdCSetoid A B) A :=
   Build_unary_setoid_morphism (ProdCSetoid A B) A fst _.
@@ -1119,10 +1118,10 @@ Record binary_setoid_morphism (A B C: CSetoid): Type :=
       forall b b', b [=] b' -> bsm a b [=] bsm a' b'
   }.
 
-Program Instance bsm_mor (A B C: CSetoid): Morphism
+Instance bsm_mor (A B C: CSetoid): Morphism
   ((@eq _) ==> (@cs_eq _) ==> (@cs_eq _) ==> (@cs_eq _))
   (@bsm A B C).
-Next Obligation. intros x [f wd] E. subst. assumption. Qed.
+Proof. intros a b c x [f wd] E. subst. assumption. Qed.
 
 Ltac Qle_constants := vm_compute; repeat intro; discriminate.
   (* Solves goals of the form [x <= y] where x and y are constants in Q. *)

@@ -64,15 +64,13 @@ Section contents.
     (concrete_guard: Location * geometry.Point -> Location -> Prop)
     (reset: Location -> Location -> Point -> Point).
 
-  Hypothesis invariant_wd: forall l l', l = l' -> forall p p', p[=]p' ->
-    (concrete_invariant (l, p) <-> concrete_invariant (l', p')).
-
+  Hypothesis invariant_mor: Morphism ((@eq _) ==> (@cs_eq _) ==> iff) (curry concrete_invariant).
   Hypothesis NoDup_locations: NoDup locations.
 
   Definition concrete_system: concrete.System :=
     @concrete.Build_System Point Location Location_eq_dec
       locations NoDup_locations concrete_initial
-      concrete_invariant concrete_invariant_initial invariant_wd
+      concrete_invariant concrete_invariant_initial invariant_mor
       (fun l: Location => product_flow (xflow l) (yflow l))
       concrete_guard reset.
 
@@ -431,23 +429,20 @@ Ltac bool_contradict id :=
         simpl bsm in cteq. 
         destruct p. destruct q. inversion cteq.
         destruct pi. destruct qi. simpl in H1, H2, H3, H4.
-        split.
-          apply in_orange_wd with ((Xinterval_range (fst i2)): OpenRange) s1...
-          symmetry...
-        apply in_orange_wd with ((Yinterval_range (snd i2)): OpenRange) s2...
-        symmetry...
+        split. rewrite H...
+        rewrite H0...
       apply (overestimation_false _ e0).
       unfold abstract_invariant.
       exists p.
       split...
-      apply (concrete.invariant_wd concrete_system (refl_equal l) p
-        (concrete.flow concrete_system l p (' 0))).
-        symmetry. apply flow_zero.
+      rewrite (curry_eq concrete_invariant).
+      rewrite <- (flow_zero (concrete.flow concrete_system l) p).
       simpl. apply ctc... apply (CRnonNeg_le_zero t)...
     apply (overestimation_false _ e).
     exists q.
     split...
-    apply (concrete.invariant_wd concrete_system (refl_equal l) _ q cteq).
+    rewrite (curry_eq concrete_invariant).
+    rewrite <- cteq.
     simpl. apply ctc... apply (CRnonNeg_le_zero t)...
   Qed.
 

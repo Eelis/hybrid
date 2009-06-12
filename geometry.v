@@ -1,5 +1,6 @@
 Require Export CRsign.
 Require Export CRln.
+Require Import Morphisms.
 Require Export c_util.
 Require Export util.
 Set Implicit Arguments.
@@ -153,29 +154,18 @@ Definition in_orange (r: OpenRange) (x: CR): Prop :=
   | None => True
   end.
 
-Lemma in_orange_wd (r r': OpenRange): fst (`r) [=] fst (`r') -> snd (`r) [=] snd (`r') ->
-  forall x x', x == x' -> in_orange r x -> in_orange r' x'.
+Instance in_orange_mor: Morphism (proj1_sig_relation (product_conj_relation (@st_eq _) (@st_eq _)) ==> @st_eq _ ==> iff) in_orange.
 Proof with auto.
-  destruct r. destruct r'.
+  intros [[x y] a] [[x' y'] a'] [H H0] x0 y0 e.
   unfold in_orange, orange_left, orange_right.
-  simpl proj1_sig.
-  intros.
-  destruct H2.
-  destruct x.
-  destruct x0.
   simpl @fst in *. simpl @snd in *.
-  split.
-    destruct s1...
-    rewrite <- H1.
-    destruct s; [| simpl in H; tauto].
-    simpl in H.
-    rewrite <- H...
-  destruct s2...
-  rewrite <- H1.
-  destruct s0; [| simpl in H0; tauto].
-  simpl in H0.
-  rewrite <- H0...
+  destruct x; destruct y; destruct x'; destruct y';
+    simpl in H, H0; try (elimtype False; assumption);
+    try rewrite H; try rewrite H0; try rewrite e; split...
 Qed.
+
+Instance in_orange_mor' r: Morphism (@st_eq _ ==> iff) (in_orange r).
+Proof with auto. intros [[a b] e] x y H. apply in_orange_mor... split... Qed.
 
 Lemma in_unbounded_range x: in_orange unbounded_range x.
 Proof with auto. intros. split; simpl; auto. Qed.

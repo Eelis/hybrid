@@ -24,17 +24,17 @@ Section contents.
   Definition in_region (p: concrete.Point chs) (r: Region): Prop :=
     geometry.in_orange (bounds r) (component p).
 
-  Definition in_region_wd x x': x[=]x' -> forall r, in_region x r -> in_region x' r.
+  Instance in_region_mor: Morphism (@cs_eq _ ==> eq ==> iff) in_region.
   Proof with auto.
-    unfold in_region.
-    intros.
-    apply (@geometry.in_orange_wd (bounds r) (bounds r) ) with (component x)...
-    apply (usm_wd component)...
+    unfold in_region. repeat intro.
+    apply geometry.in_orange_mor.
+      subst. split...
+    rewrite H...
   Qed.
 
   Definition parameters: abstract.Parameters chs :=
     abstract.Build_Parameters chs _ _ NoDup_regions
-      in_region in_region_wd select_interval.
+      in_region_mor select_interval.
 
   Definition hints (r r': abstract.Region parameters) (f: flow.Flow (concrete.Point chs)):
     (forall x, strongly_increasing (component ∘ f x)) ->
