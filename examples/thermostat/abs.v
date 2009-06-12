@@ -188,12 +188,27 @@ Defined.
 Definition hints (l: Location) (r r': abstract.Region ap) (E: r <> r') :=
   options (clock_hints l E) (temp_hints l E).
 
+(* "Annotated" reset function which knows when it's constant and id: *)
+
+Definition clock_reset (l l': Location): square_abstraction.Reset :=
+  match l, l' with
+  | Cool, Heat | Heat, Check | Check, Heat => square_abstraction.Reset_const ('0)
+  | _, _ => square_abstraction.Reset_id (* dummy *)
+  end.
+
+Definition temp_reset (l l': Location): square_abstraction.Reset :=
+  square_abstraction.Reset_id. (* dummy *)
+
 (* The abstract system: *)
+
+Obligation Tactic := program_simpl.
 
 Program Definition disc_trans_dec eps :=
   square_abstraction.disc_trans
     (invariant_dec eps) clock_reset temp_reset _
     (guard_dec eps) eps.
+
+Next Obligation. intros. destruct l; destruct l'; reflexivity. Qed.
 
 Let cont_trans eps := abstraction.cont_trans
     (@abstraction.dealt_hints _ ap hints)

@@ -1,7 +1,6 @@
 Require Import geometry.
 Require Export Program.
 Require Import EquivDec.
-Require square_abstraction.
 
 Open Local Scope CR_scope.
 
@@ -56,11 +55,9 @@ Ltac wd_helper :=
 
 Ltac qrange := unfold uncurry; vm_compute; intuition; discriminate.
 
-Ltac equiv_dec := repeat intro; 
-  match goal with
-  | |- {Equivalence.equiv _ _ ?x ?y} + {_} =>
-    cut (decision (x = y)); [auto | dec_eq]
-  end.
+Definition decision_decider_to_EqDec X (R: relation X) (e: Equivalence R)
+  (d: forall x y, decision (R x y)): EquivDec.EqDec X R := d.
+Ltac equiv_dec := apply decision_decider_to_EqDec; dec_eq.
 
 Ltac decomp_hyp H := 
   match type of H with

@@ -75,18 +75,12 @@ Definition flow l := product_flow (clock_flow l) (temp_flow l).
 
 (* Reset *)
 
-Definition clock_reset (l l': Location): square_abstraction.Reset :=
-  match l, l' with
-  | Cool, Heat | Heat, Check | Check, Heat => square_abstraction.Reset_const ('0)
-  | _, _ => square_abstraction.Reset_id (* dummy *)
-  end.
-
-Definition temp_reset (l l': Location): square_abstraction.Reset :=
-  square_abstraction.Reset_id. (* dummy *)
-
 Definition reset (l l': Location) (p: Point): Point :=
-  ( square_abstraction.apply_Reset (clock_reset l l') (fst p)
-  , square_abstraction.apply_Reset (temp_reset l l') (snd p)).
+  ( match l, l' with
+    | Cool, Heat | Heat, Check | Check, Heat => '0
+    | _, _ => fst p
+    end
+  , snd p).
 
 (* Guard *)
 
