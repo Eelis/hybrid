@@ -40,14 +40,6 @@ Section single_inverses.
     destruct fmono;intros; apply s; assumption.
   Qed.
 
-  Add Morphism (@bsm CRasCSetoid CRasCSetoid CRasCSetoid)
-    with signature (@eq _) ==> (@cs_eq _) ==> (@cs_eq _) ==> (@cs_eq _)
-    as gh_mor.
-  Proof with auto.
-    intro.
-    exact (@bsm_mor _ _ _ y y (refl_equal _)).
-  Qed.
-
   Lemma mono_opp v t t': t' <= t -> mle (f v t') (f v t).
   Proof with auto.
     unfold mle.

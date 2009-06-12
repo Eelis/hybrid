@@ -3,6 +3,7 @@ Require Export CRsign.
 Require Export CRln.
 Require Import CRexp.
 Require Import QMinMax.
+Require Import Morphisms.
 
 Set Implicit Arguments.
 Open Local Scope CR_scope.
@@ -1099,6 +1100,11 @@ Record unary_setoid_morphism (A B: CSetoid): Type :=
   ; usm_wd: forall a a', a [=] a' -> usm a [=] usm a'
   }.
 
+Program Instance usm_mor (A B: CSetoid): Morphism
+  ((@eq _) ==> (@cs_eq _) ==> (@cs_eq _))
+  (@usm A B).
+Next Obligation. intros x [f wd] E. subst. assumption. Qed.
+
 Program Definition fst_mor {A B}: unary_setoid_morphism (ProdCSetoid A B) A :=
   Build_unary_setoid_morphism (ProdCSetoid A B) A fst _.
 Next Obligation. inversion_clear H. assumption. Qed.
@@ -1107,27 +1113,16 @@ Program Definition snd_mor {A B}: unary_setoid_morphism (ProdCSetoid A B) B :=
   Build_unary_setoid_morphism (ProdCSetoid A B) B snd _.
 Next Obligation. inversion_clear H. assumption. Qed.
 
-Section BSM.
+Record binary_setoid_morphism (A B C: CSetoid): Type :=
+  { bsm:> A -> B -> C
+  ; bsm_wd: forall a a', a [=] a' ->
+      forall b b', b [=] b' -> bsm a b [=] bsm a' b'
+  }.
 
-  Variables A B C: CSetoid.
-
-  Record binary_setoid_morphism: Type :=
-    { bsm:> A -> B -> C
-    ; bsm_wd: forall a a', a [=] a' ->
-        forall b b', b [=] b' -> bsm a b [=] bsm a' b'
-    }.
-
-  Add Morphism bsm
-    with signature (@eq _) ==> (@cs_eq _) ==> (@cs_eq _) ==> (@cs_eq _)
-    as bsm_mor.
-  Proof.
-    destruct y.
-    exact bsm_wd0.
-  Qed.
-    (* Todo: For some reason this morphism doesn't actually seem to be
-     available in other modules, where I frequently had to redefine it.. *)
-
-End BSM.
+Program Instance bsm_mor (A B C: CSetoid): Morphism
+  ((@eq _) ==> (@cs_eq _) ==> (@cs_eq _) ==> (@cs_eq _))
+  (@bsm A B C).
+Next Obligation. intros x [f wd] E. subst. assumption. Qed.
 
 Ltac Qle_constants := vm_compute; repeat intro; discriminate.
   (* Solves goals of the form [x <= y] where x and y are constants in Q. *)

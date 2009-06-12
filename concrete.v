@@ -76,11 +76,6 @@ Section transitions_and_reachability.
     (* hm, isn't there a way to declare curry as a general
      morphism transformer or something? *)
 
-  Add Morphism (@bsm (Point system) CRasCSetoid (Point system))
-    with signature (@eq _) ==> (@cs_eq _) ==> (@cs_eq _) ==> (@cs_eq _)
-    as gh_mor.
-  Proof. exact (fun _ => @bsm_mor _ _ _ _ _ (refl_equal _)). Qed.
-
   Lemma cont_trans_refl s: invariant s -> s ->_C s.
   Proof with auto.
     intros [l p] H.

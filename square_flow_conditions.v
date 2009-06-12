@@ -42,15 +42,6 @@ Section contents.
     destruct s; destruct s0; destruct fm; tauto.
   Qed.
 
-  Add Morphism (@bsm CRasCSetoid CRasCSetoid CRasCSetoid)
-    with signature (@eq _) ==> (@cs_eq _) ==> (@cs_eq _) ==> (@cs_eq _)
-    as gh_mor.
-  Proof. intro. exact (@bsm_mor _ _ _ y y (refl_equal _)). Qed.
-
-  Add Morphism finv with signature (@cs_eq _) ==> (@cs_eq _) ==> (@cs_eq _)
-    as finv_wd.
-  Proof. intros. apply (inv_wd fm); assumption. Qed.
-
   Definition low: option Time :=
       flip_opt None (ox' oa) (fun x'a => flip_opt None (ox ob) (fun xb =>
         Some (finv x'a xb))).

@@ -10,12 +10,8 @@ Section contents.
 
   Variables
     (chs: concrete.System)
-    (component: unary_setoid_morphism (concrete.Point chs) CRasCSetoid).
-
-  Add Morphism component with signature (@cs_eq _) ==> (@cs_eq _) as component_mor.
-  Proof. intros. apply usm_wd; auto. Qed.
-
-  Variable Region: Set.
+    (component: unary_setoid_morphism (concrete.Point chs) CRasCSetoid)
+    (Region: Set).
 
   Context
     {Region_eq_dec: EquivDec.EqDec Region eq}
