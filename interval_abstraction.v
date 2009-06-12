@@ -10,7 +10,7 @@ Section contents.
 
   Variables
     (chs: concrete.System)
-    (component: unary_setoid_morphism (concrete.Point chs) CRasCSetoid)
+    (component: morpher (@cs_eq (concrete.Point chs) ==> @cs_eq CRasCSetoid)%signature)
     (Region: Set).
 
   Context

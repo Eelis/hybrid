@@ -3,6 +3,7 @@ Require Import c_util.
 Require Export flow.
 Set Implicit Arguments.
 Require EquivDec.
+Require Import Morphisms.
 
 Record System: Type :=
   { Point: CSetoid

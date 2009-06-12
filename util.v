@@ -235,3 +235,15 @@ Definition proj1_sig_relation (T: Type) (P: T -> Prop) (R: relation T): relation
 
 Definition product_conj_relation (T T': Type) (R: relation T) (R': relation T'): relation (T * T') :=
   fun p p' => R (fst p) (fst p') /\ R' (snd p) (snd p').
+
+Definition morpher A B: relation (A -> B) -> Type := @sig _ ∘ Morphism.
+  (* A more general version would be:
+    Definition morpher A: relation A -> Type := @sig _ ∘ Morphism.
+  However, we need the hard-coded implication to be able to declare the
+  coercion below. *)
+
+Let morpher_to_func A B (R: relation (A -> B)): morpher R -> (A -> B) := @proj1_sig _ _.
+Coercion morpher_to_func: morpher >-> Funclass.
+
+Instance morpher_morphism A B (R: relation (A -> B)) (f: morpher R):
+  Morphism R f := proj2_sig f.

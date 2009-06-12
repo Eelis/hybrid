@@ -120,13 +120,6 @@ Proof with auto.
   apply CRmult_le_inv with x...
 Qed.
 
-Definition morphism: binary_setoid_morphism CRasCSetoid CRasCSetoid CRasCSetoid.
-Proof.
-  apply (Build_binary_setoid_morphism _ _ _ raw).
-  intros. unfold raw.
-  rewrite H. rewrite H0. reflexivity.
-Defined.
-
 Lemma A x: x * exp (-'0) == x.
   intros.
   rewrite CRopp_0.
@@ -143,7 +136,9 @@ Lemma B x t t': x * exp (- (t + t'))[=]x * exp (- t) * exp (- t').
   reflexivity.
 Qed.
 
-Definition f: Flow CRasCSetoid := Build_Flow morphism A B.
+Program Definition f: Flow CRasCSetoid := Build_Flow _ raw A B.
+
+Next Obligation. do 6 intro. unfold raw. rewrite H, H0. reflexivity. Qed.
 
 Definition part_inv (x x': CR) (xp: CRpos x) (x'p: CRpos x'): Time := CRln' _ xp - CRln' _ x'p.
 
@@ -387,6 +382,7 @@ Section contents.
           | None_ => Some (inr (pair I I))
     end end end end.
 
+  Obligation Tactic := program_simpl.
   Program Definition no_trans_result: OpenRange := (-'1, -'1): Range.
 
   Definition inv (src dst: OpenRange): OpenRange.

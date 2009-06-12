@@ -14,7 +14,7 @@ Let Time := CRasCSetoid.
 Let Duration := NonNegCR.
 
 Record Flow (X: CSetoid): Type :=
-  { flow_morphism:> binary_setoid_morphism X Time X
+  { flow_morphism:> morpher (@st_eq X ==> @st_eq Time ==> @st_eq X)%signature
   ; flow_zero: forall x, flow_morphism x ('0) [=] x
   ; flow_additive: forall x t t',
       flow_morphism x (t + t') [=] flow_morphism (flow_morphism x t) t'
@@ -28,42 +28,28 @@ Definition range_flow_inv_spec (f: Flow CRasCSetoid)
   (i: OpenRange -> OpenRange -> OpenRange): Prop :=
     forall a p, in_orange a p -> forall b t, in_orange b (f p t) -> in_orange (i a b) t.
 
-Section product_flow.
+Obligation Tactic := idtac.
 
-  Variables (X Y: CSetoid) (fx: Flow X) (fy: Flow Y).
+Program Definition product_flow (X Y: CSetoid) (fx: Flow X) (fy: Flow Y):
+  Flow (ProdCSetoid X Y) :=
+    Build_Flow _ (fun xy t => (fx (fst xy) t, fy (snd xy) t)) _ _.
 
-  Let f (xy: ProdCSetoid X Y) (t: Time): ProdCSetoid X Y :=
-    (fx (fst xy) t, fy (snd xy) t).
+Next Obligation.
+  intros X Y fx fy [s s0] [s1 s2] [A B] x y H0.
+  split; [rewrite A | rewrite B]; rewrite H0; reflexivity.
+Qed.
 
-  Let fm: binary_setoid_morphism (ProdCSetoid X Y) CRasCSetoid (ProdCSetoid X Y).
-  Proof with auto.
-    apply (Build_binary_setoid_morphism _ _ _ f).
-    intros.
-    destruct a. destruct a'. simpl in *.
-    destruct H.
-    split; apply bsm_mor...
-  Defined.
-
-  Definition product_flow: Flow (ProdCSetoid X Y).
-  Proof with auto.
-    apply (Build_Flow fm); destruct x; simpl.
-    split; apply flow_zero.
-    split; apply flow_additive.
-  Defined.
-
-End product_flow.
+Next Obligation. destruct x. split; apply flow_zero. Qed.
+Next Obligation. destruct x. split; apply flow_additive. Qed.
 
 Module constant.
 Section contents.
 
-  Definition raw (x: CR) (_: Time): CR := x.
+  Program Definition flow: Flow CRasCSetoid := Build_Flow _ (fun x _ => x) _ _.
 
-  Definition morphism: binary_setoid_morphism CRasCSetoid CRasCSetoid CRasCSetoid
-    := Build_binary_setoid_morphism _ _ _ raw (fun _ _ H _ _ _ => H).
-
-  Definition flow: Flow CRasCSetoid.
-    apply (Build_Flow morphism ); reflexivity.
-  Defined.
+  Next Obligation. exact (fun _ _ H _ _ _ => H). Qed.
+  Next Obligation. reflexivity. Qed.
+  Next Obligation. reflexivity. Qed.
 
   Let eps: Qpos := (1#100)%Qpos. (* todo: turn into parameter *)
 
@@ -91,24 +77,21 @@ End constant.
 Module scale.
 Section contents.
 
-  Variable s: CR.
-  Hypothesis sp: CRpos s.
+  Variables (s: CR) (sp: CRpos s) (f: Flow CRasCSetoid).
 
-  Variable f: Flow CRasCSetoid.
+  Program Definition flow: Flow CRasCSetoid :=
+    Build_Flow _ (fun x t => f x (s * t)) _ _.
 
-  Definition raw (x: CR) (t: Time): CR := f x (s * t).
+  Next Obligation. intros a a' e b b' e'. rewrite e, e'. reflexivity. Qed.
 
-  Definition morphism: binary_setoid_morphism CRasCSetoid CRasCSetoid CRasCSetoid.
-    apply (Build_binary_setoid_morphism _ _ _ raw).
-    unfold raw.
-    intros a a' e b b' e'.
-    rewrite e, e'. reflexivity.
-  Defined.
+  Next Obligation.
+    intros. unfold morpher_to_func, proj1_sig.
+    rewrite CRmult_0_r. apply flow_zero.
+  Qed.
 
-  Definition flow: Flow CRasCSetoid.
-    apply (Build_Flow morphism); intros; simpl bsm; unfold raw.
-      rewrite CRmult_0_r.
-      apply flow_zero.
+  Next Obligation.
+    intros.
+    unfold morpher_to_func at 1 3 5, proj1_sig.
     rewrite
       <- flow_additive,
       (Rmul_comm CR_ring_theory),
@@ -116,7 +99,7 @@ Section contents.
       (Rmul_comm CR_ring_theory s t'),
       (Rdistr_l CR_ring_theory).
     reflexivity.
-  Defined.
+  Qed.
 
   Lemma inc: (forall x, strongly_increasing (f x)) ->
     forall x, strongly_increasing (flow x).
@@ -148,7 +131,6 @@ Section contents.
     intros.
     unfold inv.
     simpl in H0.
-    unfold raw in H0.
     set (old_inv_correct H _ H0).
     clearbody i.
     assert (fst (` (scale_orange sinv_nonneg (old_inv a b))) [=] fst (` (scale_orange sinv_nonneg (old_inv a b)))) by reflexivity.
@@ -171,13 +153,10 @@ Hint Resolve scale.inc.
 Module positive_linear.
 Section contents.
 
-  Definition morphism: binary_setoid_morphism CRasCSetoid CRasCSetoid CRasCSetoid.
-  Proof.
-    apply (Build_binary_setoid_morphism _ _ _ (ucFun2 CRplus)).
-    intros. rewrite H. rewrite H0. reflexivity.
-  Defined.
+  Program Definition f: Flow CRasCSetoid :=
+    Build_Flow _ (ucFun2 CRplus) CRadd_0_r (Radd_assoc CR_ring_theory).
 
-  Definition f: Flow CRasCSetoid := Build_Flow morphism CRadd_0_r (Radd_assoc CR_ring_theory).
+  Next Obligation. do 6 intro. rewrite H, H0. reflexivity. Qed.
 
   Definition inv (x x': CR): Time := x' - x.
 
@@ -197,35 +176,30 @@ Hint Immediate positive_linear.increasing.
 Module negative_linear.
 Section contents.
 
-  Definition raw (x: CR) (t: Time): CR := x - t.
-
-  Definition morphism: binary_setoid_morphism CRasCSetoid CRasCSetoid CRasCSetoid.
-  Proof.
-    apply (Build_binary_setoid_morphism _ _ _ raw).
-    intros. unfold raw.
-    rewrite H. rewrite H0. reflexivity.
-  Defined.
-
-  Lemma B x t t': x - (t + t') == x - t - t'.
+  Let B x t t': x - (t + t') == x - t - t'.
     intros.    
     rewrite (@Ropp_add _ _ _ _ _ _ _ _ t3 CR_ring_eq_ext CR_ring_theory ).
     apply (Radd_assoc CR_ring_theory).
   Qed.
 
-  Definition f: Flow CRasCSetoid := Build_Flow morphism CRminus_zero B.
+  Program Definition f: Flow CRasCSetoid :=
+    Build_Flow _ (fun x t => x - t) CRminus_zero B.
+
+  Next Obligation. do 6 intro. rewrite H, H0. reflexivity. Qed.
 
   Definition inv (x x': CR): Time := x - x'.
 
   Lemma inv_correct x x': f x (inv x x') == x'.
     intros.
-    unfold f, inv. simpl bsm. unfold raw.
+    unfold f, inv.
+    simpl morpher_to_func.
     rewrite <- diff_opp.
     symmetry.
     apply t11.
   Qed.
 
   Lemma decreasing: forall x : CRasCSetoid, strongly_decreasing (f x).
-    repeat intro. simpl. unfold raw.
+    repeat intro. simpl.
     apply t1_rev, CRlt_opp_compat.
     assumption.
   Qed.
@@ -237,6 +211,21 @@ End negative_linear.
 
 Require Import vector_setoid.
 Require Import VecEq.
+
+Lemma Vforall2n_aux_inv (A B: Type) (R: A -> B -> Prop) n (v: vector A n) m (w: vector B m):
+  Vforall2n_aux R v w -> forall i (p: lt i n) (q: lt i m), R (Vnth v p) (Vnth w q).
+Proof.
+  induction v; destruct w; simpl; intros; intuition.
+    elimtype False.
+    apply (lt_n_O _ p).
+  destruct i; auto.
+Qed.
+
+Definition eq_vec_inv (T: Type) (R: relation T) n (x y: vector T n) (e: eq_vec R x y)
+  i (p: (i < n)%nat): R (Vnth x p) (Vnth y p)
+  := Vforall2n_aux_inv _ _ _ e p p.
+
+(* Todo: Move the above two elsewhere. *)
 
 Section vector_flow.
 
@@ -252,20 +241,28 @@ Section vector_flow.
     in
       Vbuild flow_dim.
 
-  Let fm : binary_setoid_morphism (vecCSetoid X n) CRasCSetoid (vecCSetoid X n).
-  Proof with auto.
-    apply (Build_binary_setoid_morphism _ _ _ f). intros.
-    simpl. apply Vforall2n_intro. intros.
-    unfold f. repeat rewrite Vbuild_nth.
-    simpl. apply bsm_mor... admit.
-  Defined.
+  Program Definition vector_flow : Flow (vecCSetoid X n) :=
+    Build_Flow _ f _ _.
 
-  Definition vector_flow : Flow (vecCSetoid X n).
-  Proof with auto.
-    apply (Build_Flow fm); intros; simpl; apply Veq_vec_nth; intros;
-      unfold f; repeat rewrite Vbuild_nth; simpl.
-    apply flow_zero.
-    apply flow_additive.
-  Defined.
+  Next Obligation. (* well-defined-ness *)
+    do 6 intro.
+    apply Veq_vec_nth. intros.
+    unfold f.
+    repeat rewrite Vbuild_nth.
+    unfold morpher_to_func.
+    rewrite (eq_vec_inv (@st_eq _) x y H).
+    rewrite H0.
+    reflexivity.
+  Qed.
+
+  Next Obligation. (* flow_zero *)
+    apply Veq_vec_nth. intros. unfold f.
+    repeat rewrite Vbuild_nth. apply flow_zero.
+  Qed.
+
+  Next Obligation. (* flow_additive *)
+    apply Veq_vec_nth. intros. unfold f.
+    repeat rewrite Vbuild_nth. apply flow_additive.
+  Qed.
 
 End vector_flow.

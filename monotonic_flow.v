@@ -348,9 +348,8 @@ Section single_inverses.
     unfold mle in *.
     destruct fmono; clear fmono; destruct f.
       simpl strongly_increasing in s.
-      simpl. clear f. rename flow_morphism into f.
+      clear f. rename flow_morphism into f.
       rewrite <- (inv_correct x x').
-      simpl.
       rewrite <- flow_additive.
       apply mildly_increasing...
         intros. rewrite H0...
@@ -359,7 +358,7 @@ Section single_inverses.
         apply i...
       apply CRle_refl.
     simpl strongly_decreasing in s.
-    simpl. clear f. rename flow_morphism into f.
+    clear f. rename flow_morphism into f.
     rewrite <- (inv_correct x x').
     simpl.
     rewrite <- flow_additive.

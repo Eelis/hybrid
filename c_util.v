@@ -1095,33 +1095,13 @@ Section function_properties.
 
 End function_properties.
 
-Record unary_setoid_morphism (A B: CSetoid): Type :=
-  { usm:> A -> B
-  ; usm_wd: forall a a', a [=] a' -> usm a [=] usm a'
-  }.
+Program Definition fst_mor {A B}:
+  morpher (@cs_eq (ProdCSetoid A B) ==> @cs_eq A)%signature := fst.
+Next Obligation. intros [x x'] [y y'] [e e']. assumption. Qed.
 
-Instance usm_mor (A B: CSetoid): Morphism
-  ((@eq _) ==> (@cs_eq _) ==> (@cs_eq _)) (@usm A B).
-Proof. intros a b x [f wd] E. subst. assumption. Qed.
-
-Program Definition fst_mor {A B}: unary_setoid_morphism (ProdCSetoid A B) A :=
-  Build_unary_setoid_morphism (ProdCSetoid A B) A fst _.
-Next Obligation. inversion_clear H. assumption. Qed.
-
-Program Definition snd_mor {A B}: unary_setoid_morphism (ProdCSetoid A B) B :=
-  Build_unary_setoid_morphism (ProdCSetoid A B) B snd _.
-Next Obligation. inversion_clear H. assumption. Qed.
-
-Record binary_setoid_morphism (A B C: CSetoid): Type :=
-  { bsm:> A -> B -> C
-  ; bsm_wd: forall a a', a [=] a' ->
-      forall b b', b [=] b' -> bsm a b [=] bsm a' b'
-  }.
-
-Instance bsm_mor (A B C: CSetoid): Morphism
-  ((@eq _) ==> (@cs_eq _) ==> (@cs_eq _) ==> (@cs_eq _))
-  (@bsm A B C).
-Proof. intros a b c x [f wd] E. subst. assumption. Qed.
+Program Definition snd_mor {A B}:
+  morpher (@cs_eq (ProdCSetoid A B) ==> @cs_eq B)%signature := snd.
+Next Obligation. intros [x x'] [y y'] [e e']. assumption. Qed.
 
 Ltac Qle_constants := vm_compute; repeat intro; discriminate.
   (* Solves goals of the form [x <= y] where x and y are constants in Q. *)
