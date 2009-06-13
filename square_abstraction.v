@@ -116,8 +116,10 @@ Ltac bool_contradict id :=
       absurd (X = false); [congruence | idtac]
   end.
 
+  Let State := abstract.State ap.
+
   Obligation Tactic := idtac.
-  Program Definition invariant_dec eps (li : Location * abstract.Region ap): overestimation (abstract_invariant li) :=
+  Program Definition invariant_dec eps (li : State): overestimation (abstract_invariant li) :=
     osquares_overlap_dec eps (invariant_squares (fst li)) (square (snd li)).
   Next Obligation. Proof with auto.
     intros eps li H [p [B C]].
@@ -142,7 +144,7 @@ Ltac bool_contradict id :=
     Obligation Tactic := idtac.
 
     Program Definition initial_dec (eps: Qpos) s: overestimation
-      (abstract.Initial ap s) :=
+      (abstract.Initial s) :=
         (overestimate_conj (osquares_overlap_dec eps (initial_square) (square (snd s)))
           (weaken_decision (Location_eq_dec (fst s) initial_location))).
     Next Obligation. Proof with auto.
@@ -212,8 +214,6 @@ Ltac bool_contradict id :=
   Definition map_orange' (f: sigT increasing): OpenRange -> OpenRange
     := let (_, y) := f in map_orange y.
 
-  Let State := prod Location (abstract.Region ap).
-
   Definition disc_trans_regions (eps: Qpos) (l l': Location) (r: abstract.Region ap): list (abstract.Region ap)
     :=
     if guard_decider l r l' && invariant_decider (l, r) then
@@ -255,7 +255,7 @@ Ltac bool_contradict id :=
       intros.
       inversion_clear H2...
     unfold disc_trans_regions.
-    destruct (guard_decider l r x && invariant_decider (l, r))...
+    destruct andb...
     apply NoDup_flat_map...
         intros.
         destruct (fst (filter_In _ _ _) H2).
@@ -388,7 +388,7 @@ Ltac bool_contradict id :=
   Qed.
 
   Program Definition disc_trans (eps: Qpos) (s: State):
-    sig (fun l: list State => LazyProp (NoDup l /\ abstract.DiscRespect ap s l))
+    sig (fun l: list State => LazyProp (NoDup l /\ abstract.DiscRespect s l))
     := raw_disc_trans eps s.
   Next Obligation. Proof with auto.
     split.
@@ -463,7 +463,7 @@ Ltac bool_contradict id :=
 
     Program Definition unsafe_abstract:
       sig (fun ss => LazyProp (forall s, unsafe_concrete s ->
-       forall r, abstract.abs ap s r -> In r ss))
+       forall r, abstract.abs s r -> In r ss))
       := flat_map (fun l => map (pair l) (flat_map (fun q =>
         filter (fun s => osquares_overlap_dec eps q (square s)) exhaustive_list
         ) (unsafe_squares l))) locations.

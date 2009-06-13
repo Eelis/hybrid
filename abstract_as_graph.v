@@ -24,15 +24,13 @@ Section using_duplication.
   Definition flip (k: TransKind) :=
     match k with Cont => Disc | Disc => Cont end.
 
-  Let a_State := abstract.State chs (abstract.Region ap).
+  Let a_State := abstract.State ap.
 
   Let V := (TransKind * a_State)%type.
 
-  Definition all_abstract_states := @abstract.states chs _ (abstract.regions ap).
-
   Definition states_to_verts (s : list a_State) := map (pair Cont) s ++ map (pair Disc) s.
 
-  Instance vertices: ExhaustiveList V := { exhaustive_list := states_to_verts all_abstract_states }.
+  Instance vertices: ExhaustiveList V := { exhaustive_list := states_to_verts (abstract.states ap) }.
   Proof. intro v. destruct v. apply in_or_app. destruct t; auto. Defined.
 
   Definition tr (k : TransKind) (s: a_State) : list a_State :=
@@ -63,7 +61,7 @@ Section using_duplication.
   Qed.
 
   Definition g : digraph.DiGraph :=
-    @digraph.Build (TransKind * abstract.State chs (abstract.Region ap)) _ _ _ NoDup_next.
+    @digraph.Build (TransKind * abstract.State ap) _ _ _ NoDup_next.
 
   Lemma respect (s : a_State) : 
     abstract.reachable ahs s ->
@@ -103,7 +101,7 @@ Section using_duplication.
 
   Definition init_verts : list V :=
     let is_initial v := @abstract.initial_dec chs ap ahs v in
-    let init_states := filter is_initial all_abstract_states in
+    let init_states := filter is_initial (abstract.states ap) in
       states_to_verts init_states.
 
   Lemma init_verts_eq_aux (tt : TransKind) ss :
@@ -170,7 +168,7 @@ Section using_duplication.
     List.existsb (state_reachable reachable_verts) ss.
 
   Lemma states_unreachable (P: concrete.State chs -> Prop) (ss : list a_State):
-    (forall s, P s -> forall r, abstract.abs ap s r -> In r ss) ->
+    (forall s, P s -> forall r, abstract.abs s r -> In r ss) ->
     some_reachable ss = false ->
     forall cs, P cs -> ~ concrete.reachable cs.
   Proof with auto.

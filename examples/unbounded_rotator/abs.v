@@ -174,8 +174,8 @@ Definition system (eps: Qpos): abstract.System ap :=
   ingredient in safe.v. *)
 
   Definition unsafe_abstract: Qpos ->
-    sig (fun ss: list (abstract.State conc.system (abstract.Region ap)) =>
-    LazyProp (forall s, unsafe s -> forall r, abstract.abs ap s r -> In r ss))
+    sig (fun ss: list (abstract.State ap) =>
+    LazyProp (forall s, unsafe s -> forall r, abstract.abs s r -> In r ss))
       := square_abstraction.unsafe_abstract
         (NoDup_bnats 5) (NoDup_bnats 5)
         Interval_bounds Interval_bounds xinterval yinterval

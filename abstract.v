@@ -11,29 +11,6 @@ Section contents.
 
   Variable chs: concrete.System.
 
-  Section pre.
-
-    Context {Region: Set}.
-
-    Definition State := (concrete.Location chs * Region)%type.
-
-    Definition region: State -> Region := snd.
-    Definition location: State -> concrete.Location chs := fst.
-
-    Context {regions: ExhaustiveList Region}.
-
-    Definition states := @ExhaustivePairList (concrete.Location chs) Region _ _.
-
-    Lemma NoDup_states: NoDup regions -> NoDup states.
-    Proof with auto.
-      apply NoDup_ExhaustivePairList...
-      apply concrete.NoDup_locations.
-    Qed.
-
-  End pre.
-
-  Implicit Arguments State [].
-
   Record Parameters: Type :=
     { Region: Set
     ; Region_eq_dec: EquivDec.EqDec Region eq
@@ -47,6 +24,22 @@ Section contents.
   Existing Instance Region_eq_dec.
   Existing Instance regions.
   Existing Instance in_region_mor.
+
+  Section param_stuff.
+
+    Variable p: Parameters.
+
+    Definition State := (concrete.Location chs * Region p)%type.
+
+    Definition region: State -> Region p := snd.
+    Definition location: State -> concrete.Location chs := fst.
+
+    Definition states: ExhaustiveList State := @ExhaustivePairList (concrete.Location chs) (Region p) _ _.
+
+    Lemma NoDup_states: NoDup (regions p) -> NoDup states.
+    Proof. apply NoDup_ExhaustivePairList, concrete.NoDup_locations. Qed.
+
+  End param_stuff.
 
   (* Given two sets of abstraction parameters, we can combine these to make
    finer-grained abstraction parameters where each region corresponds to the
@@ -81,7 +74,7 @@ Section contents.
   Variable ap: Parameters.
 
   Definition ContRespect :=
-   fun (s: State (Region ap)) (l: list (Region ap)) =>
+   fun (s: State ap) (l: list (Region ap)) =>
      forall p, in_region ap p (region s) ->
      forall q, concrete.can_flow chs (location s) p q ->
        exists r', in_region ap q r' /\ In r' l.
@@ -98,34 +91,33 @@ Section contents.
    In particular, the former does not let us avoid drift, while the latter does. *)
 
   Definition DiscRespect :=
-    fun (s: State (Region ap)) (l: list (State (Region ap))) =>
+    fun (s: State ap) (l: list (State ap)) =>
       forall p1 (s2 : concrete.State chs) ,
         concrete.disc_trans (fst s, p1) s2 ->
         in_region ap p1 (snd s) ->
          exists r2, in_region ap (concrete.point s2) r2 /\ In (concrete.location s2, r2) l.
 
-  Definition Initial (s: State (Region ap)): Prop :=
+  Definition Initial (s: State ap): Prop :=
     exists p, in_region ap p (snd s) /\ concrete.initial (fst s, p).
 
   Record System: Type :=
     { initial_dec: forall s, overestimation (Initial s)
-    ; disc_trans: forall s: State (Region ap),
-      { l: list (State (Region ap)) | LazyProp (NoDup l /\ DiscRespect s l) }
-    ; cont_trans: forall s: State (Region ap),
+    ; disc_trans: forall s: State ap,
+      { l: list (State ap) | LazyProp (NoDup l /\ DiscRespect s l) }
+    ; cont_trans: forall s: State ap,
       { l: list (Region ap) | LazyProp (NoDup l /\ ContRespect s l) }
     }.
 
   Variable ahs: System.
 
-  Let State := State (Region ap).
   Let c_State := concrete.State chs.
 
-  Definition abs (s: c_State) (s': State): Prop :=
+  Definition abs (s: c_State) (s': State ap): Prop :=
     concrete.location s = fst s' /\
     in_region ap (snd s) (snd s').
   Hint Unfold abs.
 
-  Definition trans (b : bool) (s1 s2 : State) : Prop :=
+  Definition trans (b : bool) (s1 s2 : State ap) : Prop :=
     let (l1, p1) := s1 in
     let (l2, p2) := s2 in
       if b then
@@ -133,8 +125,8 @@ Section contents.
       else
         In s2 (proj1_sig (disc_trans ahs s1)).
 
-  Definition reachable (s : State) : Prop :=
-    exists is : State, 
+  Definition reachable (s : State ap) : Prop :=
+    exists is: State ap,
       (initial_dec ahs is: bool) = true /\ reachable_alternating trans is s.
 
   Hint Unfold Initial.
@@ -199,5 +191,3 @@ End contents.
 Existing Instance Region_eq_dec.
 Existing Instance regions.
 Existing Instance in_region_mor.
-
-Implicit Arguments State [].

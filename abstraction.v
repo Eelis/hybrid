@@ -14,8 +14,7 @@ Section contents.
   Let Location := concrete.Location chs.
   Let Point := concrete.Point chs.
   Let c_State := concrete.State chs.
-
-  Let State := (Location * abstract.Region ap)%type.
+  Let State := abstract.State ap.
 
   Definition cont_trans_cond (l: Location) (r1 r2: abstract.Region ap): Prop :=
       exists p, exists q,
@@ -138,7 +137,7 @@ Section contents.
   Qed.
 
   Program Definition cont_trans (s : State): sig
-    (fun l: list (abstract.Region ap) => LazyProp (NoDup l /\ abstract.ContRespect ap s l)) :=
+    (fun l: list (abstract.Region ap) => LazyProp (NoDup l /\ abstract.ContRespect s l)) :=
     filter (cont_trans_b s) (abstract.regions ap).
   Next Obligation. Proof with auto.
     split.
