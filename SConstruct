@@ -6,7 +6,7 @@ color_dir = libs + '/color/color/trunk/color'
 Rs = [(corn_dir, 'CoRN'), (color_dir, 'CoLoR'), ('.', 'hybrid')]
 Rs = string.join(map(lambda (x,y): '-R "' + x + '" ' + y, Rs))
 
-coqc = 'coqc ' + Rs
+coqc = 'coqc -noglob ' + Rs
 
 def make_abs(s):
   if s[0] != '/': return Dir("#").abspath + "/" + s
