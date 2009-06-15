@@ -27,15 +27,6 @@ Ltac CRcmp_to_O :=
       end
   end.
 
-Ltac prove_NoDup := simpl;
-  match goal with
-  | |- NoDup [] => constructor 1
-  | |- NoDup _ => constructor 2; [vm_compute; intuition; discriminate | prove_NoDup ]
-  end.
-
-Ltac prove_exhaustive_list :=
-  destruct 0; vm_compute; tauto.
-
 Ltac wd_helper :=
   match goal with
   | H: regFunEq ?x ?y |- 
@@ -54,10 +45,6 @@ Ltac wd_helper :=
   end.
 
 Ltac qrange := unfold uncurry; vm_compute; intuition; discriminate.
-
-Definition decision_decider_to_EqDec X (R: relation X) (e: Equivalence R)
-  (d: forall x y, decision (R x y)): EquivDec.EqDec X R := d.
-Ltac equiv_dec := apply decision_decider_to_EqDec; dec_eq.
 
 Ltac decomp_hyp H := 
   match type of H with

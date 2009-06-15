@@ -63,7 +63,7 @@ Section contents.
     Program Let select_region l p (H: concrete.invariant (l, p)): sig (in_region p)
       := (select_region ap _ _ H, select_region ap' _ _ H).
 
-    Next Obligation. split; simpl; destruct_call select_region; assumption. Qed.
+    Next Obligation. split; simpl; destruct select_region; assumption. Qed.
 
     Definition param_prod: Parameters := Build_Parameters  _ _
       (NoDup_ExhaustivePairList (NoDup_regions ap) (NoDup_regions ap'))
@@ -73,8 +73,7 @@ Section contents.
 
   Variable ap: Parameters.
 
-  Definition ContRespect :=
-   fun (s: State ap) (l: list (Region ap)) =>
+  Definition ContRespect (s: State ap) (l: list (Region ap)): Prop :=
      forall p, in_region ap p (region s) ->
      forall q, concrete.can_flow chs (location s) p q ->
        exists r', in_region ap q r' /\ In r' l.
@@ -90,8 +89,7 @@ Section contents.
    The former implies the latter, so the latter is weaker (and therefore better).
    In particular, the former does not let us avoid drift, while the latter does. *)
 
-  Definition DiscRespect :=
-    fun (s: State ap) (l: list (State ap)) =>
+  Definition DiscRespect (s: State ap) (l: list (State ap)): Prop :=
       forall p1 (s2 : concrete.State chs) ,
         concrete.disc_trans (fst s, p1) s2 ->
         in_region ap p1 (snd s) ->
@@ -103,9 +101,9 @@ Section contents.
   Record System: Type :=
     { initial_dec: forall s, overestimation (Initial s)
     ; disc_trans: forall s: State ap,
-      { l: list (State ap) | LazyProp (NoDup l /\ DiscRespect s l) }
+      sig (fun l: list (State ap) => LazyProp (NoDup l /\ DiscRespect s l))
     ; cont_trans: forall s: State ap,
-      { l: list (Region ap) | LazyProp (NoDup l /\ ContRespect s l) }
+      sig (fun l: list (Region ap) => LazyProp (NoDup l /\ ContRespect s l))
     }.
 
   Variable ahs: System.

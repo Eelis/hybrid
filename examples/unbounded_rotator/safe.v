@@ -6,21 +6,15 @@ Require hybrid.examples.unbounded_rotator.conc hybrid.examples.unbounded_rotator
 Module conc := unbounded_rotator.conc.
 Module abs := unbounded_rotator.abs.
 
-Definition abs_sys := abs.system centi.
-
-Program Definition unsafe_reachable: bool :=
-  abstract_as_graph.some_reachable abs_sys (abs.unsafe_abstract centi).
-
-Theorem unsafe_correct: unsafe_reachable = false -> conc.UnsafeUnreachable.
-Proof with auto.
-  unfold unsafe_reachable, conc.UnsafeUnreachable.
-  intros srf [l [px py]] su.
-  apply (abstract_as_graph.states_unreachable abs_sys conc.unsafe (proj1_sig (abs.unsafe_abstract centi)))...
-  destruct_call abs.unsafe_abstract.
-  eauto.
-Qed.
-
 Theorem unsafe_unreachable: conc.UnsafeUnreachable.
-Proof. Time apply unsafe_correct; vm_compute; reflexivity. Qed.
+Proof with eauto.
+  repeat intro.
+  cut (~ exists s, unbounded_rotator.conc.unsafe s /\ concrete.reachable s)...
+  assert (forall s, unbounded_rotator.conc.unsafe s -> forall r,
+   abstract.abs s r -> In r (` (unbounded_rotator.abs.unsafe_abstract centi))).
+    destruct abs.unsafe_abstract...
+  apply (overestimation_false (abstract_as_graph.some_reachable (abs.system centi) conc.unsafe (` (abs.unsafe_abstract centi)) H1)).
+  Time vm_compute. reflexivity.
+Qed.
 
 Print Assumptions unsafe_unreachable.

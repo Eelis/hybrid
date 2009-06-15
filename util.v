@@ -16,7 +16,7 @@ Ltac destruct_and :=
   | _ => idtac
   end.
 
-Definition decision (P: Prop): Set := { P } + { ~ P }.
+Class decision (P: Prop): Set := decide: { P } + { ~ P }.
 
 Definition decision_to_bool P (dec : decision P) : bool :=
   match dec with
@@ -40,6 +40,12 @@ Definition conj_pair {A B: Prop} (P: A /\ B): A * B :=
   match P with conj a b => (a, b) end.
 
 Coercion conj_pair: and >-> prod.
+
+Definition equivalent_decision (P Q: Prop) (PQ: P <-> Q) (d: decision P): decision Q :=
+  match d with
+  | left p => left (fst PQ p)
+  | right H => right (fun q => H (snd PQ q))
+  end.
 
 Definition opt_neg_conj (A B: Prop)
   (oa: option (~ A)) (ob: option (~ B)): option (~ (A /\ B)) :=
@@ -209,6 +215,8 @@ Require Import Ensembles.
 Notation "x ⊆ y" := (Ensembles.Included _ x y) (at level 40).
 Implicit Arguments Complement [U].
 
+Definition overlap X (A B: Ensembles.Ensemble X): Prop := exists x, A x /\ B x.
+
 Require Import EqdepFacts.
 Require Import Eqdep_dec.
 
@@ -247,3 +255,24 @@ Coercion morpher_to_func: morpher >-> Funclass.
 
 Instance morpher_morphism A B (R: relation (A -> B)) (f: morpher R):
   Morphism R f := proj2_sig f.
+
+Ltac prove_NoDup := simpl;
+  match goal with
+  | |- NoDup [] => constructor 1
+  | |- NoDup _ => constructor 2; [vm_compute; intuition; discriminate | prove_NoDup ]
+  end.
+
+Ltac prove_exhaustive_list :=
+  destruct 0; vm_compute; tauto.
+
+Definition decision_decider_to_EqDec X (R: relation X) (e: Equivalence R)
+  (d: forall x y, decision (R x y)): EquivDec.EqDec X R := d.
+Ltac equiv_dec := apply decision_decider_to_EqDec; dec_eq.
+
+Instance bools: ExhaustiveList bool := { exhaustive_list := true :: false :: [] }.
+Proof. prove_exhaustive_list. Defined.
+
+Lemma NoDup_bools: NoDup bools.
+Proof. prove_NoDup. Qed.
+
+Instance Bool_eq_dec: EquivDec.EqDec bool eq := bool_dec.

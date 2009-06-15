@@ -1,9 +1,14 @@
-Require Import List Bool.
-Require Import util bool_util list_util.
-Require abstract.
+Require Import List Bool util list_util.
+Require abstract digraph.
 Require Import reachability.
-Require digraph.
+
 Set Implicit Arguments.
+
+Local Open Scope type_scope.
+
+(* Given an abstract system, we can compute reachability overestimations. We do this by
+ making a graph corresponding to the abstract system, and using a graph reachability
+ algorithm on it. *)
 
 Section using_duplication.
 
@@ -12,180 +17,172 @@ Section using_duplication.
     (ap: abstract.Parameters chs)
     (ahs: abstract.System ap).
 
-  Inductive TransKind := Cont | Disc.
+  Let Vertex := bool * abstract.State ap.
 
-  Instance transKinds: ExhaustiveList TransKind :=
-    { exhaustive_list := Cont :: Disc :: [] }.
-  Proof. destruct x; clear; firstorder. Defined.
+  (* The purpose of the bool component is the following. In the graph, some edges will
+   correspond to abstract _continuous_ transitions, while others will correspond to abstract
+   _discrete_ transitions. We do not want to allow two successive transitions of the same
+   kind. The solution we use (for now) is to add two vertices for each abstract state,
+   one with fst = true, and one with fst = false. Next, we only add edges corresponding to
+   abstract continuous transitions from a vertex with fst = true to a vertex with fst = false, and
+   only add edges corresponding to abstract discrete transitions from a vertex with
+   fst = false to a vertex with fst = true. This ensures that paths through the graph alternate
+   between vertices with fst = true and vertices with fst = false, and that the corresponding
+   abstract traces alternate between continuous and discrete transitions. *)
 
-  Instance TransKind_eq_dec: EquivDec.EqDec TransKind eq.
-  Proof. repeat intro. cut (decision (x = y)). auto. dec_eq. Defined.
+  Definition nexts (v: Vertex): list (abstract.State ap) :=
+    let (k, s) := v in (if k
+      then map (pair (fst s)) (` (abstract.cont_trans ahs s))
+      else ` (abstract.disc_trans ahs s)).
 
-  Definition flip (k: TransKind) :=
-    match k with Cont => Disc | Disc => Cont end.
+  Definition edges (v: Vertex): list Vertex := map (pair (negb (fst v))) (nexts v).
 
-  Let a_State := abstract.State ap.
-
-  Let V := (TransKind * a_State)%type.
-
-  Definition states_to_verts (s : list a_State) := map (pair Cont) s ++ map (pair Disc) s.
-
-  Instance vertices: ExhaustiveList V := { exhaustive_list := states_to_verts (abstract.states ap) }.
-  Proof. intro v. destruct v. apply in_or_app. destruct t; auto. Defined.
-
-  Definition tr (k : TransKind) (s: a_State) : list a_State :=
-    match k with
-    | Cont => 
-        let (l, r) := s in
-          map (pair l) (proj1_sig (abstract.cont_trans ahs s))
-    | Disc => proj1_sig (abstract.disc_trans ahs s)
-    end.
-     
-  Definition next (v: V) : list V :=
-    map (pair (flip (fst v))) (tr (fst v) (snd v)).
-
-  Lemma NoDup_next v: NoDup (next v).
+  Lemma NoDup_edges v: NoDup (edges v).
   Proof with auto; try congruence.
-    intros. apply NoDup_map...
-    destruct v. destruct a. destruct t; simpl. 
+    intros [k [l r]].
     apply NoDup_map...
-    destruct_call abstract.cont_trans. simpl. destruct l0...
-    destruct_call abstract.disc_trans. simpl. destruct l0...
-  Qed.
-
-  Lemma NoDup_states_to_verts s : NoDup s -> NoDup (states_to_verts s).
-  Proof with auto; try congruence.
-    intros s nds. apply NoDup_app; try apply NoDup_map... intros. 
-    destruct (proj1 (in_map_iff _ _ _ ) H) as [e [es _]]. subst. intro. 
-    destruct (proj1 (in_map_iff _ _ _) H0) as [f [fs _]]. discriminate.
+    unfold nexts.
+    destruct abstract.cont_trans. destruct abstract.disc_trans.
+    simpl.
+    destruct l0... destruct l1... destruct k...
+    apply NoDup_map...
   Qed.
 
   Definition g : digraph.DiGraph :=
-    @digraph.Build (TransKind * abstract.State ap) _ _ _ NoDup_next.
+    @digraph.Build (bool * abstract.State ap) _ _ edges NoDup_edges.
 
-  Lemma respect (s : a_State) : 
-    abstract.reachable ahs s ->
-    exists k, exists v : digraph.Vertex g,
-    (@abstract.initial_dec chs ap ahs (snd v): bool) = true /\
-    digraph.reachable v (k, s).
+  (* Next, we show that reachability in the graph is equivalent to reachability in the abstract system. *)
+
+  Lemma edges_match_transitions y b x: In y (nexts (b, x)) <-> abstract.trans ahs b x y.
   Proof with auto.
-    intros s [absS [init [tt reach_alt]]].
-    exists (if tt then Disc else Cont).
-    induction reach_alt.
-    exists (if b then Disc else Cont, s).
-    split...
-    destruct b; apply reachable_refl.
-    destruct IHreach_alt as [v [init_v reach_v]]... 
-    exists v. split...
-    destruct b; simpl in *.
-    apply reachable_next with (Cont, y)...
-    simpl. apply in_map.
-    destruct z. destruct y. destruct H. subst. simpl. apply in_map...
-    apply reachable_next with (Disc, y)...
-    destruct y. destruct z. simpl in *. apply in_map...
+    intros [l' r'] b [l r]. simpl.
+    split; destruct b...
+      intro.
+      destruct (fst (in_map_iff _ _ _) H) as [x [C D]].
+      inversion C. subst...
+    intros [A B].
+    subst...
   Qed.
 
-  Definition graph_unreachable_prop s (v : digraph.Vertex g) : Prop :=
-    (@abstract.initial_dec _ _ ahs (snd v): bool) = true ->
-    ~digraph.reachable v (Cont, s) /\ ~digraph.reachable v (Disc, s).
-
-  Lemma respect_inv (s: a_State) :
-    (forall v: digraph.Vertex g, graph_unreachable_prop s v) ->
-    ~abstract.reachable ahs s.
+  Lemma paths_match_traces x y:
+    (exists b, digraph.reachable ((b, x): digraph.Vertex g) y) <->
+    end_with (abstract.trans ahs) (negb (fst y)) x (snd y).
   Proof with auto.
-    intros s rc abs_reach.
-    destruct (respect abs_reach) as [tt [v [init reach]]].
-    destruct (rc v init) as [reach_c reach_d].
-    destruct tt...
+    split.
+      intros [b r].
+      replace x with (snd (b, x))...
+      set (b, x) in *.
+      clearbody p.
+      clear b.
+      induction r...
+      destruct (fst (in_map_iff _ _ _) H) as [x0 [A B]]. clear H.
+      subst. simpl.
+      rewrite negb_involutive.
+      apply (end_with_next _ IHr).
+      apply (edges_match_transitions x0 (fst b) (snd b))...
+      destruct b...
+    destruct y.
+    simpl.
+    generalize b. clear b.
+    cut (forall b, end_with (abstract.trans ahs) b x s -> exists b0, digraph.reachable ((b0, x): digraph.Vertex g) (negb b, s)).
+      intros.
+      rewrite <- (negb_involutive b)...
+    intros b r.
+    induction r.
+      unfold digraph.reachable.
+      exists (negb b).
+      apply reachable_refl.
+    unfold digraph.reachable in *.
+    destruct IHr.
+    rewrite negb_involutive in H0.
+    exists x0.
+    apply (@reachable_next _ (fun v w : digraph.Vertex g => In w (digraph.edges v)) (x0, x) (b, y) (negb b, z) H0).
+    unfold digraph.edges.
+    simpl.
+    unfold edges.
+    simpl negb.
+    apply in_map.
+    apply <- edges_match_transitions...
   Qed.
 
-  Definition init_verts : list V :=
-    let is_initial v := @abstract.initial_dec chs ap ahs v in
-    let init_states := filter is_initial (abstract.states ap) in
-      states_to_verts init_states.
+  Definition graph_reachable (s: abstract.State ap): Prop :=
+    exists i: digraph.Vertex g, (abstract.initial_dec ahs (snd i): bool) = true /\
+    exists k, digraph.reachable i (k, s).
 
-  Lemma init_verts_eq_aux (tt : TransKind) ss :
-    map (pair tt) (filter (fun v => abstract.initial_dec ahs v) ss) =
-    filter (fun s => abstract.initial_dec ahs (snd s)) (map (pair tt) ss).
-  Proof.
-    induction ss. ref. simpl.
-    destruct (abstract.initial_dec ahs a); destruct x; simpl; rewrite IHss; ref.
+  Hint Unfold graph_reachable In.
+
+  Theorem respect s: abstract.reachable ahs s <-> graph_reachable s.
+  Proof with auto.
+    unfold abstract.reachable.
+    unfold graph_reachable.
+    split.
+      intros [x [H [x0 H0]]].
+      rewrite <- (negb_involutive x0) in H0.
+      destruct (snd (paths_match_traces x (_, _)) H0).
+      exists (x1, x). eauto.
+    intros [[b s0] [H [k H0]]].
+    exists s0. split...
+    exists (negb k).
+    apply (paths_match_traces s0 (k, s)). eauto.
   Qed.
 
-  Lemma init_verts_eq  :
-    init_verts = 
-    filter (fun s => abstract.initial_dec ahs (snd s))
-    vertices.
-  Proof.
-    unfold init_verts, states_to_verts.
-    do 2 rewrite init_verts_eq_aux. 
-    apply filter_app.
-  Qed.
+  (* Since we can decide reachability in the graph, we can now decide reachability in the abstract system. *)
+
+  Definition init_verts: list Vertex := filter (fun s => abstract.initial_dec ahs (snd s)) ExhaustivePairList.
+  Hint Unfold init_verts.
 
   Lemma NoDup_init_verts : NoDup init_verts.
-  Proof.
-    apply NoDup_states_to_verts.
+  Proof with auto; try congruence.
+    unfold init_verts.
     apply NoDup_filter.
+    apply NoDup_ExhaustivePairList.
+      apply NoDup_bools.
     apply abstract.NoDup_states.
     apply abstract.NoDup_regions.
   Qed.
 
-  Definition reachable_verts: list V :=
-    proj1_sig (@digraph.reachables g init_verts NoDup_init_verts).
+  Program Let reachable_verts := digraph.reachables g NoDup_init_verts.
+
+  Program Let state_reachable s: decision (abstract.reachable ahs s) :=
+    @equivalent_decision (exists b, In (b, s) (`reachable_verts)) _ _ decide.
 
   Hint Resolve in_filter.
-  Obligation Tactic := idtac.
 
-  Definition state_reachable vs s: bool :=
-    unsumbool (In_dec (digraph.Vertex_eq_dec g) (Cont, s) vs) ||
-    unsumbool (In_dec (digraph.Vertex_eq_dec g) (Disc, s) vs).
-      (* We really only ever call state_reachable with vs=reachable_verts, but
-       for efficiency reasons we don't hard-code it into state_reachable, because
-       for some reason, that appears to cause it to be re-computed over and
-       over again. This is also why state_reachable doesn't return an
-       overestimation: nothing interesting can be concluded when nothing
-       is known about vs. *)
-
-  Lemma state_reachable_correct s:
-    state_reachable reachable_verts s = false -> 
-    ~ abstract.reachable ahs s.
-  Proof with eauto.
-    intros.
-    apply respect_inv.
-    unfold state_reachable in H.
-    destruct (In_dec (digraph.Vertex_eq_dec g) (Cont, s) reachable_verts); [discriminate|].
-    destruct (In_dec (digraph.Vertex_eq_dec g) (Disc, s) reachable_verts); [discriminate|].
-    repeat intro.
-    assert (In v init_verts). rewrite init_verts_eq...
-    unfold reachable_verts in *.
-    destruct (digraph.reachables g NoDup_init_verts).
-    set (snd (i (Cont, s))).
-    set (snd (i (Disc, s))).
-    eauto 20.
+  Next Obligation. Proof with auto.
+    split.
+      intros [x H].
+      destruct reachable_verts.
+      simpl proj1_sig in H.
+      apply <- respect.
+      unfold graph_reachable.
+      destruct (fst (i (_, s)) H) as [x1 [H0 H1]].
+      exists x1.
+      split...
+        destruct (fst (filter_In _ _ _) H0)...
+      eauto.
+    intro.
+    destruct (fst (respect s) H) as [x [H0 [x0 H1]]].
+    destruct reachable_verts.
+    exists x0.
+    apply <- i.
+    unfold init_verts.
+    eauto.
   Qed.
 
-  Definition some_reachable ss : bool :=
-    List.existsb (state_reachable reachable_verts) ss.
+  (* Using the above, we can overestimate reachability of sets of concrete states. *)
 
-  Lemma states_unreachable (P: concrete.State chs -> Prop) (ss : list a_State):
-    (forall s, P s -> forall r, abstract.abs s r -> In r ss) ->
-    some_reachable ss = false ->
-    forall cs, P cs -> ~ concrete.reachable cs.
-  Proof with auto.
-    intros.
-    apply (@abstract.safe chs ap ahs).
-    unfold some_reachable in H0.
-    intros.
-    intro.
-    set (H cs H1 s' H2). clearbody i.
-    contradict H0.
-    apply not_false_true.
-    apply (snd (existsb_exists (state_reachable reachable_verts) ss)).
-    exists s'.
-    split...
-    case_eq (state_reachable reachable_verts s')...
-    intro. elimtype False.
-    apply state_reachable_correct with s'...
+  Variables
+    (cstates: concrete.State chs -> Prop)
+    (astates: list (abstract.State ap))
+    (astates_cover_cstates: forall s, cstates s -> forall r, abstract.abs s r -> In r astates).
+
+  Program Definition some_reachable: overestimation (overlap cstates concrete.reachable) :=
+    unsumbool (@decide (exists u, In u astates /\ abstract.reachable ahs u) decide).
+
+  Next Obligation. Proof with eauto.
+    intros H [x [Px r]].
+    apply (@abstract.safe _ _ ahs x)...
+    repeat intro. apply (decision_false _ H)...
   Qed.
 
 End using_duplication.

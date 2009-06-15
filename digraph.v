@@ -15,7 +15,9 @@ Record DiGraph: Type := Build
   ; edges_NoDup: forall v, NoDup (edges v)
   }.
 
-Hint Resolve Vertex_eq_dec vertices: typeclass_instances.
+Existing Instance Vertex_eq_dec.
+Existing Instance vertices.
+
 Hint Resolve edges_NoDup.
 Hint Immediate edges_NoDup.
 

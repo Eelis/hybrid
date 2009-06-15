@@ -362,3 +362,25 @@ Section ExhaustivePairList.
 End ExhaustivePairList.
 Existing Instance ExhaustivePairList.
   (* No idea why this is necessary... *)
+
+Instance decide_exists_in `{forall x: T, decision (P x)} l: decision (exists x, In x l /\ P x).
+Proof.
+  repeat intro.
+  case_eq (existsb H l); intro.
+    left.
+    destruct (fst (existsb_exists _ _) H0).
+    exists x.
+    destruct H1.
+    split. assumption.
+    apply (decision_true _ H2).
+  right.
+  intros [x [H1 H2]].
+  exact (decision_false _ (existsb_forall l H x H0 H1) H2).
+Defined.
+
+Instance decide_exists `{ExhaustiveList T} `{forall x: T, decision (P x)}: decision (exists x, P x).
+Proof.
+  intros. destruct (decide_exists_in H); [left | right]; firstorder.
+Defined.
+
+Instance In_decision `{EquivDec.EqDec T eq} (x: T) y: decision (In x y) := In_dec EquivDec.equiv_dec x y.

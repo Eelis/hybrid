@@ -20,13 +20,6 @@ Section contents.
       exists p, exists q,
         abstract.in_region ap p r1 /\ abstract.in_region ap q r2 /\ concrete.cont_trans (l, p) (l, q).
 
-  Definition disc_trans_cond (s : State * State): Prop :=
-    let (s1, s2) := s in
-    let (l1, r1) := s1 in
-    let (l2, r2) := s2 in
-      exists p, exists q,
-        abstract.in_region ap p r1 /\ abstract.in_region ap q r2 /\ concrete.disc_trans (l1, p) (l2, q).
-
   Definition Hint (l: Location) (r r': abstract.Region ap): Set :=
     forall p, abstract.in_region ap p r ->
       forall t, '0 <= t -> abstract.in_region ap (concrete.flow chs l p t) r' ->
@@ -60,8 +53,6 @@ Section contents.
     end.
 
   Variable cont_dec: forall l r r', overestimation (cont_trans_cond l r r').
-
-  (* Using these, we can define the abstract transitions.. *)
 
   Let cont_trans_b (s : State) (r_dst : abstract.Region ap) : bool :=
     let (l, r_src) := s in
