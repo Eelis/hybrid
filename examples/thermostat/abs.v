@@ -74,8 +74,8 @@ Definition clock_interval := interval_spec.select_interval' system fst_mor clock
 Definition temp_interval := interval_spec.select_interval system snd_mor temp_spec.
 
 Definition ap: abstract.Parameters conc.system :=
-  square_abstraction.ap (NoDup_bnats 6) (NoDup_bnats 6)
-  _ _ _ _ _ _ _ _ _ _ clock_interval temp_interval.
+  square_abstraction.ap _ _ _ (NoDup_bnats 6) (NoDup_bnats 6)
+  _ _ clock_interval temp_interval.
 
 (* Abstracted initial: *)
 
@@ -83,7 +83,7 @@ Obligation Tactic := CRle_constants.
 Program Definition initial_square: OpenSquare := (('0, '0), ('5, '10)): Square.
 Definition initial_location := Heat.
 
-Lemma initial_representative: forall s: concrete.State conc_thermo.system,
+Lemma initial_representative: forall s: concrete.State system,
   concrete.initial s -> loc s = initial_location /\
   in_osquare (point s) initial_square.
 Proof.
@@ -92,35 +92,47 @@ Proof.
   simpl. rewrite H2. auto.
 Qed.
 
-Let initial_dec := @square_abstraction.initial_dec
-  _ _ _ _ _ _ _ _ _ (NoDup_bnats 6) (NoDup_bnats 6)
-  _ _ _ _ _ _ initial_invariant _ _ invariant_wd NoDup_locations
+Let initial_dec := @square_abstraction.make_initial_overestimator
+  _ _ _ _ _ _ _ _ _ (NoDup_bnats 6) (NoDup_bnats 6) _ _
   clock_interval temp_interval _ _ initial_representative.
 
 (* Abstracted invariant: *)
 
-Obligation Tactic := program_simpl; CRle_constants.
+Definition px := @fst_mor CRasCSetoid CRasCSetoid.
+Definition py := @snd_mor CRasCSetoid CRasCSetoid.
 
-Program Definition invariant_squares (l: Location): OpenSquare :=
+Obligation Tactic := idtac.
+
+Program Definition invariant_squares (l: concrete.Location system):
+  sig (fun s: OpenSquare => forall p, concrete.invariant (l, p) ->
+    in_osquare (square_abstraction.pxy system px py p) s) :=
   match l with
   | Cool => (above ('0), above ('5))
-  | Heat => (('0, '3): Range, below ('10))
-  | Check => (('0, '1): Range, unbounded_range)
+  | Heat => (('0, '3): Range, below ('10)): OpenSquare
+  | Check => (('0, '1): Range, unbounded_range): OpenSquare
   end.
 
-Lemma invariant_squares_correct (l : Location) (p : Point):
-  invariant (l, p) -> in_osquare p (invariant_squares l).
-Proof. unfold invariant. grind ltac:(destruct l). Qed.
+Solve Obligations using
+  simpl @concrete.invariant; unfold invariant; grind ltac:(destruct l).
 
-Let invariant_dec: Qpos -> forall li : Location * abstract.Region ap,
-  overestimation (square_abstraction.abstract_invariant li)
-    := square_abstraction.invariant_dec
-      invariant_squares invariant_squares_correct.
+Let invariant_dec: Qpos -> overestimator (@abstract.invariant _ ap)
+  := square_abstraction.make_invariant_overestimator invariant_squares.
 
 (* Abstracted guard: *)
 
-Definition guard_square (l l': Location): option OpenSquare :=
-  match l, l' with
+Definition GuardSquare l l' := fun s: option OpenSquare =>
+  forall p, concrete.guard system (l, p) l' ->
+    match s with
+    | None => False
+    | Some v => in_osquare (square_abstraction.pxy system px py p) v
+    end.
+  (* todo: why can't we use square_abstraction.GuardSquare below? *)
+
+Obligation Tactic := program_simpl.
+
+Program Definition guard_square (l l': concrete.Location system):
+   sig (GuardSquare l l') :=
+  match l, l' return square_abstraction.GuardSquare system _ _ l l' with
   | Heat, Cool => Some (unbounded_range, above ('9))
   | Cool, Heat => Some (unbounded_range, below ('6))
   | Heat, Check => Some (above ('2), unbounded_range)
@@ -128,20 +140,11 @@ Definition guard_square (l l': Location): option OpenSquare :=
   | _, _ => None
   end.
 
-Lemma guard_squares_correct: forall s l',
-  concrete.guard conc_thermo.system s l' <->
-  match guard_square (loc s) l' with
-  | None => False
-  | Some v => in_osquare (point s) v
-  end.
-Proof.
-  destruct s as [l [x y]].
-  destruct l; destruct l'; repeat split; simpl; auto; intros [[A B] [C D]]; auto.
-Qed.
+Solve Obligations using
+  intros; subst; repeat split; simpl; auto; intros [[A B] [C D]]; auto.
 
-Let guard_dec: Qpos -> forall l (r: abstract.Region ap) l',
-  overestimation (square_abstraction.abstract_guard l r l')
- := square_abstraction.guard_dec guard_square guard_squares_correct.
+Let guard_dec: Qpos -> overestimator (abstract.guard ap)
+ := square_abstraction.guard_dec guard_square.
 
 (* Hints: *)
 
@@ -205,15 +208,16 @@ Obligation Tactic := program_simpl.
 
 Program Definition disc_trans_dec eps :=
   square_abstraction.disc_trans
-    (invariant_dec eps) clock_reset temp_reset _
-    (guard_dec eps) eps.
+    (@id (concrete.Point system)) _ _ _
+    (invariant_dec eps) (guard_dec eps) clock_reset temp_reset _ eps.
 
 Next Obligation. intros. destruct l; destruct l'; reflexivity. Qed.
 
-Let cont_trans eps := hinted_abstract_continuous_transitions.cont_trans
+Program Let cont_trans eps := hinted_abstract_continuous_transitions.cont_trans
     (square_abstraction.cont_trans_cond_dec
-      clock_flow_inv temp_flow_inv clock_rfis temp_rfis
-      invariant_squares invariant_squares_correct eps)
+    (@id (concrete.Point system)) _ _ _
+      _ clock_flow_inv temp_flow_inv clock_rfis temp_rfis
+      _ (invariant_dec eps) eps)
     (@hinted_abstract_continuous_transitions.weaken_hints _ ap hints).
 
 Definition system (eps: Qpos): abstract.System ap :=

@@ -128,8 +128,19 @@ Section contents.
         in_region ap p1 (snd s) ->
          exists r2, in_region ap (concrete.point s2) r2 /\ In (concrete.location s2, r2) l.
 
+  (* We define abstract versions of initiality, invariance, and guards, suitable
+   as overestimation predicates. *)
+
   Definition Initial (s: State ap): Prop :=
     exists p, in_region ap p (snd s) /\ concrete.initial (fst s, p).
+
+  Definition invariant (ls: State ap): Prop :=
+    exists p, in_region ap p (snd ls) /\
+      concrete.invariant (fst ls, p).
+
+  Definition guard (l: concrete.Location chs) (s: Region ap) (l': concrete.Location chs): Prop
+    := exists p, in_region ap p s /\
+	concrete.guard chs (l, p) l'.
 
   Record System: Type :=
     { initial_dec: overestimator Initial

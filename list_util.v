@@ -384,3 +384,32 @@ Proof.
 Defined.
 
 Instance In_decision `{EquivDec.EqDec T eq} (x: T) y: decision (In x y) := In_dec EquivDec.equiv_dec x y.
+
+Section carts.
+
+  Variables (A B: Type) (a: list A) (b: list B).
+
+  Definition cart: list (A * B) :=
+    flat_map (fun x => map (pair x) b) a.
+
+  Lemma in_cart (ab: A * B): In (fst ab) a -> In (snd ab) b -> In ab cart.
+  Proof with auto.
+    intros.
+    apply <- in_flat_map.
+    destruct ab.
+    eauto.
+  Qed.
+
+  Lemma NoDup_cart: NoDup a -> NoDup b -> NoDup cart.
+  Proof with auto.
+    intros.
+    apply NoDup_flat_map; intros...
+      destruct (fst (in_map_iff _ _ _) H3).
+      destruct (fst (in_map_iff _ _ _) H4).
+      intuition.
+      congruence.
+    apply NoDup_map...
+    congruence.
+  Qed.
+
+End carts.

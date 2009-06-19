@@ -28,8 +28,8 @@ Definition yinterval := interval_spec.select_interval system snd_mor spec.
 (* Abstraction parameters *)
 
 Definition ap: abstract.Parameters system :=
-  square_abstraction.ap (NoDup_bnats 5) (NoDup_bnats 5)
-  Interval_bounds Interval_bounds _ _ _ _ _ _ _ _ xinterval yinterval.
+  square_abstraction.ap _ _ _ (NoDup_bnats 5) (NoDup_bnats 5)
+  Interval_bounds Interval_bounds xinterval yinterval.
 
 (* Flow inverses *)
 
@@ -82,25 +82,31 @@ Lemma initial_representative: forall s: concrete.State system,
   concrete.initial s -> loc s = initial_location /\ in_osquare (point s) initial_square.
 Proof. intros [l s] [H [H0 H1]]. repeat split; auto. Qed.
 
-Let initial_dec := @square_abstraction.initial_dec
-  _ _ _ _ _ _ _ _ _ (NoDup_bnats 5) (NoDup_bnats 5)
-  Interval_bounds Interval_bounds _ _ _ _ initial_invariant _ _ invariant_wd NoDup_locations
-  xinterval yinterval
-  _ _ initial_representative.
-
-Obligation Tactic := idtac.
+Let initial_dec := @square_abstraction.make_initial_overestimator
+  _ _ _ _ _ _ _ _ _ (NoDup_bnats 5) (NoDup_bnats 5) _ _
+  xinterval yinterval _ _ initial_representative.
 
 (* Abstract invariant *)
 
-Program Definition invariant_dec (eps: Qpos) (li : Location * abstract.Region ap):
-    overestimation (square_abstraction.abstract_invariant li) := true.
-
-Next Obligation. intros. discriminate. Qed.
+Program Definition invariant_dec (eps: Qpos):
+  overestimator (@abstract.invariant _ ap) := fun _ => true.
 
 (* Abstract guard *)
 
-Definition guard_square (l l': Location): option OpenSquare :=
-  match l, l' with
+Definition px := @fst_mor CRasCSetoid CRasCSetoid.
+Definition py := @snd_mor CRasCSetoid CRasCSetoid.
+
+Definition GuardSquare l l' := fun s: option OpenSquare =>
+  forall p, concrete.guard system (l, p) l' ->
+    match s with
+    | None => False
+    | Some v => in_osquare (square_abstraction.pxy system px py p) v
+    end.
+  (* todo: why can't we use square_abstraction.GuardSquare below? *)
+
+Program Definition guard_square (l l': concrete.Location system):
+   sig (GuardSquare l l') :=
+  match l, l' return square_abstraction.GuardSquare system _ _ l l' with
   | Up, Right   => Some (unbounded_range, above ('(41#10)))
   | Right, Down => Some (above ('(41#10)), unbounded_range)
   | Down, Left  => Some (unbounded_range, below ('(9#10)))
@@ -108,36 +114,24 @@ Definition guard_square (l l': Location): option OpenSquare :=
   | _, _ => None
   end.
 
-Lemma guard_squares_correct: forall s l',
-  concrete.guard system s l' <->
-  match guard_square (loc s) l' with
-  | None => False
-  | Some v => in_osquare (point s) v
-  end.
-Proof.
-  destruct s as [l [xv yv]].
-  destruct l; destruct l'; repeat split; simpl; auto; intros [[A B] [C D]]; auto.
-Qed.
-
-Let guard_dec: Qpos -> forall l (r : abstract.Region ap) l',
-  overestimation (square_abstraction.abstract_guard l r l')
-   := square_abstraction.guard_dec guard_square guard_squares_correct.
+Let guard_dec: Qpos -> overestimator (abstract.guard ap)
+   := square_abstraction.guard_dec guard_square.
 
 (* Abstract discrete transitions *)
 
 Program Definition disc_trans_dec eps := square_abstraction.disc_trans
-  (invariant_dec eps) xreset yreset _ (guard_dec eps) eps.
-Next Obligation. reflexivity. Qed.
+  _ _ _ _ (invariant_dec eps)  (guard_dec eps) xreset yreset _ eps.
 
 (* Abstract continuous transitions *)
 
 Definition hints (l : Location) (r r' : abstract.Region ap) (i: r <> r'):
   option (hinted_abstract_continuous_transitions.StrongHint ap l r r') := None.
 
-Let cont_trans eps := hinted_abstract_continuous_transitions.cont_trans
+Program Let cont_trans eps := hinted_abstract_continuous_transitions.cont_trans
   (square_abstraction.cont_trans_cond_dec
+    (@id (concrete.Point system)) _ _ _ _
   x_flow_inv y_flow_inv x_rfis y_rfis
-  invariant_squares invariant_squares_correct eps)
+  _ (invariant_dec eps) eps)
   (@hinted_abstract_continuous_transitions.weaken_hints _ ap hints).
 
 (* Abstract system *)
