@@ -1,4 +1,5 @@
-Require abstraction interval_abstraction.
+Require interval_abstraction.
+Require hinted_abstract_continuous_transitions.
 Require square_flow_conditions.
 Require Import util.
 Require Import list_util.
@@ -126,7 +127,7 @@ Ltac bool_contradict id :=
     apply (overestimation_false _ H), osquares_share_point with p...
   Qed.
 
-  Variable invariant_decider: forall s, overestimation (abstract_invariant s).
+  Variable invariant_decider: overestimator abstract_invariant.
 
   Variables (reset_x reset_y: Location -> Location -> Reset).
 
@@ -216,7 +217,7 @@ Ltac bool_contradict id :=
 
   Definition disc_trans_regions (eps: Qpos) (l l': Location) (r: abstract.Region ap): list (abstract.Region ap)
     :=
-    if guard_decider l r l' && invariant_decider (l, r) then
+    if guard_decider l r l' && overestimation_bool (invariant_decider (l, r)) then
     let xs := match reset_x l l' with
       | Reset_const c => filter (fun r' => oranges_overlap_dec eps
         (unit_range c: OpenRange) (Xinterval_range r')) Xintervals
@@ -231,7 +232,7 @@ Ltac bool_contradict id :=
         (map_orange' f (Yinterval_range (snd r))) (Yinterval_range r')) Yintervals
       | Reset_id => [snd r] (* x reset is id, so we can only remain in this x range *)
       end
-     in flat_map (fun x => filter (fun s => invariant_decider (l', s)) (map (pair x) ys)) xs
+     in flat_map (fun x => filter (fun s => overestimation_bool (invariant_decider (l', s))) (map (pair x) ys)) xs
    else [].
 
   Definition raw_disc_trans (eps: Qpos) (s: State): list State :=
@@ -406,7 +407,7 @@ Ltac bool_contradict id :=
   Obligation Tactic := idtac.
 
   Program Definition cont_trans_cond_dec eps l r r':
-    overestimation (abstraction.cont_trans_cond ap l r r') :=
+    overestimation (hinted_abstract_continuous_transitions.condition ap l r r') :=
       square_flow_conditions.decide_practical
         (xflow_invr l) (yflow_invr l) (square r) (square r') eps &&
       invariant_dec eps (l, r) &&

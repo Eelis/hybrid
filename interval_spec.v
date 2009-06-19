@@ -1,7 +1,7 @@
 Require geometry.
 Require Import bnat.
 Require Import util c_util.
-Require abstract abstraction.
+Require abstract.
 
 Set Implicit Arguments.
 

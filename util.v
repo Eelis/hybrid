@@ -16,6 +16,43 @@ Ltac destruct_and :=
   | _ => idtac
   end.
 
+
+Section predicate_reflection.
+
+  Inductive PredicateType: Type -> Type :=
+    | PT_Prop: PredicateType Prop
+    | PT_pred X (T: X -> Type): (forall x, PredicateType (T x)) ->
+      PredicateType (forall x: X, T x).
+
+  (* We would really like PredicateType to be a type class, but unfortunately
+   we cannot make it one with the way type classes currently work. Hence,
+   we introduce the following: *)
+
+  Class IsPredicateType (T: Type): Type := is_PT: PredicateType T.
+
+  Instance PT_Prop_instance: IsPredicateType Prop := PT_Prop.
+  Instance PT_pred_instance (X: Type) (T: X -> Type) (U: forall x, IsPredicateType (T x)):
+    IsPredicateType (forall x: X, T x) := PT_pred T U.
+
+  Variables
+     (F: forall T: Type, T -> Type)
+     (A: forall P: Prop, F P)
+     (B: forall (U: Type) (R: U -> Type) (p: forall u, R u)
+            (i: forall u, PredicateType (R u)), (forall u, F (p u)) -> F p).
+
+  Definition pred_rect (T: Type) (i: IsPredicateType T) (t: T): F t.
+  Proof.
+    intros T d.
+    induction d.
+      exact A.
+    exact (fun t => B T t p (fun u => X0 u (t u))).
+  Defined.
+
+End predicate_reflection.
+
+Existing Instance PT_Prop_instance.
+Existing Instance PT_pred_instance.
+
 Class decision (P: Prop): Set := decide: { P } + { ~ P }.
 
 Definition decision_to_bool P (dec : decision P) : bool :=
@@ -201,6 +238,13 @@ Proof. destruct o. assumption. Qed.
 
 Lemma overestimation_true P (o: overestimation P): P -> (o: bool) = true.
 Proof. destruct o. destruct x. reflexivity. intros. absurd P; auto. Qed.
+
+Definition overestimator `{ipt: IsPredicateType T}: T -> Type :=
+  pred_rect (fun _ _ => Type) overestimation (fun U R p i X => forall x, X x) ipt.
+
+Goal overestimator lt = forall x y, overestimation (lt x y).
+  reflexivity.
+Defined.
 
 Program Definition weaken_decision (P: Prop) (d: decision P):
   overestimation P := d: bool.

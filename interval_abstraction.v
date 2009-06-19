@@ -1,6 +1,6 @@
 Require geometry.
 Require Import util c_util.
-Require abstract abstraction.
+Require abstract hinted_abstract_continuous_transitions.
 
 Set Implicit Arguments.
 
@@ -36,15 +36,12 @@ Section contents.
     abstract.Build_Parameters chs _ _ NoDup_regions
       in_region_mor select_interval.
 
-  Definition hints (r r': abstract.Region parameters) (f: flow.Flow (concrete.Point chs)):
-    (forall x, strongly_increasing (component ∘ f x)) ->
-    option
-    (forall p: concrete.Point chs,
-     abstract.in_region parameters p r ->
-     forall t: flow.Time,
-     abstract.in_region parameters (f p t) r' -> t <= ' 0).
+  Definition hints (r r': abstract.Region parameters) (l: concrete.Location chs):
+    (forall x, strongly_increasing (component ∘ concrete.flow chs l x)) ->
+    option (hinted_abstract_continuous_transitions.StrongHint parameters l r r').
   Proof with auto.
     intros.
+    unfold hinted_abstract_continuous_transitions.StrongHint.
     simpl abstract.in_region.
     unfold in_region.
     destruct (bounds r) as [[ci_lo ci_hi] ci_le].

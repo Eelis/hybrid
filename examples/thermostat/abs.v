@@ -4,7 +4,7 @@ Require Import monotonic_flow.
 Require Import hs_solver.
 Require Import interval_spec.
 Require decreasing_exponential_flow.
-Require abstract abstraction square_abstraction.
+Require abstract square_abstraction.
 Require EquivDec.
 
 Require Import hybrid.examples.thermostat.conc.
@@ -150,9 +150,9 @@ Lemma invariant_implies_lower_clock_bound l (p: concrete.Point system):
 Proof. intros l p [H _]. assumption. Defined.
 
 Definition clock_hints (l: Location) (r r': abstract.Region ap): r <> r' ->
-  option (abstraction.AltHint ap l r r').
+  option (hinted_abstract_continuous_transitions.StrongHint ap l r r').
 Proof with auto.
-  unfold ap, abstraction.AltHint.
+  unfold ap, hinted_abstract_continuous_transitions.StrongHint.
   unfold square_abstraction.ap, abstract.in_region, abstract.param_prod,
    abstract.in_region, interval_abstraction.parameters,
    interval_abstraction.in_region, abstract.Region.
@@ -163,15 +163,15 @@ Proof with auto.
    (interval_spec.spec_bounds clock_spec)
    (interval_spec.select_interval' system fst_mor clock_spec
      invariant_implies_lower_clock_bound)
-   (fst r) (fst r') (concrete.flow system l) X)).
+   (fst r) (fst r') l X)).
  intuition. apply H0 with p...
 Defined.
 
 Definition temp_hints (l: Location) (r r': abstract.Region ap): r <> r' -> option
-  (abstraction.AltHint ap l r r').
+  (hinted_abstract_continuous_transitions.StrongHint ap l r r').
 Proof with auto.
   destruct l; intros; [| exact None | exact None].
-  unfold abstraction.AltHint, ap, square_abstraction.ap, abstract.in_region, abstract.param_prod,
+  unfold hinted_abstract_continuous_transitions.StrongHint, ap, square_abstraction.ap, abstract.in_region, abstract.param_prod,
    abstract.in_region, interval_abstraction.parameters,
    interval_abstraction.in_region, abstract.Region.
   intros.
@@ -181,7 +181,7 @@ Proof with auto.
   apply (util.flip (@option_map _ _) (@interval_abstraction.hints system snd_mor _ _ _ (NoDup_bnats 6)
    (interval_spec.bounds temp_spec)
    (interval_spec.select_interval system snd_mor temp_spec)
-   (snd r) (snd r') (concrete.flow system Heat) X)).
+   (snd r) (snd r') Heat X)).
   intuition. apply H0 with p...
 Defined.
 
@@ -210,11 +210,11 @@ Program Definition disc_trans_dec eps :=
 
 Next Obligation. intros. destruct l; destruct l'; reflexivity. Qed.
 
-Let cont_trans eps := abstraction.cont_trans
-    (@abstraction.dealt_hints _ ap hints)
+Let cont_trans eps := hinted_abstract_continuous_transitions.cont_trans
     (square_abstraction.cont_trans_cond_dec
       clock_flow_inv temp_flow_inv clock_rfis temp_rfis
-      invariant_squares invariant_squares_correct eps).
+      invariant_squares invariant_squares_correct eps)
+    (@hinted_abstract_continuous_transitions.weaken_hints _ ap hints).
 
 Definition system (eps: Qpos): abstract.System ap :=
   abstract.Build_System (initial_dec eps) (disc_trans_dec eps) (cont_trans eps).

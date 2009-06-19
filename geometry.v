@@ -272,6 +272,9 @@ Proof with auto.
   exists ('0)...
 Qed.
 
+(* Because of the following Coq bug, we cannot use "overestimator" below:
+     http://coq.inria.fr/bugs/show_bug.cgi?id=2122 *)
+
 Definition ranges_overlap_dec eps a b: overestimation (ranges_overlap a b) :=
   overestimate_conj
     (CRle_dec eps (range_left a) (range_right b))

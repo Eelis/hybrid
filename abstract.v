@@ -79,15 +79,48 @@ Section contents.
        exists r', in_region ap q r' /\ In r' l.
 
   (* Note that this is no longer the traditional
-      "there is an abstract continuous transition between regions A and B
+
+      "there must be an abstract continuous transition between regions A and B
       if there is a concrete continuous transition between a point in A
       and a point in B"
-   but rather:
+
+    but rather:
+
       "if there is a concrete continuous transition between points P and Q,
-      then from any region that includes P there is an abstract continuous
+      then from any region that includes P there must be an abstract continuous
       transition to a region that includes Q".
-   The former implies the latter, so the latter is weaker (and therefore better).
-   In particular, the former does not let us avoid drift, while the latter does. *)
+
+    The former implies the latter, so the latter is weaker (and therefore makes
+    for a better interface). In particular, the former does not let us avoid "drift",
+    which we now describe.
+
+    Suppose our concrete continuous state space is CR, and our regions
+    are intervals of the form [n,n+1] with n a nat. And suppose that for some
+    location l the corresponding concrete flow function is nondecreasing.
+
+    Now consider the matter of whether there should/will be an abstract
+    continuous transition from [1,2] to [0,1]. Clearly, we don't want this
+    transition, because it would essentially introduce leftward abstract flow
+    while the concrete flow is rightward (with devastating consequences for
+    provability of safety).
+
+    However, the traditional condition mentioned above /would/ demand such
+    an abstract transition, because in the concrete system, there is a continuous
+    transition from 1 (a point in the source region) to 1 (a point in the target
+    region), namely with duration zero.
+
+    Our more subtle condition, on the other hand, does not demand this abstract
+    transition. It permits the omission of [0,1] from the list of regions computed
+    given [1,2] as source region, as long as all points one can flow to (including
+    1) are covered by /some/ region in the list. In this case, since [1,2] covers 1,
+    and 1 is the only point in [0,1] one can flow to from [1,2], including [1,2] in
+    the list removes the need to include [0,1].
+
+    Note that the specification of this condition only ensures that the solution
+    described /can/ work. Actually constructing a "smart" abstract continuous
+    transition function which takes care to pick the "right" regions for its result
+    list is a different matter, treated in hinted_abstract_continuous_transitions.v.
+  *)
 
   Definition DiscRespect (s: State ap) (l: list (State ap)): Prop :=
       forall p1 (s2 : concrete.State chs) ,
@@ -99,7 +132,7 @@ Section contents.
     exists p, in_region ap p (snd s) /\ concrete.initial (fst s, p).
 
   Record System: Type :=
-    { initial_dec: forall s, overestimation (Initial s)
+    { initial_dec: overestimator Initial
     ; disc_trans: forall s: State ap,
       sig (fun l: list (State ap) => LazyProp (NoDup l /\ DiscRespect s l))
     ; cont_trans: forall s: State ap,
@@ -125,14 +158,14 @@ Section contents.
 
   Definition reachable (s : State ap) : Prop :=
     exists is: State ap,
-      (initial_dec ahs is: bool) = true /\ reachable_alternating trans is s.
+      overestimation_bool (initial_dec ahs is) = true /\ reachable_alternating trans is s.
 
   Hint Unfold Initial.
 
   Lemma reachable_alternating_concrete_abstract (i s: c_State):
     concrete.initial i -> forall b, end_with
       (fun b => if b then @concrete.disc_trans chs else @concrete.cont_trans chs) b i s ->
-   (exists is, (initial_dec ahs is: bool) = true /\ exists s', abs s s' /\ end_with trans (negb b) is s').
+   (exists is, (overestimation_bool (initial_dec ahs is)) = true /\ exists s', abs s s' /\ end_with trans (negb b) is s').
   Proof with eauto.
     intros i s H b H0.
     induction H0 as [| b i (l, p) H0 IH [l' p']].

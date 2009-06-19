@@ -106,7 +106,7 @@ Section using_duplication.
   Qed.
 
   Definition graph_reachable (s: abstract.State ap): Prop :=
-    exists i: digraph.Vertex g, (abstract.initial_dec ahs (snd i): bool) = true /\
+    exists i: digraph.Vertex g, overestimation_bool (abstract.initial_dec ahs (snd i)) = true /\
     exists k, digraph.reachable i (k, s).
 
   Hint Unfold graph_reachable In.
@@ -128,7 +128,10 @@ Section using_duplication.
 
   (* Since we can decide reachability in the graph, we can now decide reachability in the abstract system. *)
 
-  Definition init_verts: list Vertex := filter (fun s => abstract.initial_dec ahs (snd s)) ExhaustivePairList.
+  Definition init_verts: list Vertex :=
+    filter (fun v: Vertex => overestimation_bool (abstract.initial_dec ahs (snd v)))
+      ExhaustivePairList.
+
   Hint Unfold init_verts.
 
   Lemma NoDup_init_verts : NoDup init_verts.

@@ -4,7 +4,7 @@ Require Import geometry.
 Require Import monotonic_flow.
 Require Import hs_solver.
 Require decreasing_exponential_flow.
-Require abstract abstraction square_abstraction interval_spec.
+Require abstract square_abstraction interval_spec.
 Require EquivDec.
 
 Require Import hybrid.examples.unbounded_rotator.conc.
@@ -131,13 +131,14 @@ Next Obligation. reflexivity. Qed.
 
 (* Abstract continuous transitions *)
 
-Definition hints (l : Location) (r r' : abstract.Region ap) (i: r <> r'): option (abstraction.AltHint ap l r r') := None.
+Definition hints (l : Location) (r r' : abstract.Region ap) (i: r <> r'):
+  option (hinted_abstract_continuous_transitions.StrongHint ap l r r') := None.
 
-Let cont_trans eps := abstraction.cont_trans
-  (@abstraction.dealt_hints _ ap hints)
+Let cont_trans eps := hinted_abstract_continuous_transitions.cont_trans
   (square_abstraction.cont_trans_cond_dec
   x_flow_inv y_flow_inv x_rfis y_rfis
-  invariant_squares invariant_squares_correct eps).
+  invariant_squares invariant_squares_correct eps)
+  (@hinted_abstract_continuous_transitions.weaken_hints _ ap hints).
 
 (* Abstract system *)
 
