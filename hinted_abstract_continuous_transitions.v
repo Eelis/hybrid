@@ -1,5 +1,5 @@
 Require Import List.
-Require Import c_util util list_util.
+Require Import c_util util list_util stability.
 Require Import CSetoids CRreal.
 Require Import flow.
 Require concrete abstract.
@@ -127,7 +127,8 @@ Section contents.
       rewrite <- f.
       apply inv...
       apply -> CRnonNeg_le_zero...
-    destruct (abstract.select_region ap l p' H) as [r' rin'].
+    apply (DN_fmap (abstract.regions_cover ap l p' H)).
+    intros [r' rin'].
     case_eq (hints' l r r'); intros.
       exists r.
       split.

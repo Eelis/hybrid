@@ -16,6 +16,9 @@ Proof. firstorder. Qed.
 Lemma DN_fmap {A: Type}: DN A -> forall B, (A -> B) -> DN B.
 Proof. firstorder. Qed.
 
+Lemma DN_exists {T: Type} {P: T -> Prop} {x: T}: DN (P x) -> DN (ex P).
+Proof. firstorder. Qed.
+
 Inductive Stable P := mkStable: (DN P -> P) -> Stable P.
   (* Using an Inductive gets us universe polymorphism, which the following
    simpler alternative does not provide: *)
@@ -69,7 +72,7 @@ Open Local Scope CR_scope.
 Lemma DN_or P Q: Not ((Not P) /\ (Not Q)) -> DN (P + Q).
 Proof. firstorder. Qed.
 
-Lemma CRle_cases (x y: CR): x <= y -> DN ((x == y) + (x < y)).
+Lemma CRle_cases {x y: CR}: x <= y -> DN ((x == y) + (x < y)).
 Proof with auto.
   intros.
   apply (@DN_or (x == y) (x < y)).
@@ -86,10 +89,21 @@ Lemma CRle_dec x y: DN ((x <= y) + (y <= x)).
   intro. intuition.
 Qed.
 
+Lemma CRle_lt_dec x y: DN ((x <= y) + (y < x)).
+  intros.
+  apply (DN_bind (CRle_dec x y)). intro.
+  destruct H. apply DN_return. intuition.
+  apply (DN_fmap (CRle_cases c)). intro.
+  intuition.
+  left.
+  rewrite a.
+  apply CRle_refl.
+Qed.
+
 Lemma CR_trichotomy x y: DN ((x == y) + (x < y) + (y < x)).
 Proof with auto.
   intros.
   apply (DN_bind (CRle_dec x y)).
-  intros [P|P]; apply (DN_bind (CRle_cases _ _ P));
+  intros [P|P]; apply (DN_bind (CRle_cases P));
     intros [A|B]; apply DN_return; intuition.
 Qed.

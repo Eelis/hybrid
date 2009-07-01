@@ -1,6 +1,6 @@
 Require Import reachability.
 Require Import List Bool.
-Require Import util list_util.
+Require Import util list_util stability.
 Require Import CSetoids.
 Require Import Morphisms.
 Set Implicit Arguments.
@@ -18,7 +18,7 @@ Section contents.
     ; NoDup_regions: NoDup regions
     ; in_region: concrete.Point chs -> Region -> Prop
     ; in_region_mor: Morphism (@cs_eq _ ==> eq ==> iff) in_region
-    ; select_region: forall l p, concrete.invariant (l, p) -> sig (in_region p)
+    ; regions_cover: forall l p, concrete.invariant (l, p) -> DN (sig (in_region p))
     }.
 
   Existing Instance Region_eq_dec.
@@ -60,14 +60,22 @@ Section contents.
     Let in_region_mor: Morphism (@cs_eq _ ==> eq ==> iff) in_region.
     Proof. unfold in_region. intros x x' e r r' e'. rewrite e, e'. split; auto. Qed.
 
-    Program Let select_region l p (H: concrete.invariant (l, p)): sig (in_region p)
-      := (select_region ap _ _ H, select_region ap' _ _ H).
-
-    Next Obligation. split; simpl; destruct select_region; assumption. Qed.
+    Let regions_cover: forall (l : concrete.Location chs) (p : concrete.Point chs),
+      concrete.invariant (l, p) -> DN (sig (in_region p)).
+    Proof with auto.
+      intros.
+      apply (DN_bind (regions_cover ap _ _ H)). intro.
+      apply (DN_bind (regions_cover ap' _ _ H)). intro.
+      apply DN_return.
+      destruct H0.
+      destruct H1.
+      exists (x, x0).
+      split; assumption.
+    Defined. (* written with Program and monad notation, this should be much clearer *)
 
     Definition param_prod: Parameters := Build_Parameters  _ _
       (NoDup_ExhaustivePairList (NoDup_regions ap) (NoDup_regions ap'))
-      in_region_mor select_region.
+      in_region_mor regions_cover.
 
   End param_prod.
 
@@ -76,7 +84,7 @@ Section contents.
   Definition ContRespect (s: State ap) (l: list (Region ap)): Prop :=
      forall p, in_region ap p (region s) ->
      forall q, concrete.can_flow chs (location s) p q ->
-       exists r', in_region ap q r' /\ In r' l.
+       DN (exists r', in_region ap q r' /\ In r' l).
 
   (* Note that this is no longer the traditional
 
@@ -123,10 +131,10 @@ Section contents.
   *)
 
   Definition DiscRespect (s: State ap) (l: list (State ap)): Prop :=
-      forall p1 (s2 : concrete.State chs) ,
+      forall p1 (s2 : concrete.State chs),
         concrete.disc_trans (fst s, p1) s2 ->
         in_region ap p1 (snd s) ->
-         exists r2, in_region ap (concrete.point s2) r2 /\ In (concrete.location s2, r2) l.
+         DN (exists r2, in_region ap (concrete.point s2) r2 /\ In (concrete.location s2, r2) l).
 
   (* We define abstract versions of initiality, invariance, and guards, suitable
    as overestimation predicates. *)
@@ -176,56 +184,88 @@ Section contents.
   Lemma reachable_alternating_concrete_abstract (i s: c_State):
     concrete.initial i -> forall b, end_with
       (fun b => if b then @concrete.disc_trans chs else @concrete.cont_trans chs) b i s ->
-   (exists is, (overestimation_bool (initial_dec ahs is)) = true /\ exists s', abs s s' /\ end_with trans (negb b) is s').
+      DN (exists is s',
+       overestimation_bool (initial_dec ahs is) = true /\
+       abs s s' /\
+       end_with trans (negb b) is s').
   Proof with eauto.
     intros i s H b H0.
     induction H0 as [| b i (l, p) H0 IH [l' p']].
       destruct s as [l cp].
-      destruct (select_region ap l cp).
-        apply (concrete.invariant_initial chs _ H).
+      apply (DN_fmap (regions_cover ap l cp (concrete.invariant_initial chs _ H))).
+      intro.
+      destruct H0.
       exists (l, x).
-      split.
-        apply overestimation_true...
-      exists (l, x)...
-    destruct IH as [ir [H2 [[al r] [[H3 H5] H4]]]]...
-    exists ir. split...
+      exists (l, x).
+      split...
+      apply overestimation_true...
+    apply IH in H.
+    clear IH.
+    apply (DN_bind H).
+    intros [ir [[al r] [H2 [[H3 H5] H4]]]].
+    apply (@DN_exists (State ap) (fun is => exists s',
+     overestimation_bool (initial_dec ahs is) = true /\
+     abs (l', p') s' /\ end_with trans (negb b) is s') ir).
     pose proof (end_with_next (negb b) H4). clear H4.
     simpl in H3.
     subst.
-    cut (exists r0, in_region ap p' r0 /\ trans (negb b) (al, r) (l', r0)).
-      intros [x H3].
+    cut (
+      overestimation_bool (initial_dec ahs ir) = true /\
+      DN (exists s' : State ap, abs (l', p') s' /\ end_with trans (negb b) ir s')).
+      intros.
+      destruct H3.
+      apply (DN_fmap H4).
+      intro.
+      destruct H7.
+      destruct H7.
+      eauto.
+    split...
+    cut (DN (exists r0, in_region ap p' r0 /\ trans (negb b) (al, r) (l', r0))).
+      intro.
+      apply (DN_fmap H3).
+      intros [x H9].
       exists (l', x).
       intuition.
     destruct b; simpl in H0 |- *.
       destruct (disc_trans ahs (al, r)).
       simpl.
       destruct l...
-      destruct (H4 p (l', p') H1 H5)...
+      apply (DN_bind (H4 p (l', p') H1 H5)).
+      intro.
+      destruct H7.
+      destruct H7.
+      apply DN_return...
     destruct (cont_trans ahs (al, r)).
     simpl.
     destruct l...
     destruct H1.
-    destruct (H4 p H5 _ H7).
+    apply (DN_bind (H4 p H5 _ H7)).
+    intro.
+    destruct H8.
+    destruct H8.
+    apply DN_return.
     exists x0.
     intuition.
-  Qed.
+  Qed. (* todo: clean up proof *)
 
   Lemma reachable_concrete_abstract (s : concrete.State chs) :
-    concrete.reachable s -> exists s', abs s s' /\ reachable s'.
+    concrete.reachable s -> DN (exists s', abs s s' /\ reachable s').
   Proof.
     intros.
     destruct (concrete.alternating_reachable H) as [s' [H0 [x0 H1]]].
     unfold reachable.
-    destruct (@reachable_alternating_concrete_abstract s' s H0 x0 H1) as [A [B [u [C D]]]].
+    apply (DN_fmap (@reachable_alternating_concrete_abstract s' s H0 x0 H1)).
+    intros [x [y [A [B C]]]].
     eauto 10.
   Qed.
 
   Lemma safe (s : concrete.State chs) :
     (forall s', abs s s' -> ~ reachable s') -> ~ concrete.reachable s.
   Proof.
-    repeat intro.
-    destruct (reachable_concrete_abstract H0) as [s' [H1 H2]].
-    apply (H s' H1 H2).
+    intros s H H0.
+    apply (DN_apply (reachable_concrete_abstract H0) _ Stable_False).
+    intros [s' [H1 H2]].
+    apply (H s'); assumption.
   Qed.
 
 End contents.

@@ -1,7 +1,5 @@
-Require geometry.
-Require Import bnat.
-Require Import util c_util.
-Require abstract.
+Require geometry abstract.
+Require Import bnat util c_util stability.
 
 Set Implicit Arguments.
 
@@ -40,27 +38,31 @@ Section contents.
   Defined.
 
   Definition spec_interval b n (s: IntervalSpec b n) (p: concrete.Point chs):
-   sig (fun i => geometry.in_orange (spec_bounds s i) (component p)) + (component p < 'b).
+    DN (sig (fun i => geometry.in_orange (spec_bounds s i) (component p)) + (component p < 'b)).
   Proof with simpl; auto.
     induction s; intro p'.
       simpl spec_bounds.
-      destruct (CR_le_lt_dec ('b) (component p'))...
+      generalize (component p').
+      intro c.
+      apply (DN_fmap (@CRle_lt_dec ('b) c)). intros [A|B]...
       left. exists (bO 0). unfold geometry.in_orange...
-    destruct (CR_le_lt_dec ('nb) (component p')); [left | right]...
-    destruct (IHs p').
-      destruct s0.
-      exists (bS x)...
-    exists (bO (S l)).
-    unfold geometry.in_orange...
+    apply (DN_bind (@CRle_lt_dec ('nb) (component p'))). intros [A|B].
+      apply (DN_fmap (IHs p')). intro.
+      left.
+      destruct H.
+        destruct s0.
+        exists (bS x)...
+      exists (bO (S l)).
+      unfold geometry.in_orange...
+    apply DN_return...
   Qed.
 
   Definition select_interval b n (s: IntervalSpec b n) l p: concrete.invariant (l, p) ->
-    sig (fun i => geometry.in_orange (bounds s i) (component p)).
+    DN (sig (fun i => geometry.in_orange (bounds s i) (component p))).
   Proof with simpl; auto.
     intros.
-    destruct (spec_interval s p).
-      destruct s0.
-      exists (bS x)...
+    apply (DN_fmap (spec_interval s p)). intros [[i H0] | H0].
+      exists (bS i)...
     exists (bO (S n)).
     split...
   Qed.
@@ -68,14 +70,12 @@ Section contents.
   Definition select_interval' b n (s: IntervalSpec b n)
     (inv_lower: forall l p, concrete.invariant (l, p) -> 'b <= component p)
     l p: concrete.invariant (l, p) ->
-    sig (fun i => geometry.in_orange (spec_bounds s i) (component p)).
-  Proof with auto.
+    DN (sig (fun i => geometry.in_orange (spec_bounds s i) (component p))).
+  Proof with eauto.
     intros.
-    destruct (spec_interval s p).
-      destruct s0.
-      exists x...
+    apply (DN_fmap (spec_interval s p)). intros [[i H0] | H0]...
     elimtype False.
-    apply CRlt_le_asym with (component p) ('b); eauto.
+    apply CRlt_le_asym with (component p) ('b)...
   Qed.
 
   Variables (b: Q) (n: nat) (s: IntervalSpec b n).

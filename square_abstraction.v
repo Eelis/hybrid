@@ -1,14 +1,7 @@
-Require interval_abstraction.
-Require hinted_abstract_continuous_transitions.
-Require square_flow_conditions.
-Require Import util.
-Require Import list_util.
-Require Import c_util.
-Require Import geometry.
-Require Import monotonic_flow.
-Require concrete.
-Require Import List.
-Require EquivDec.
+Require interval_abstraction hinted_abstract_continuous_transitions
+  square_flow_conditions concrete EquivDec.
+Require Import List util list_util c_util geometry monotonic_flow stability.
+
 Set Implicit Arguments.
 
 Open Scope CR_scope.
@@ -76,9 +69,9 @@ Section contents.
     (Xinterval_range: Xinterval -> OpenQRange)
     (Yinterval_range: Yinterval -> OpenQRange)
     (absXinterval: forall (l: concrete.Location chs) (p: concrete.Point chs), concrete.invariant (l, p) ->
-      sig (fun i: Xinterval => in_orange (Xinterval_range i) (px p)))
+      DN (sig (fun i: Xinterval => in_orange (Xinterval_range i) (px p))))
     (absYinterval: forall (l: concrete.Location chs) (p: concrete.Point chs), concrete.invariant (l, p) ->
-      sig (fun i: Yinterval => in_orange (Yinterval_range i) (py p))).
+      DN (sig (fun i: Yinterval => in_orange (Yinterval_range i) (py p)))).
         (* No need for LazyProp, because these are not used in computation anyway. *)
 
   Definition ap: abstract.Parameters chs :=
@@ -292,11 +285,9 @@ Section contents.
   Hint Unfold abstract.invariant abstract.guard.
 
   Lemma respects_disc (eps: Qpos) (s1 s2 : concrete.State chs):
-    let (l1, p1) := s1 in
-    let (l2, p2) := s2 in
-    concrete.disc_trans s1 s2 -> forall i1, abstract.in_region ap p1 i1 ->
-    exists i2, abstract.in_region ap p2 i2 /\
-    In (l2, i2) (raw_disc_trans eps (l1, i1)).
+    concrete.disc_trans s1 s2 -> forall i1, abstract.in_region ap (snd s1) i1 ->
+    DN (exists i2, abstract.in_region ap (snd s2) i2 /\
+    In (fst s2, i2) (raw_disc_trans eps (fst s1, i1))).
   Proof with simpl; auto.
     destruct s1.
     destruct s2.
@@ -305,27 +296,23 @@ Section contents.
     subst s0.
     rewrite <- (xyp_pxy (concrete.reset chs l l0 s)) in inv_dst.
     rewrite reset_components in inv_dst.
-    exists ( if is_id_reset (reset_x l l0) then fst r else
-        ` (@absXinterval l0 (xyp (apply_Reset (reset_x l l0) (px s), apply_Reset (reset_y l l0) (py s))) inv_dst)
-    , if is_id_reset (reset_y l l0) then snd r else
-       ` (@absYinterval l0 (xyp (apply_Reset (reset_x l l0) (px s), apply_Reset (reset_y l l0) (py s))) inv_dst)).
+    apply (DN_bind (@absXinterval l0 (xyp (apply_Reset (reset_x l l0) (px s), apply_Reset (reset_y l l0) (py s))) inv_dst)). intros [xi xin].
+    apply (DN_bind (@absYinterval l0 (xyp (apply_Reset (reset_x l l0) (px s), apply_Reset (reset_y l l0) (py s))) inv_dst)). intros [yi yin].
+    apply DN_return.
+    rewrite px_xyp in xin. rewrite py_xyp in yin.
+    simpl @fst in xin. simpl @snd in yin.
+    exists ( if is_id_reset (reset_x l l0) then fst r else xi,
+      if is_id_reset (reset_y l l0) then snd r else yi).
     split.
       split.
-        destruct_call absXinterval.
-        simpl proj1_sig.
-        rewrite px_xyp in i.
         unfold abstract.in_region.
         simpl in *.
-        simpl.
         unfold interval_abstraction.in_region.
         rewrite <- (xyp_pxy (concrete.reset chs l l0 s)).
         rewrite reset_components.
         rewrite px_xyp.
         destruct reset_x...
         intuition.
-      destruct_call absYinterval.
-      simpl proj1_sig.
-      rewrite py_xyp in i.
       unfold abstract.in_region.
       simpl in *.
       unfold interval_abstraction.in_region.
@@ -349,10 +336,6 @@ Section contents.
       apply in_cart.
         simpl @fst.
         unfold x_regions.
-        destruct absXinterval.
-        simpl proj1_sig.
-        rewrite px_xyp in i.
-        simpl @fst in i.
         destruct reset_x; auto.
           apply in_filter; auto.
           apply overestimation_true.
@@ -368,10 +351,6 @@ Section contents.
         destruct H0...
       simpl @snd.
       unfold y_regions.
-      destruct absYinterval.
-      simpl proj1_sig.
-      rewrite py_xyp in i.
-      simpl @fst in i.
       destruct reset_y; auto.
         apply in_filter; auto.
         apply overestimation_true.
@@ -392,13 +371,10 @@ Section contents.
     split...
     unfold interval_abstraction.in_region.
     destruct H0.
+    rewrite px_xyp, py_xyp.
     split; simpl.
-      destruct_call absXinterval.
       destruct (reset_x l l0)...
-      rewrite px_xyp in *...
-    destruct_call absYinterval.
     destruct (reset_y l l0)...
-    rewrite py_xyp in *...
   Qed.
 
   Program Definition disc_trans (eps: Qpos) (s: abstract.State ap):
@@ -407,14 +383,17 @@ Section contents.
   Next Obligation. Proof with auto.
     split.
       apply NoDup_disc_trans.
-    repeat intro.
-    set (respects_disc eps (fst s, p1) s2).
-    simpl in y.
-    destruct s2.
-    destruct (y H0 _ H1).
+    unfold abstract.DiscRespect.
+    intros.
+    apply (DN_fmap (respects_disc eps H0 H1)). intro.
     destruct H2.
-    destruct s...
+    destruct H2.
     exists x...
+    destruct s2...
+    split...
+    simpl concrete.location.
+    simpl @fst in H3.
+    destruct s...
   Qed.
 
   Obligation Tactic := idtac.

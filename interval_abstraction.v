@@ -1,6 +1,5 @@
-Require geometry.
-Require Import util c_util.
-Require abstract hinted_abstract_continuous_transitions.
+Require Import util c_util stability.
+Require geometry abstract hinted_abstract_continuous_transitions.
 
 Set Implicit Arguments.
 
@@ -19,7 +18,7 @@ Section contents.
     (NoDup_regions: NoDup regions)
     (bounds: Region -> geometry.OpenQRange)
     (select_interval: forall l p, concrete.invariant (l, p) ->
-    sig (fun i => geometry.in_orange (bounds i) (component p))).
+    DN (sig (fun i => geometry.in_orange (bounds i) (component p)))).
 
   Definition in_region (p: concrete.Point chs) (r: Region): Prop :=
     geometry.in_orange (bounds r) (component p).
