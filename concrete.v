@@ -1,9 +1,8 @@
-Require Import util.
-Require Import c_util.
-Require Export flow.
-Set Implicit Arguments.
+Require Import util c_util flow stability Morphisms.
 Require EquivDec.
-Require Import Morphisms.
+Set Implicit Arguments.
+
+Open Local Scope CR_scope.
 
 Record System: Type :=
   { Point: CSetoid
@@ -20,6 +19,8 @@ Record System: Type :=
   ; invariant_mor: Morphism ((@eq _) ==> (@cs_eq _) ==> iff) (curry invariant)
 
   ; flow: Location -> Flow Point
+
+  ; invariant_stable: forall l p t, Stable (invariant (l, flow l p t))
 
   ; guard: Location * Point -> Location -> Prop
   ; reset: Location -> Location -> Point -> Point
@@ -87,18 +88,40 @@ Section transitions_and_reachability.
     exists (NonNegCR_plus t t').
     destruct t as [t nt]. destruct t' as [t' nt'].
     split.
-      intros t'' t''_lower t''_upper.
       simpl proj1_sig in *.
-      destruct (CR_lt_eq_dec t'' t) as [eq | [gt | lt]]...
-        apply i... rewrite eq...
-      rewrite (curry_eq (@invariant system)), (t11 t t''), flow_additive, f.
-      apply i'.
-        apply (CRnonNeg_le_zero (t'' - t)%CR), CRpos_nonNeg...
+      simpl location.
+      set (pred := fun t : Time => invariant (l'', flow system l'' p t)).
+      assert (forall x : CR,
+       ' 0 <= x -> x <= t' -> invariant (l'', flow system l'' (flow system l'' p t) x)).
+        intros.
+        rewrite (curry_eq (@invariant system)).
+        rewrite f.
+        unfold curry.
+        auto.
+      assert (forall x : CR,
+       ' 0 <= x -> x <= t' -> invariant (l'', flow system l'' p (t + x))).
+        intros.
+        rewrite (curry_eq (@invariant system)).
+        rewrite (flow_additive (flow system l'') p t x).
+        apply H...
+      intros.
+      apply (DN_apply (CRle_dec t t0)).
+        apply (invariant_stable system l'' p).
+      intros [A | B]...
+      rename t0 into x.
+      cut (invariant (l'', flow system l'' p (t + (x - t)))).
+        intro.
+       rewrite (curry_eq (@invariant system)).
+       rewrite (t11 t x).
+       assumption.
+      apply H0.
+        rewrite <- (Ropp_def CR_ring_theory t).
+        apply t2...
       rewrite (t11 t t').
       rewrite (Radd_assoc CR_ring_theory).
       apply t2...
     simpl. rewrite flow_additive, f...
-  Qed.
+  Qed. (* todo: clean up proof *)
 
   Hint Resolve cont_trans_trans.
 

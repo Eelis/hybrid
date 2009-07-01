@@ -1,11 +1,6 @@
-Require Import List Ensembles.
-Require Import util.
-Require Import list_util.
-Require Import geometry.
-Require Import hs_solver.
-Require decreasing_exponential_flow.
-Require Import concrete.
-Require EquivDec.
+Require Import List Ensembles util stability flow list_util
+  geometry hs_solver concrete.
+Require decreasing_exponential_flow EquivDec.
 Set Implicit Arguments.
 
 Module dec_exp_flow := decreasing_exponential_flow.
@@ -73,6 +68,14 @@ Definition temp_flow (l: Location): Flow CRasCSetoid :=
 
 Definition flow l := product_flow (clock_flow l) (temp_flow l).
 
+(* Stability of invariant w.r.t. flow *)
+
+Lemma invariant_stable (l: Location) (p: Point) (t: Time):
+  Stable (invariant (l, flow l p t)).
+Proof with auto.
+  destruct l; intros; unfold invariant; simpl loc...
+Qed.
+
 (* Reset *)
 
 Definition reset (l l': Location) (p: Point): Point :=
@@ -103,6 +106,7 @@ Definition system: System :=
   initial_invariant
   invariant_wd
   flow
+  invariant_stable
   guard
   reset.
 
