@@ -1,4 +1,4 @@
-Require Import util.
+Require Import util stability.
 Require Export CRsign.
 Require Export CRln.
 Require Import CRexp.
@@ -991,7 +991,9 @@ Section function_properties.
   Proof with auto.
     unfold strongly_increasing.
     intros.
-    destruct (CR_lt_eq_dec x x').
+    apply (CRle_stable x x').
+    apply (DN_fmap (CR_trichotomy x x')); intro.
+    destruct H0.
       rewrite s.
       apply CRle_refl.
     destruct s.
@@ -1025,7 +1027,9 @@ Section function_properties.
   Proof with auto.
     unfold strongly_increasing.
     intros.
-    destruct (CR_lt_eq_dec x x').
+    apply (CRle_stable x' x).
+    apply (DN_fmap (CR_trichotomy x x')). intro.
+    destruct H0.
       rewrite s.
       apply CRle_refl.
     destruct s.
@@ -1040,7 +1044,9 @@ Section function_properties.
     strongly_increasing -> forall x x', x <= x' -> f x <= f x'.
   Proof with auto.
     intros.
-    destruct (CR_lt_eq_dec x x').
+    apply (CRle_stable (f x) (f x')).
+    apply (DN_fmap (CR_trichotomy x x')). intro.
+    destruct H0.
       rewrite (f_wd s).
       apply CRle_refl.
     destruct s.
@@ -1054,7 +1060,9 @@ Section function_properties.
     strongly_decreasing -> forall x x', x <= x' -> f x' <= f x.
   Proof with auto.
     intros.
-    destruct (CR_lt_eq_dec x x').
+    apply (CRle_stable (f x') (f x)).
+    apply (DN_fmap (CR_trichotomy x x')). intro.
+    destruct H0.
       rewrite (f_wd s).
       apply CRle_refl.
     destruct s.
@@ -1074,7 +1082,9 @@ Section function_properties.
     intros.
     split.
       intros.
-      destruct (CR_lt_eq_dec x x')...
+      apply (CReq_stable x x').
+      apply (DN_fmap (CR_trichotomy x x')). intro.
+      destruct H0...
       elimtype False.
       destruct s; destruct X.
             set (s _ _ c).

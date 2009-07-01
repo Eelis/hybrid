@@ -62,6 +62,24 @@ Proof. unfold CRle. auto. Qed.
 
 Hint Resolve CRle_stable.
 
+Lemma CReq_stable (x y: CR): Stable (x == y)%CR.
+  intros.
+  constructor.
+  intro.
+  apply <- (CRle_def x y).
+  split.
+    apply (CRle_stable x y).
+    apply (DN_fmap H).
+    intro.
+    rewrite H0.
+    apply CRle_refl.
+  apply (CRle_stable y x).
+  apply (DN_fmap H).
+  intro.
+  rewrite H0.
+  apply CRle_refl.
+Qed. (* Todo: This is a ridiculous proof. Make a sane one! *)
+
 Lemma stable_conjunction (A B: Prop): Stable A -> Stable B -> Stable (A /\ B).
 Proof. firstorder. Qed.
 
@@ -100,7 +118,7 @@ Lemma CRle_lt_dec x y: DN ((x <= y) + (y < x)).
   apply CRle_refl.
 Qed.
 
-Lemma CR_trichotomy x y: DN ((x == y) + (x < y) + (y < x)).
+Lemma CR_trichotomy x y: DN ((x == y) + ((x < y) + (y < x))).
 Proof with auto.
   intros.
   apply (DN_bind (CRle_dec x y)).
