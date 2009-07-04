@@ -12,6 +12,7 @@ Require Import hybrid.monotonic_flow.
 Require Import hybrid.vector_setoid.
 Require Import hybrid.square_abstraction.
 Require Import hybrid.decreasing_exponential_flow.
+Require Import stability.
 
 Set Implicit Arguments.
 
@@ -205,8 +206,11 @@ Module RoomHeatingConcrete (Import RHS : RoomHeatingSpec).
 
   Definition flow (l : DS) := vector_flow (Vmap room_flow l).
 
+  Lemma invariant_stable (l : DS) (p : CS) (t : Time): Stable (invariant (l, flow l p t)).
+  Admitted.
+
   Definition concrete_system: concrete.System :=
     concrete.Build_System _ _ NoDup_locations initial
-    initial_invariant invariant_wd flow guard reset.
+    initial_invariant invariant_wd flow invariant_stable guard reset.
 
 End RoomHeatingConcrete.

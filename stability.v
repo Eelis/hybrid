@@ -37,7 +37,10 @@ Proof. firstorder. Qed.
 Lemma Stable_False: Stable False.
 Proof. firstorder. Qed.
 
-Hint Immediate Stable_False.
+Lemma Stable_True: Stable True.
+Proof. firstorder. Qed.
+
+Hint Immediate Stable_False Stable_True.
 
 Lemma Qle_dec x y: decision (Qle x y).
   intros.

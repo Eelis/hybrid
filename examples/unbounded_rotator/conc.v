@@ -1,11 +1,6 @@
-Require Import List.
-Require Import util Ensembles.
-Require Import list_util.
-Require Import geometry.
-Require Import monotonic_flow.
-Require Import concrete.
+Require Import List util Ensembles list_util stability geometry
+  monotonic_flow concrete hs_solver.
 Require square_abstraction.
-Require Import hs_solver.
 Set Implicit Arguments.
 
 (* Locations *)
@@ -98,6 +93,10 @@ Definition guard (s: State) (l: Location): Prop :=
 
 (* Concrete system itself *)
 
+Lemma invariant_stable (l: Location) (p: Point) (t: Time):
+  stability.Stable (invariant (l, (fun l0 : Location => product_flow (xf l0) (yf l0)) l p t)).
+Proof. auto. Qed.
+
 Definition system: System :=
   Build_System
     _ _
@@ -106,6 +105,7 @@ Definition system: System :=
     initial_invariant
     invariant_wd
     (fun l => product_flow (xf l) (yf l))
+    invariant_stable
     guard
     reset.
 
