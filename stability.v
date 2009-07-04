@@ -7,11 +7,29 @@ Definition DN (T: Type): Prop := (T -> False) -> False.
 
 Hint Unfold DN.
 
-Definition DN_return {T: Type}: T -> DN T.
+Definition DN_return {T: Type}: T -> DN T :=
+  fun x f => f x.
+
+Definition DN_bind {A: Type}: DN A -> forall B, (A -> DN B) -> DN B :=
+  fun X Y Z P => X (fun a => Z a P).
+
+Definition ext_eq: Prop := forall (A B: Type) (f g: A -> B), (forall x, f x = g x) -> f = g.
+
+Lemma DN_runit: ext_eq -> forall A (x: DN A),
+  DN_bind x _ DN_return = x.
+Proof.
+  intros.
+  cut (forall y y', y = y' -> x y = x y'). firstorder.
+  congruence.
+Qed.
+
+Lemma DN_lunit: ext_eq -> forall A B (a: A) (f: A -> DN B),
+  DN_bind (DN_return a) _ f = f a.
 Proof. firstorder. Qed.
 
-Definition DN_bind {A: Type}: DN A -> forall B, (A -> DN B) -> DN B.
-Proof. firstorder. Qed.
+Lemma DN_assoc A B C (a: DN A) (f: A -> DN B) (g: B -> DN C):
+  DN_bind (DN_bind a _ f) _ g = DN_bind a _ (fun x => DN_bind (f x) _ g).
+Proof. reflexivity. Qed.
 
 Lemma DN_fmap {A: Type}: DN A -> forall B, (A -> B) -> DN B.
 Proof. firstorder. Qed.
