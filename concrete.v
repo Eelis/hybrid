@@ -89,39 +89,24 @@ Section transitions_and_reachability.
     destruct t as [t nt]. destruct t' as [t' nt'].
     split.
       simpl proj1_sig in *.
-      simpl location.
-      set (pred := fun t : Time => invariant (l'', flow system l'' p t)).
-      assert (forall x : CR,
-       ' 0 <= x -> x <= t' -> invariant (l'', flow system l'' (flow system l'' p t) x)).
-        intros.
-        rewrite (curry_eq (@invariant system)).
-        rewrite f.
-        unfold curry.
-        auto.
-      assert (forall x : CR,
-       ' 0 <= x -> x <= t' -> invariant (l'', flow system l'' p (t + x))).
-        intros.
-        rewrite (curry_eq (@invariant system)).
-        rewrite (flow_additive (flow system l'') p t x).
-        apply H...
-      intros.
+      intros. simpl.
       apply (DN_apply (CRle_dec t t0)).
         apply (invariant_stable system l'' p).
       intros [A | B]...
       rename t0 into x.
-      cut (invariant (l'', flow system l'' p (t + (x - t)))).
-        intro.
-       rewrite (curry_eq (@invariant system)).
-       rewrite (t11 t x).
-       assumption.
-      apply H0.
+      rewrite
+        (curry_eq (@invariant system)),
+        (t11 t x),
+        (flow_additive (flow system l'') p t (x - t)),
+        f.
+      apply i'.
         rewrite <- (Ropp_def CR_ring_theory t).
         apply t2...
       rewrite (t11 t t').
       rewrite (Radd_assoc CR_ring_theory).
       apply t2...
     simpl. rewrite flow_additive, f...
-  Qed. (* todo: clean up proof *)
+  Qed.
 
   Hint Resolve cont_trans_trans.
 
@@ -140,9 +125,12 @@ Section transitions_and_reachability.
 
   Hint Unfold reachable.
 
+  Definition reachable_rel (b: bool) := if b then disc_trans else cont_trans.
+
+  Hint Unfold reachable_rel.
+
   Definition reachable_alternating (s: State): Prop :=
-    exists i: State, initial i /\
-      reachable_alternating (fun b => if b then disc_trans else cont_trans) i s.
+    exists i: State, initial i /\ reachable_alternating reachable_rel i s.
 
   Lemma reachable_invariant s: reachable s -> invariant s.
   Proof with auto with real.

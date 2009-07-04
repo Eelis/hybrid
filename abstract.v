@@ -62,16 +62,14 @@ Section contents.
 
     Let regions_cover: forall (l : concrete.Location chs) (p : concrete.Point chs),
       concrete.invariant (l, p) -> DN (sig (in_region p)).
-    Proof with auto.
+    Proof.
       intros.
-      apply (DN_bind (regions_cover ap _ _ H)). intro.
-      apply (DN_bind (regions_cover ap' _ _ H)). intro.
+      apply (DN_bind (regions_cover ap _ _ H)). intros [x i].
+      apply (DN_bind (regions_cover ap' _ _ H)). intros [x0 i0].
       apply DN_return.
-      destruct H0.
-      destruct H1.
       exists (x, x0).
       split; assumption.
-    Defined. (* written with Program and monad notation, this should be much clearer *)
+    Qed. (* written with Program and monad notation, this should be much clearer *)
 
     Definition param_prod: Parameters := Build_Parameters  _ _
       (NoDup_ExhaustivePairList (NoDup_regions ap) (NoDup_regions ap'))
@@ -182,80 +180,52 @@ Section contents.
   Hint Unfold Initial.
 
   Lemma reachable_alternating_concrete_abstract (i s: c_State):
-    concrete.initial i -> forall b, end_with
-      (fun b => if b then @concrete.disc_trans chs else @concrete.cont_trans chs) b i s ->
-      DN (exists is s',
-       overestimation_bool (initial_dec ahs is) = true /\
-       abs s s' /\
-       end_with trans (negb b) is s').
+    concrete.initial i -> forall b, end_with (@concrete.reachable_rel chs) b i s ->
+      DN (exists is, overestimation_bool (initial_dec ahs is) = true /\
+        exists s', abs s s' /\ end_with trans (negb b) is s').
   Proof with eauto.
     intros i s H b H0.
     induction H0 as [| b i (l, p) H0 IH [l' p']].
       destruct s as [l cp].
       apply (DN_fmap (regions_cover ap l cp (concrete.invariant_initial chs _ H))).
-      intro.
-      destruct H0.
+      intros [x i].
       exists (l, x).
-      exists (l, x).
-      split...
-      apply overestimation_true...
-    apply IH in H.
-    clear IH.
-    apply (DN_bind H).
-    intros [ir [[al r] [H2 [[H3 H5] H4]]]].
-    apply (@DN_exists (State ap) (fun is => exists s',
-     overestimation_bool (initial_dec ahs is) = true /\
-     abs (l', p') s' /\ end_with trans (negb b) is s') ir).
-    pose proof (end_with_next (negb b) H4). clear H4.
-    simpl in H3.
-    subst.
-    cut (
-      overestimation_bool (initial_dec ahs ir) = true /\
-      DN (exists s' : State ap, abs (l', p') s' /\ end_with trans (negb b) ir s')).
-      intros.
-      destruct H3.
-      apply (DN_fmap H4).
-      intro.
-      destruct H7.
-      destruct H7.
-      eauto.
-    split...
+      split.
+        apply overestimation_true...
+      exists (l, x)...
+    apply (DN_bind (IH H)).
+    intros [ir [H2 [[al r] [[H3 H5] H4]]]].
+    apply (DN_exists (x := ir)).
+    apply (DN_liftM2 (@conj _ _))...
+    simpl in H3. subst.
     cut (DN (exists r0, in_region ap p' r0 /\ trans (negb b) (al, r) (l', r0))).
-      intro.
+      intros.
       apply (DN_fmap H3).
-      intros [x H9].
+      intros [x [H6 H7]].
       exists (l', x).
-      intuition.
+      split...
     destruct b; simpl in H0 |- *.
       destruct (disc_trans ahs (al, r)).
       simpl.
       destruct l...
-      apply (DN_bind (H4 p (l', p') H1 H5)).
-      intro.
-      destruct H7.
-      destruct H7.
-      apply DN_return...
-    destruct (cont_trans ahs (al, r)).
+      apply (DN_bind (H6 p (l', p') H1 H5)).
+      intros [x0 [H7 H8]]...
+    destruct (cont_trans ahs (al, r)) as [x l].
     simpl.
     destruct l...
     destruct H1.
-    apply (DN_bind (H4 p H5 _ H7)).
-    intro.
-    destruct H8.
-    destruct H8.
-    apply DN_return.
-    exists x0.
-    intuition.
-  Qed. (* todo: clean up proof *)
+    apply (DN_bind (H6 p H5 _ H7)).
+    intros [x0 [H8 H9]]...
+  Qed.
 
   Lemma reachable_concrete_abstract (s : concrete.State chs) :
     concrete.reachable s -> DN (exists s', abs s s' /\ reachable s').
   Proof.
     intros.
     destruct (concrete.alternating_reachable H) as [s' [H0 [x0 H1]]].
-    unfold reachable.
     apply (DN_fmap (@reachable_alternating_concrete_abstract s' s H0 x0 H1)).
     intros [x [y [A [B C]]]].
+    unfold reachable.
     eauto 10.
   Qed.
 
@@ -265,7 +235,8 @@ Section contents.
     intros s H H0.
     apply (DN_apply (reachable_concrete_abstract H0) _ Stable_False).
     intros [s' [H1 H2]].
-    apply (H s'); assumption.
+    unfold not in H.
+    eauto.
   Qed.
 
 End contents.

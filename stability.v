@@ -1,6 +1,4 @@
 
-Require Import CRreal Classic util.
-
 (* Doubly-negated types as a monad: *)
 
 Definition DN (T: Type): Prop := (T -> False) -> False.
@@ -9,6 +7,8 @@ Hint Unfold DN.
 
 Definition DN_return {T: Type}: T -> DN T :=
   fun x f => f x.
+
+Hint Resolve @DN_return.
 
 Definition DN_bind {A: Type}: DN A -> forall B, (A -> DN B) -> DN B :=
   fun X Y Z P => X (fun a => Z a P).
@@ -34,6 +34,10 @@ Proof. reflexivity. Qed.
 Lemma DN_fmap {A: Type}: DN A -> forall B, (A -> B) -> DN B.
 Proof. firstorder. Qed.
 
+Lemma DN_liftM2 {A B C: Type} (f: A -> B -> C): DN A -> DN B -> DN C.
+Proof. clear. firstorder. Qed.
+  (* todo: this is a specialization for DN. make a normal monadic version *)
+
 Lemma DN_exists {T: Type} {P: T -> Prop} {x: T}: DN (P x) -> DN (ex P).
 Proof. firstorder. Qed.
 
@@ -46,9 +50,6 @@ Inductive Stable P := mkStable: (DN P -> P) -> Stable P.
 Lemma DN_apply {T: Type}: DN T -> forall P, Stable P -> (T -> P) -> P.
 Proof. firstorder. Qed.
 
-Lemma decision_stable P: decision P -> Stable P.
-Proof. firstorder. Qed.
-
 Lemma Stable_neg (P: Prop): Stable (~P).
 Proof. firstorder. Qed.
 
@@ -59,6 +60,23 @@ Lemma Stable_True: Stable True.
 Proof. firstorder. Qed.
 
 Hint Immediate Stable_False Stable_True.
+
+Lemma stable_conjunction (A B: Prop): Stable A -> Stable B -> Stable (A /\ B).
+Proof. firstorder. Qed.
+
+Hint Resolve stable_conjunction.
+
+Lemma forall_stable (T: Type) (P: T -> Type): (forall x, Stable (P x)) -> Stable (forall x, P x).
+Proof. firstorder. Qed.
+
+Hint Resolve forall_stable.
+
+Require Import util.
+
+Lemma decision_stable P: decision P -> Stable P.
+Proof. firstorder. Qed.
+
+Require Import CRreal Classic.
 
 Lemma Qle_dec x y: decision (Qle x y).
   intros.
@@ -84,65 +102,39 @@ Proof. unfold CRle. auto. Qed.
 Hint Resolve CRle_stable.
 
 Lemma CReq_stable (x y: CR): Stable (x == y)%CR.
-  intros.
-  constructor.
-  intro.
-  apply <- (CRle_def x y).
-  split.
-    apply (CRle_stable x y).
-    apply (DN_fmap H).
-    intro.
-    rewrite H0.
-    apply CRle_refl.
-  apply (CRle_stable y x).
-  apply (DN_fmap H).
-  intro.
-  rewrite H0.
-  apply CRle_refl.
-Qed. (* Todo: This is a ridiculous proof. Make a sane one! *)
-
-Lemma stable_conjunction (A B: Prop): Stable A -> Stable B -> Stable (A /\ B).
-Proof. firstorder. Qed.
-
-Hint Resolve stable_conjunction.
+Proof.
+  unfold st_eq. simpl.
+  unfold regFunEq, ball. simpl.
+  unfold Qmetric.Qball, AbsSmall.
+  auto using decision_stable, Qle_dec.
+Qed.
 
 Open Local Scope CR_scope.
 
 Lemma DN_or P Q: Not ((Not P) /\ (Not Q)) -> DN (P + Q).
 Proof. firstorder. Qed.
 
-Lemma CRle_cases {x y: CR}: x <= y -> DN ((x == y) + (x < y)).
-Proof with auto.
-  intros.
-  apply (@DN_or (x == y) (x < y)).
-  intros [A B].
-  apply (leEq_less_or_equal _ _ _ H).
-  intro. intuition.
-Qed.
+Definition CRle_cases: forall x y: CR, x <= y -> DN ((x < y) or (x == y))
+  := leEq_less_or_equal CRasCOrdField.
 
-Lemma CRle_dec x y: DN ((x <= y) + (y <= x)).
-  intros.
-  apply (@DN_or (x <= y) (y <= x)).
-  intros [A B].
-  apply (leEq_or_leEq CRasCOrdField x y).
-  intro. intuition.
-Qed.
+(* What on earth is the point of COr? Is it not the exact same as sum? *)
+
+Definition CRle_dec: forall (x y: CR), DN ((x<=y) or (y<=x))
+  := leEq_or_leEq CRasCOrdField.
 
 Lemma CRle_lt_dec x y: DN ((x <= y) + (y < x)).
+Proof with intuition.
   intros.
-  apply (DN_bind (CRle_dec x y)). intro.
-  destruct H. apply DN_return. intuition.
-  apply (DN_fmap (CRle_cases c)). intro.
-  intuition.
+  apply (DN_bind (CRle_dec x y))...
+  apply (DN_fmap (CRle_cases _ _ b))...
   left.
-  rewrite a.
+  rewrite b0.
   apply CRle_refl.
 Qed.
 
 Lemma CR_trichotomy x y: DN ((x == y) + ((x < y) + (y < x))).
-Proof with auto.
+Proof with intuition.
   intros.
-  apply (DN_bind (CRle_dec x y)).
-  intros [P|P]; apply (DN_bind (CRle_cases P));
-    intros [A|B]; apply DN_return; intuition.
+  apply (DN_bind (CRle_lt_dec x y)). intros [A | A]...
+  apply (DN_fmap (CRle_cases _ _ A))...
 Qed.
