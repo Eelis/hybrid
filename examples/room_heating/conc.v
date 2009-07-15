@@ -206,11 +206,11 @@ Module RoomHeatingConcrete (Import RHS : RoomHeatingSpec).
 
   Definition flow (l : DS) := vector_flow (Vmap room_flow l).
 
-  Lemma invariant_stable (l : DS) (p : CS) (t : Time): Stable (invariant (l, flow l p t)).
+  Lemma invariant_stable s: Stable (invariant s).
   Admitted.
 
   Definition concrete_system: concrete.System :=
     concrete.Build_System _ _ NoDup_locations initial
-    initial_invariant invariant_wd flow invariant_stable guard reset.
+    initial_invariant invariant_wd invariant_stable flow guard reset.
 
 End RoomHeatingConcrete.

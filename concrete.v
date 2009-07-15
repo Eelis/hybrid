@@ -17,10 +17,9 @@ Record System: Type :=
   ; invariant: Location * Point -> Prop
   ; invariant_initial: forall s, initial s -> invariant s
   ; invariant_mor: Morphism ((@eq _) ==> (@cs_eq _) ==> iff) (curry invariant)
+  ; invariant_stable: forall s, Stable (invariant s)
 
   ; flow: Location -> Flow Point
-
-  ; invariant_stable: forall l p t, Stable (invariant (l, flow l p t))
 
   ; guard: Location * Point -> Location -> Prop
   ; reset: Location -> Location -> Point -> Point
@@ -78,6 +77,7 @@ Section transitions_and_reachability.
   Qed.
 
   Hint Resolve cont_trans_refl.
+  Hint Resolve invariant_stable.
 
   Lemma cont_trans_trans s s' s'':
     (s ->_C s') -> (s' ->_C s'') -> (s ->_C s'').
@@ -90,8 +90,7 @@ Section transitions_and_reachability.
     split.
       simpl proj1_sig in *.
       intros. simpl.
-      apply (DN_apply (CRle_dec t t0)).
-        apply (invariant_stable system l'' p).
+      apply (DN_apply (CRle_dec t t0))...
       intros [A | B]...
       rename t0 into x.
       rewrite

@@ -35,6 +35,9 @@ Lemma invariant_wd: forall l l', l = l' ->
   forall (p p': Point), p[=]p' -> (invariant (l, p) <-> invariant (l', p')).
 Proof. split; trivial. Qed.
 
+Lemma invariant_stable s: stability.Stable (invariant s).
+Proof. auto. Qed.
+
 (* Initial *)
 
 Open Local Scope CR_scope.
@@ -93,10 +96,6 @@ Definition guard (s: State) (l: Location): Prop :=
 
 (* Concrete system itself *)
 
-Lemma invariant_stable (l: Location) (p: Point) (t: Time):
-  stability.Stable (invariant (l, (fun l0 : Location => product_flow (xf l0) (yf l0)) l p t)).
-Proof. auto. Qed.
-
 Definition system: System :=
   Build_System
     _ _
@@ -104,8 +103,8 @@ Definition system: System :=
     initial
     initial_invariant
     invariant_wd
-    (fun l => product_flow (xf l) (yf l))
     invariant_stable
+    (fun l => product_flow (xf l) (yf l))
     guard
     reset.
 

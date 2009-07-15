@@ -45,6 +45,9 @@ Lemma invariant_wd: forall l l', l = l' ->
   forall (p p': Point), p[=]p' -> (invariant (l, p) <-> invariant (l', p')).
 Proof. unfold invariant. grind ltac:(destruct l'). Qed.
 
+Lemma invariant_stable s: Stable (invariant s).
+Proof. intros [l p]. destruct l; intros; unfold invariant; simpl loc; auto. Qed.
+
 (* Initial *)
 
 Definition initial (s: State): Prop :=
@@ -67,14 +70,6 @@ Definition temp_flow (l: Location): Flow CRasCSetoid :=
   end.
 
 Definition flow l := product_flow (clock_flow l) (temp_flow l).
-
-(* Stability of invariant w.r.t. flow *)
-
-Lemma invariant_stable (l: Location) (p: Point) (t: Time):
-  Stable (invariant (l, flow l p t)).
-Proof with auto.
-  destruct l; intros; unfold invariant; simpl loc...
-Qed.
 
 (* Reset *)
 
@@ -105,8 +100,8 @@ Definition system: System :=
   initial
   initial_invariant
   invariant_wd
-  flow
   invariant_stable
+  flow
   guard
   reset.
 
