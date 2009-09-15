@@ -1,4 +1,4 @@
-Require Import List util Ensembles list_util stability geometry
+Require Import List util Ensembles list_util stability geometry containers
   monotonic_flow concrete hs_solver.
 Require square_abstraction.
 Set Implicit Arguments.
@@ -100,7 +100,6 @@ Definition system: System :=
   Build_System
     _ _
     NoDup_locations
-    initial
     initial_invariant
     invariant_wd
     invariant_stable

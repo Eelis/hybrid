@@ -59,13 +59,13 @@ Section contents.
   Defined.
 
   Definition inv (a b: OpenRange): OpenRange :=
-    if oranges_overlap_dec eps a b: bool then unbounded_range else neg_range.
+    if overestimate_oranges_overlap eps a b: bool then unbounded_range else neg_range.
 
   Lemma inv_correct: range_flow_inv_spec flow inv.
   Proof with auto.
     unfold range_flow_inv_spec, inv.
     intros.
-    destruct_call oranges_overlap_dec.
+    destruct_call overestimate_oranges_overlap.
     destruct x...
     elimtype False.
     apply n, oranges_share_point with p...

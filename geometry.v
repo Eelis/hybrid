@@ -73,9 +73,9 @@ Definition OCRle (x y: optCR): Prop :=
   | _, _ => True
   end.
 
-Program Definition OCRle_dec eps x y: overestimation (OCRle x y) :=
+Program Definition overestimate_OCRle eps x y: overestimation (OCRle x y) :=
   match x, y with
-  | Some l, Some u => CRle_dec eps l u
+  | Some l, Some u => overestimate_CRle eps l u
   | _, _ => true
   end.
 
@@ -145,20 +145,15 @@ Definition in_range (r: Range) (x: CR): Prop :=
   range_left r <= x /\ x <= range_right r.
 
 Definition in_orange (r: OpenRange) (x: CR): Prop :=
-  match orange_left r with
-  | Some l => l <= x
-  | None => True
-  end /\
-  match orange_right r with
-  | Some u => x <= u
-  | None => True
-  end.
+  opt_prop (orange_left r) (flip CRle x) /\
+  opt_prop (orange_right r) (CRle x).
 
 Instance in_orange_mor: Morphism (proj1_sig_relation (product_conj_relation (@st_eq _) (@st_eq _)) ==> @st_eq _ ==> iff) in_orange.
 Proof with auto.
   intros [[x y] a] [[x' y'] a'] [H H0] x0 y0 e.
   unfold in_orange, orange_left, orange_right.
   simpl @fst in *. simpl @snd in *.
+  unfold opt_prop, flip.
   destruct x; destruct y; destruct x'; destruct y';
     simpl in H, H0; try (elimtype False; assumption);
     try rewrite H; try rewrite H0; try rewrite e; split...
@@ -172,32 +167,15 @@ Proof with auto. intros. split; simpl; auto. Qed.
 
 Hint Immediate in_unbounded_range.
 
-Program Definition in_range_dec eps r x: overestimation (in_range r x) :=
+Definition overestimate_in_range eps r x: overestimation (in_range r x) :=
   overestimate_conj
-    (CRle_dec eps (range_left r) x)
-    (CRle_dec eps x (range_right r)).
+    (overestimate_CRle eps (range_left r) x)
+    (overestimate_CRle eps x (range_right r)).
 
-Program Definition in_orange_dec eps r x: overestimation (in_orange r x) :=
-  match orange_left r with
-  | Some l => CRle_dec eps l x
-  | None => true
-  end &&
-  match orange_right r with
-  | Some u => CRle_dec eps x u
-  | None => true
-  end.
-Next Obligation. Proof with intuition.
-  intros [rx xr].
-  unfold orange_left, orange_right in *.
-  destruct r.
-  destruct x0.
-  simpl in H.
-  destruct (andb_false_elim _ _ H); clear H.
-    destruct s...
-    destruct (CRle_dec eps s x)...
-  destruct s0...
-  destruct (CRle_dec eps x s0)...
-Qed.
+Definition overestimate_in_orange eps r x: overestimation (in_orange r x) :=
+  overestimate_conj
+    (opt_overestimation _ (dep_flip _ (overestimate_CRle eps) x) (orange_left r))
+    (opt_overestimation _ (overestimate_CRle eps x) (orange_right r)).
 
 Definition Square: Type := (Range * Range)%type.
 Definition OpenQSquare: Set := (OpenQRange * OpenQRange)%type.
@@ -223,15 +201,15 @@ Definition in_osquare (p : Point) (s : OpenSquare) : Prop :=
 Lemma in_unbounded_square p: in_osquare p unbounded_square.
 Proof with auto. intros. split; apply in_unbounded_range. Qed.
 
-Definition in_square_dec eps p s: overestimation (in_square p s) :=
+Definition overestimate_in_square eps p s: overestimation (in_square p s) :=
   overestimate_conj
-    (in_range_dec eps (fst s) (fst p))
-    (in_range_dec eps (snd s) (snd p)).
+    (overestimate_in_range eps (fst s) (fst p))
+    (overestimate_in_range eps (snd s) (snd p)).
 
-Definition in_osquare_dec eps p s: overestimation (in_osquare p s) :=
+Definition overestimate_in_osquare eps p s: overestimation (in_osquare p s) :=
   overestimate_conj
-    (in_orange_dec eps (fst s) (fst p))
-    (in_orange_dec eps (snd s) (snd p)).
+    (overestimate_in_orange eps (fst s) (fst p))
+    (overestimate_in_orange eps (snd s) (snd p)).
 
 Definition ranges_overlap (a b: Range): Prop :=
   range_left a <= range_right b /\ range_left b <= range_right a.
@@ -260,6 +238,7 @@ Proof with auto.
   unfold in_orange.
   unfold orange_left, orange_right in *.
   simpl @fst in *. simpl @snd in *.
+  unfold opt_prop, flip.
   destruct a.
     destruct c; [| eauto].
     exists (CRmax s s0).
@@ -275,15 +254,15 @@ Qed.
 (* Because of the following Coq bug, we cannot use "overestimator" below:
      http://coq.inria.fr/bugs/show_bug.cgi?id=2122 *)
 
-Definition ranges_overlap_dec eps a b: overestimation (ranges_overlap a b) :=
+Definition overestimate_ranges_overlap eps a b: overestimation (ranges_overlap a b) :=
   overestimate_conj
-    (CRle_dec eps (range_left a) (range_right b))
-    (CRle_dec eps (range_left b) (range_right a)).
+    (overestimate_CRle eps (range_left a) (range_right b))
+    (overestimate_CRle eps (range_left b) (range_right a)).
 
-Definition oranges_overlap_dec eps a b: overestimation (oranges_overlap a b) :=
+Definition overestimate_oranges_overlap eps a b: overestimation (oranges_overlap a b) :=
   overestimate_conj
-    (OCRle_dec eps (orange_left a) (orange_right b))
-    (OCRle_dec eps (orange_left b) (orange_right a)).
+    (overestimate_OCRle eps (orange_left a) (orange_right b))
+    (overestimate_OCRle eps (orange_left b) (orange_right a)).
 
 Definition squares_overlap (a b: Square): Prop :=
     ranges_overlap (fst a) (fst b) /\ ranges_overlap (snd a) (snd b).
@@ -292,15 +271,15 @@ Definition osquares_overlap (a b: OpenSquare): Prop :=
   oranges_overlap (fst a) (fst b) /\
   oranges_overlap (snd a) (snd b).
 
-Definition osquares_overlap_dec eps a b: overestimation (osquares_overlap a b) :=
+Definition overestimate_osquares_overlap eps a b: overestimation (osquares_overlap a b) :=
   overestimate_conj
-    (oranges_overlap_dec eps (fst a) (fst b))
-    (oranges_overlap_dec eps (snd a) (snd b)).
+    (overestimate_oranges_overlap eps (fst a) (fst b))
+    (overestimate_oranges_overlap eps (snd a) (snd b)).
 
-Definition squares_overlap_dec eps (a b: Square): overestimation (squares_overlap a b) :=
+Definition overestimate_squares_overlap eps (a b: Square): overestimation (squares_overlap a b) :=
   overestimate_conj
-    (ranges_overlap_dec eps (fst a) (fst b))
-    (ranges_overlap_dec eps (snd a) (snd b)).
+    (overestimate_ranges_overlap eps (fst a) (fst b))
+    (overestimate_ranges_overlap eps (snd a) (snd b)).
 
 Lemma ranges_share_point a b p: in_range a p -> in_range b p ->
   ranges_overlap a b.
@@ -361,7 +340,7 @@ Definition in_map_orange p r (f: CR -> CR) (i: increasing f): in_orange r p ->
 Proof.
   intros.
   destruct r.
-  unfold in_orange, orange_left, orange_right in *.
+  unfold in_orange, orange_left, orange_right, opt_prop, flip in *.
   destruct x. destruct H.
   destruct s; destruct s0; simpl; auto.
 Qed.
@@ -385,6 +364,7 @@ Section scaling.
     unfold scale_orange.
     destruct x.
     simpl in *.
+    unfold opt_prop, flip.
     destruct H0.
     destruct s0; destruct s1...
   Qed.

@@ -13,7 +13,7 @@ Section omle.
     if fm then OCRle x y else OCRle y x.
 
   Definition omle_dec (e: Qpos) (x y: option CR): bool :=
-    if fm then OCRle_dec e x y else OCRle_dec e y x.
+    if fm then overestimate_OCRle e x y else overestimate_OCRle e y x.
 
 End omle.
 
@@ -82,6 +82,7 @@ Section contents.
     set (inv_le_left fm finv finv_correct).
     destruct x. destruct x0.
     simpl proj1_sig in *. simpl @fst in *. simpl @snd in *.
+    unfold opt_prop, util.flip.
     split.
       destruct fm; simpl proj1_sig.
         destruct s0... destruct s1...
@@ -136,8 +137,8 @@ Section contents.
 
   Definition decide_practical eps: overestimation practical_decideable :=
     overestimate_conj
-      (oranges_overlap_dec eps xflow_range yflow_range)
-      (opt_overestimation (CRnonNeg) (CRnonNeg_dec eps)
+      (overestimate_oranges_overlap eps xflow_range yflow_range)
+      (opt_overestimation (CRnonNeg) (overestimate_CRnonNeg eps)
         (CRmin_of_upper_bounds (snd (`xflow_range)) (snd (`yflow_range)))).
 
   Variables

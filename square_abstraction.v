@@ -1,5 +1,4 @@
-Require interval_abstraction hinted_abstract_continuous_transitions
-  square_flow_conditions concrete EquivDec.
+Require interval_abstraction square_flow_conditions concrete EquivDec.
 Require Import List util list_util c_util geometry monotonic_flow stability.
 
 Set Implicit Arguments.
@@ -74,10 +73,10 @@ Section contents.
       DN (sig (fun i: Yinterval => in_orange (Yinterval_range i) (py p)))).
         (* No need for LazyProp, because these are not used in computation anyway. *)
 
-  Definition ap: abstract.Parameters chs :=
-    abstract.param_prod
-      (interval_abstraction.parameters chs px NoDup_Xintervals Xinterval_range absXinterval)
-      (interval_abstraction.parameters chs py NoDup_Yintervals Yinterval_range absYinterval).
+  Definition ap: abstract.Space chs :=
+    abstract.prod_space
+      (interval_abstraction.space chs px NoDup_Xintervals Xinterval_range absXinterval)
+      (interval_abstraction.space chs py NoDup_Yintervals Yinterval_range absYinterval).
 
   Definition square: abstract.Region ap -> OpenQSquare :=
     prod_map Xinterval_range Yinterval_range.
@@ -91,12 +90,16 @@ Section contents.
     (invariant_squares: forall l: concrete.Location chs, sig (fun s: OpenSquare =>
       forall p, concrete.invariant (l, p) -> in_osquare (pxy p) s)) eps:
         overestimator (@abstract.invariant _ ap) :=
-    fun li => osquares_overlap_dec eps (invariant_squares (fst li)) (square (snd li)).
+    fun li => overestimate_osquares_overlap eps (invariant_squares (fst li)) (square (snd li)).
   Next Obligation. Proof with auto.
     intros inv_squares eps li H [p [A B]].
-    apply (overestimation_false _ H).
-    destruct inv_squares.
-    apply osquares_share_point with (pxy p)...
+    apply (overestimation_false _ H). clear H.
+    destruct inv_squares. simpl proj1_sig.
+
+    destruct p.
+    destruct B. simpl in H.
+    subst.
+    apply osquares_share_point with (pxy s)...
   Qed.
 
   (* Similarly, if one's initial condition can be overestimated by
@@ -112,15 +115,18 @@ Section contents.
 
     Program Definition make_initial_overestimator (eps: Qpos): overestimator
       (@abstract.Initial _ ap) := fun s =>
-        (overestimate_conj (osquares_overlap_dec eps (initial_square) (square (snd s)))
-          (weaken_decision (concrete.Location_eq_dec chs (fst s) initial_location))).
+        (overestimate_conj (overestimate_osquares_overlap eps (initial_square) (square (snd s)))
+          (decision_overestimation (concrete.Location_eq_dec chs (fst s) initial_location))).
 
     Next Obligation. Proof with auto.
       intros eps [l i] H [p [A B]].
       apply (overestimation_false _ H).
-      destruct (initial_representative _ B).
+      destruct (initial_representative _ A).
+      destruct B.
       split...
-      apply osquares_share_point with (pxy p)...
+        apply osquares_share_point with (pxy (snd p))...
+      rewrite <- H0.
+      symmetry...
     Qed.
 
   End make_initial_overestimator.
@@ -140,7 +146,7 @@ Section contents.
   Program Definition guard_dec (guard_square: forall l l', GuardSquare l l') eps:
     overestimator (@abstract.guard _ ap) := fun l r l' =>
       match guard_square l l' with
-      | Some s => osquares_overlap_dec eps s (square r)
+      | Some s => overestimate_osquares_overlap eps s (square r)
       | None => false
       end.
 
@@ -173,11 +179,9 @@ Section contents.
         In q (unsafe_squares (fst s)) /\ in_osquare (pxy (snd s)) q)
       (eps: Qpos).
 
-    Program Definition unsafe_abstract:
-      sig (fun ss => LazyProp (forall s, unsafe_concrete s ->
-       forall r, abstract.abs s r -> In r ss))
+    Program Definition unsafe_abstract: abstract.CompleteCoverList ap unsafe_concrete
       := flat_map (fun l => map (pair l) (flat_map (fun q =>
-        filter (fun s => osquares_overlap_dec eps q (square s)) exhaustive_list
+        filter (fun s => overestimate_osquares_overlap eps q (square s)) exhaustive_list
         ) (unsafe_squares l))) (concrete.locations chs).
 
     Next Obligation. Proof with auto.
@@ -208,6 +212,19 @@ Section contents.
     (reset_components: forall p l l', pxy (concrete.reset chs l l' p) =
       (apply_Reset (reset_x l l') (px p), apply_Reset (reset_y l l') (py p))).
 
+Lemma increasing_const x: increasing (const x).
+  unfold increasing.
+  intros.
+  simpl.
+  apply CRle_refl.
+Defined.
+
+Definition increasing_const' (x: CR): sigT increasing.
+  intro x.
+  exists (@const CR CR x).
+  apply increasing_const.
+Defined.
+
   Section disc_trans_regions.
 
     Variables (eps: Qpos) (l l': concrete.Location chs) (r: abstract.Region ap).
@@ -217,18 +234,19 @@ Section contents.
 
     Definition x_regions :=
       match reset_x l l' with
-      | Reset_const c => filter (fun r' => oranges_overlap_dec eps
+      | Reset_const c => filter (fun r' => overestimate_oranges_overlap eps
+        (* (map_orange' (increasing_const' c) (Xinterval_range (fst r))) (Xinterval_range r')) Xintervals *)
         (unit_range c: OpenRange) (Xinterval_range r')) Xintervals
-      | Reset_map f => filter (fun r' => oranges_overlap_dec eps
+      | Reset_map f => filter (fun r' => overestimate_oranges_overlap eps
         (map_orange' f (Xinterval_range (fst r))) (Xinterval_range r')) Xintervals
       | Reset_id => [fst r] (* x reset is id, so we can only remain in this x range *)
       end.
 
     Definition y_regions :=
       match reset_y l l' with
-      | Reset_const c => filter (fun r' => oranges_overlap_dec eps
+      | Reset_const c => filter (fun r' => overestimate_oranges_overlap eps
         (unit_range c: OpenRange) (Yinterval_range r')) Yintervals
-      | Reset_map f => filter (fun r' => oranges_overlap_dec eps
+      | Reset_map f => filter (fun r' => overestimate_oranges_overlap eps
         (map_orange' f (Yinterval_range (snd r))) (Yinterval_range r')) Yintervals
       | Reset_id => [snd r] (* x reset is id, so we can only remain in this x range *)
       end.
@@ -253,11 +271,12 @@ Section contents.
     destruct s.
     apply NoDup_flat_map...
         intros.
-        destruct (fst (in_map_iff _ _ _) H1).
-        destruct (fst (in_map_iff _ _ _) H2).
-        destruct H3. destruct H4.
+        apply in_map_iff in H1.
+        apply in_map_iff in H2.
+        destruct H1. destruct H2.
+        intuition.
         subst.
-        inversion_clear H4...
+        inversion_clear H1...
       intros.
       apply NoDup_map.
         intros.
@@ -329,88 +348,111 @@ Section contents.
     unfold disc_trans_regions.
     rewrite (overestimation_true (guard_decider l r l0)); [| eauto 20].
     rewrite (overestimation_true (invariant_overestimator (l, r))); [| eauto 20].
-    simpl andb.
-    cbv iota.
-    apply in_filter.
-      simpl.
-      apply in_cart.
-        simpl @fst.
-        unfold x_regions.
-        destruct reset_x; auto.
+      simpl andb.
+      cbv iota.
+      apply in_filter.
+        simpl.
+        apply in_cart.
+          simpl @fst.
+          unfold x_regions.
+          destruct reset_x; auto.
+            apply in_filter; auto.
+            apply overestimation_true.
+            apply oranges_share_point with c...
+            split...
+(*
+            destruct (Xinterval_range (@fst Xinterval Yinterval r)).
+            unfold map_orange.
+            simpl.
+            unfold orange_left.
+            simpl proj1_sig.
+            simpl @fst.
+            unfold option_map.
+            unfold const.
+            destruct x.
+            destruct o0...
+            unfold flip...
+          destruct (Xinterval_range (@fst Xinterval Yinterval r)).
+          unfold opt_prop. unfold orange_right. unfold map_orange.
+          simpl. unfold option_map. destruct x. simpl.
+          destruct o1...
+*)
+
+            unfold flip...
+          apply in_filter; auto.
+          apply overestimation_true.
+          apply oranges_share_point with (apply_Reset (Reset_map m) (px s))...
+          destruct m.
+          simpl.
+          simpl in i.
+          apply in_map_orange.
+          destruct H0...
+        simpl @snd.
+        unfold y_regions.
+        destruct reset_y; auto.
           apply in_filter; auto.
           apply overestimation_true.
           apply oranges_share_point with c...
-          split...
+          split... unfold flip...
         apply in_filter; auto.
         apply overestimation_true.
-        apply oranges_share_point with (apply_Reset (Reset_map m) (px s))...
+        apply oranges_share_point with (apply_Reset (Reset_map m) (py s))...
         destruct m.
         simpl.
         simpl in i.
         apply in_map_orange.
         destruct H0...
-      simpl @snd.
-      unfold y_regions.
-      destruct reset_y; auto.
-        apply in_filter; auto.
-        apply overestimation_true.
-        apply oranges_share_point with c...
-        split...
-      apply in_filter; auto.
-      apply overestimation_true.
-      apply oranges_share_point with (apply_Reset (Reset_map m) (py s))...
-      destruct m.
+      apply overestimation_true...
+      unfold abstract.invariant.
       simpl.
-      simpl in i.
-      apply in_map_orange.
-      destruct H0...
-    apply overestimation_true.
+      exists (l0, xyp (apply_Reset (reset_x l l0) (px s), apply_Reset (reset_y l l0) (py s))).
+      split...
+      split...
+      unfold containers.In.
+      unfold interval_abstraction.in_region.
+      destruct H0.
+      unfold containers.In.
+      unfold abstract.abs.
+      simpl.
+      rewrite px_xyp, py_xyp.
+      split; simpl.
+        destruct (reset_x l l0)...
+      destruct (reset_y l l0)...
     unfold abstract.invariant.
-    simpl.
-    exists (xyp (apply_Reset (reset_x l l0) (px s), apply_Reset (reset_y l l0) (py s))).
+    exists (l, s).
     split...
-    unfold interval_abstraction.in_region.
-    destruct H0.
-    rewrite px_xyp, py_xyp.
-    split; simpl.
-      destruct (reset_x l l0)...
-    destruct (reset_y l l0)...
+    split...
   Qed.
 
-  Program Definition disc_trans (eps: Qpos) (s: abstract.State ap):
-    sig (fun l: list (abstract.State ap) => LazyProp (NoDup l /\ abstract.DiscRespect s l))
-    := raw_disc_trans eps s.
+  Program Definition disc_trans: Qpos ->
+    abstract.sharing_transition_overestimator ap (@concrete.disc_trans chs) := raw_disc_trans.
+
   Next Obligation. Proof with auto.
     split.
       apply NoDup_disc_trans.
-    unfold abstract.DiscRespect.
-    intros.
-    apply (DN_fmap (respects_disc eps H0 H1)). intro.
-    destruct H2.
-    destruct H2.
-    exists x...
-    destruct s2...
-    split...
-    simpl concrete.location.
-    simpl @fst in H3.
-    destruct s...
+    unfold abstract.SharedCover.
+    intros s [H0 [x1 [[H1 H3] H2]]].
+    apply (DN_fmap (@respects_disc x x1 s H2 _ H3)).
+    intros [x2 [H4 H5]].
+    exists (fst s, x2).
+    split. split...
+    destruct x0.
+    simpl in H1. subst...
   Qed.
 
   Obligation Tactic := idtac.
 
   Program Definition cont_trans_cond_dec eps l r r':
-    overestimation (hinted_abstract_continuous_transitions.condition ap l r r') :=
+    overestimation (abstract.cont_trans ap l r r') :=
       square_flow_conditions.decide_practical
         (xflow_invr l) (yflow_invr l) (square r) (square r') eps &&
       invariant_overestimator (l, r) &&
       invariant_overestimator (l, r').
 
   Next Obligation. Proof with auto.
-    intros eps l i1 i2 cond.
-    intros [p [q [pi [qi [H2 [[t tn] [ctc cteq]]]]]]].
-    simpl in ctc. simpl @snd in cteq. simpl @fst in cteq.
-    clear H2.
-    simpl in cteq.
+    intros eps l r r' cond.
+    intros [p [q [pi [qi [[t tn] [ctc cteq]]]]]].
+    simpl proj1_sig in ctc. simpl proj1_sig in cteq.
     destruct (andb_false_elim _ _ cond); clear cond.
       destruct (andb_false_elim _ _ e); clear e.
         apply (overestimation_false _ e0). clear e0.
@@ -427,6 +469,7 @@ Section contents.
         rewrite flow_separable in qi.
         simpl in qi.
         unfold interval_abstraction.in_region in qi.
+        unfold containers.In in qi.
         rewrite px_xyp in qi.
         rewrite py_xyp in qi.
         simpl in qi.
@@ -434,18 +477,22 @@ Section contents.
         split...
       apply (overestimation_false _ e0).
       unfold abstract.invariant.
-      exists p.
+      exists (l, p).
       split...
-      simpl @fst.
+      unfold containers.In.
+      unfold containers.predicate_container.
       rewrite (curry_eq concrete.invariant).
       rewrite <- (flow_zero (concrete.flow chs l) p).
       simpl. apply ctc... apply (CRnonNeg_le_zero t)...
+      split...
     apply (overestimation_false _ e).
-    exists q.
+    exists (l, q).
     split...
+    unfold containers.In, containers.predicate_container.
     rewrite (curry_eq concrete.invariant).
     rewrite <- cteq.
     simpl. apply ctc... apply (CRnonNeg_le_zero t)...
+    split...
   Qed.
 
 End contents.

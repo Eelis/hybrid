@@ -13,7 +13,7 @@ Proof with eauto.
   assert (forall s, unbounded_rotator.conc.unsafe s -> forall r,
    abstract.abs s r -> In r (` (unbounded_rotator.abs.unsafe_abstract centi))).
     destruct abs.unsafe_abstract...
-  apply (overestimation_false (abstract_as_graph.some_reachable (abs.system centi) conc.unsafe (` (abs.unsafe_abstract centi)) H1)).
+  apply (overestimation_false (@abstract_as_graph.some_reachable _ _ (abs.system centi) conc.unsafe (abs.unsafe_abstract centi))).
   Time vm_compute. reflexivity.
 Qed.
 

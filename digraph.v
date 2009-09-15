@@ -1,8 +1,4 @@
-Require Import List.
-Require Import util.
-Require Import list_util.
-Require reachability.
-Require Import Program.
+Require Import List util list_util Program Relations.
 Require EquivDec.
 
 Set Implicit Arguments.
@@ -30,27 +26,25 @@ Section reachability.
 
   Variable g: DiGraph.
 
-  Let tr (v w: Vertex g): Prop := In w (edges v).
+  Definition edge: relation (Vertex g) := fun v w => In w (edges v).
   Let ved := Vertex_eq_dec g.
 
   Definition Edge: Set := (Vertex g * Vertex g)%type.
   Definition Edge_eq_dec: forall (e e': Edge), decision (e=e')
     := pair_eq_dec ved ved.
 
-  Definition reachable := reachability.reachable tr.
-
   Variable start: list (Vertex g).
   Hypothesis NoDup_start: NoDup start.
 
-  Let reachable v: Prop := exists s, In s start /\ reachable s v.
+  Definition reachable v: Prop := exists s, In s start /\ trans_refl_closure.R edge s v.
 
   Program Fixpoint unreachables_worker (unvisited: list (Vertex g))
     (tovisit: { l | NoDup l /\ incl l unvisited 
-      /\ (forall v, ~ In v unvisited -> forall w, In w unvisited -> tr v w -> In w l)
+      /\ (forall v, ~ In v unvisited -> forall w, In w unvisited -> edge v w -> In w l)
       /\ (forall v, ~ In v unvisited -> reachable v)
       /\ (forall v, In v l -> reachable v)}) {measure length unvisited}:
     { l | incl l (subtr ved unvisited tovisit)
-      /\ (forall v, ~ In v l -> forall w, tr v w -> ~ In w l)
+      /\ (forall v, ~ In v l -> forall w, edge v w -> ~ In w l)
       /\ (forall v, ~ In v l -> reachable v) } :=
     match tovisit with
     | nil => unvisited
@@ -117,8 +111,8 @@ Section reachability.
     destruct (snd (In_remove ved (subtr ved (edges h) t) v h) H8).
     destruct (H3 h (in_eq _ _)). destruct H9.
     exists x. split...
-    apply reachability.reachable_next with h...
-    unfold tr.
+    apply trans_refl_closure.step with h...
+    unfold edge.
     destruct (In_subtr _ _ _ _ H)...
   Qed.
 
@@ -129,7 +123,7 @@ Section reachability.
       unreachables_worker (exist _ tovisit H) Heq_tovisit)).
     set (exist (fun l =>
       NoDup l /\ incl l (remove ved h unvisited) /\
-      (forall v0, ~ In v0 (remove ved h unvisited) -> forall w, In w (remove ved h unvisited) -> tr v0 w -> In w l) /\
+      (forall v0, ~ In v0 (remove ved h unvisited) -> forall w, In w (remove ved h unvisited) -> edge v0 w -> In w l) /\
       (forall v0, ~ In v0 (remove ved h unvisited) -> reachable v0) /\ (forall v0, In v0 l -> reachable v0))
        (t ++ intersection ved unvisited (remove ved h (subtr ved (edges h) t)))
        (unreachables_worker_obligation_3 unreachables_worker (exist _ tovisit H) Heq_tovisit)).
@@ -159,7 +153,6 @@ Section reachability.
     split. intros. elimtype False...
     split. intros. elimtype False...
     intros. exists v. split...
-    apply reachability.reachable_refl.
   Qed.
 
   Obligation Tactic := idtac.
@@ -167,14 +160,14 @@ Section reachability.
   Next Obligation. Proof with auto.
     (* worker's result implies our desired result *)
     destruct (unreachables_worker (exist (fun l => NoDup l /\ incl l (vertices g) /\
-       (forall v, ~ In v (vertices g) -> forall w0, In w0 (vertices g) -> tr v w0 -> In w0 l) /\
+       (forall v, ~ In v (vertices g) -> forall w0, In w0 (vertices g) -> edge v w0 -> In w0 l) /\
        (forall v, ~ In v (vertices g) -> reachable v) /\
        (forall v, In v l -> reachable v)) start unreachables_obligation_1)).
     simpl in *.
     destruct a. destruct H0.
     intro. split... repeat intro.
     destruct H2. destruct H2.
-    destruct (reachability.reachable_flip_inv (fun j => In j x) (fun j => In_dec ved j x) H4)...
+    destruct (trans_refl_closure.flip_inv (fun j => In j x) (fun j => In_dec ved j x) H4)...
       intro.
       apply (snd (In_subtr ved (vertices g) start _ (H _ H5)) H2).
     destruct H5. destruct H5. destruct H6.
@@ -195,6 +188,8 @@ Section reachability.
          result_rel unvisited (h :: t) r.
 
   Hint Constructors result_rel.
+
+  Hint Unfold reachable.
 
   Lemma half_correct (unvisited tovisit r: list (Vertex g)):
     result_rel unvisited tovisit r ->
@@ -218,16 +213,15 @@ Section reachability.
     destruct (intersection_In _ _ _ _ H3). clear H3.
     destruct (snd (In_remove ved (subtr ved (edges h) t) v0 h) H5).
     destruct (H0 h (in_eq _ _)). destruct H7.
-    exists x. split...
-    apply reachability.reachable_next with h...
-    destruct (In_subtr _ _ _ _ H5)...
+    destruct (In_subtr _ _ _ _ H5).
+    eauto.
   Qed.
 
   Lemma other_half (unvisited tovisit r: list (Vertex g)):
     result_rel unvisited tovisit r ->
     (forall v, ~ In v unvisited -> forall w,
-      In w unvisited -> tr v w -> In w tovisit) -> 
-      (forall v, ~ In v r -> forall w, tr v w -> ~ In w r)
+      In w unvisited -> edge v w -> In w tovisit) ->
+      (forall v, ~ In v r -> forall w, edge v w -> ~ In w r)
       /\ incl r (subtr ved unvisited tovisit).
   Proof with simpl; auto.
     intros unvisited tovisit r P.
@@ -330,12 +324,12 @@ Section reachability.
     split.
       apply (half_correct r); intros...
         elimtype False...
-      exists v. split... apply reachability.reachable_refl.
+      exists v. split...
     destruct (other_half r).
       intros. elimtype False...
     repeat intro.
     destruct H1. destruct H1.
-    destruct (reachability.reachable_flip_inv (fun j => In j x) (fun j => In_dec ved j x) H3)...
+    destruct (trans_refl_closure.flip_inv (fun j => In j x) (fun j => In_dec ved j x) H3)...
       intro.
       apply (snd (In_subtr ved (vertices g) start _ (H0 x0 H4)) H1).
     destruct H4. destruct H4. destruct H5.

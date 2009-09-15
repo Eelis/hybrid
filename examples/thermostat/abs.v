@@ -67,13 +67,10 @@ Program Definition temp_spec: interval_spec.IntervalSpec (5-centi) 4 :=
   (interval_spec.bound (9-deci) _
   (interval_spec.highest 10))))).
 
-Definition ClockInterval_bounds := interval_spec.spec_bounds clock_spec.
-Definition TempInterval_bounds := interval_spec.bounds temp_spec.
-
 Definition clock_interval := interval_spec.select_interval' system fst_mor clock_spec (fun _ _ => fst).
 Definition temp_interval := interval_spec.select_interval system snd_mor temp_spec.
 
-Definition ap: abstract.Parameters conc.system :=
+Definition ap: abstract.Space conc.system :=
   square_abstraction.ap _ _ _ (NoDup_bnats 6) (NoDup_bnats 6)
   _ _ clock_interval temp_interval.
 
@@ -84,12 +81,12 @@ Program Definition initial_square: OpenSquare := (('0, '0), ('5, '10)): Square.
 Definition initial_location := Heat.
 
 Lemma initial_representative: forall s: concrete.State system,
-  concrete.initial s -> loc s = initial_location /\
+  concrete.initial s -> location s = initial_location /\
   in_osquare (point s) initial_square.
 Proof.
   intros [l s] [H [H0 [H1 H2]]].
   unfold in_osquare, in_orange.
-  simpl. rewrite H2. auto.
+  simpl. unfold util.flip. rewrite H2. auto.
 Qed.
 
 Let initial_dec := @square_abstraction.make_initial_overestimator
@@ -152,40 +149,42 @@ Lemma invariant_implies_lower_clock_bound l (p: concrete.Point system):
    concrete.invariant (l, p) -> ' 0 <= fst_mor p.
 Proof. intros l p [H _]. assumption. Defined.
 
-Definition clock_hints (l: Location) (r r': abstract.Region ap): r <> r' ->
-  option (hinted_abstract_continuous_transitions.StrongHint ap l r r').
+Definition clock_hints (l: Location) (r r': abstract.Region ap) (E: r <> r'):
+  option (abstract_cont_trans_over.strong_redundant ap l E).
 Proof with auto.
-  unfold ap, hinted_abstract_continuous_transitions.StrongHint.
-  unfold square_abstraction.ap, abstract.in_region, abstract.param_prod,
-   abstract.in_region, interval_abstraction.parameters,
+  unfold ap, abstract_cont_trans_over.strong_redundant.
+  unfold square_abstraction.ap, containers.In, abstract.in_region, abstract.prod_space,
+   abstract.in_region, interval_abstraction.space,
    interval_abstraction.in_region, abstract.Region.
   intros.
   assert (forall x, strongly_increasing (fst_mor ∘ concrete.flow system l x)).
     intros. cut (strongly_increasing (clock_flow l (fst x)))...
+  destruct (bnat_eq_dec (fst r) (fst r')). exact None.
   apply (util.flip (@option_map _ _) (@interval_abstraction.hints system fst_mor _ _ _ (NoDup_bnats 6)
    (interval_spec.spec_bounds clock_spec)
    (interval_spec.select_interval' system fst_mor clock_spec
      invariant_implies_lower_clock_bound)
-   (fst r) (fst r') l X)).
- intuition. apply H0 with p...
+   l (fst r) (fst r') c X)).
+  intuition. apply H with p...
 Defined.
 
-Definition temp_hints (l: Location) (r r': abstract.Region ap): r <> r' -> option
-  (hinted_abstract_continuous_transitions.StrongHint ap l r r').
+Definition temp_hints (l: Location) (r r': abstract.Region ap) (E: r <> r'): option
+  (abstract_cont_trans_over.strong_redundant ap l E).
 Proof with auto.
   destruct l; intros; [| exact None | exact None].
-  unfold hinted_abstract_continuous_transitions.StrongHint, ap, square_abstraction.ap, abstract.in_region, abstract.param_prod,
-   abstract.in_region, interval_abstraction.parameters,
+  unfold abstract_cont_trans_over.strong_redundant, ap, square_abstraction.ap, containers.In, abstract.in_region, abstract.prod_space,
+   abstract.in_region, interval_abstraction.space,
    interval_abstraction.in_region, abstract.Region.
   intros.
   assert (forall x, strongly_increasing (snd_mor ∘ concrete.flow system Heat x)).
     intros. cut (strongly_increasing (temp_flow Heat (snd x)))...
     unfold temp_flow...
+  destruct (bnat_eq_dec (snd r) (snd r')). exact None.
   apply (util.flip (@option_map _ _) (@interval_abstraction.hints system snd_mor _ _ _ (NoDup_bnats 6)
    (interval_spec.bounds temp_spec)
    (interval_spec.select_interval system snd_mor temp_spec)
-   (snd r) (snd r') Heat X)).
-  intuition. apply H0 with p...
+   Heat (snd r) (snd r') c X)).
+  intuition. apply H with p...
 Defined.
 
 Definition hints (l: Location) (r r': abstract.Region ap) (E: r <> r') :=
@@ -198,6 +197,9 @@ Definition clock_reset (l l': Location): square_abstraction.Reset :=
   | Cool, Heat | Heat, Check | Check, Heat => square_abstraction.Reset_const ('0)
   | _, _ => square_abstraction.Reset_id (* dummy *)
   end.
+
+(* Hm, changing the Reset_const ('0) to Reset_map (increasing_const' ('0)) triples the computation time and
+ makes the proof fail, but I forgot why.. *)
 
 Definition temp_reset (l l': Location): square_abstraction.Reset :=
   square_abstraction.Reset_id. (* dummy *)
@@ -213,15 +215,15 @@ Program Definition disc_trans_dec eps :=
 
 Next Obligation. intros. destruct l; destruct l'; reflexivity. Qed.
 
-Program Let cont_trans eps := hinted_abstract_continuous_transitions.cont_trans
+Program Let cont_trans eps := abstract_cont_trans_over.cont_trans
     (square_abstraction.cont_trans_cond_dec
     (@id (concrete.Point system)) _ _ _
       _ clock_flow_inv temp_flow_inv clock_rfis temp_rfis
       _ (invariant_dec eps) eps)
-    (@hinted_abstract_continuous_transitions.weaken_hints _ ap hints).
+    (@abstract_cont_trans_over.weaken_hints _ ap hints).
 
 Definition system (eps: Qpos): abstract.System ap :=
-  abstract.Build_System (initial_dec eps) (disc_trans_dec eps) (cont_trans eps).
+  abstract.Build_System (initial_dec eps) (disc_trans_dec eps) (abstract_cont_trans_over.cont_sharing_overestimator_from_substantial_overestimator (cont_trans eps)).
 
 (* Abstract safety *)
 

@@ -84,12 +84,12 @@ Section contents.
 
   Require interval_abstraction.
 
-  Definition ap: abstract.Parameters chs :=
-    interval_abstraction.parameters chs component (NoDup_bnats _) (bounds s) (select_interval s).
+  Definition ap: abstract.Space chs :=
+    interval_abstraction.space chs component (NoDup_bnats _) (bounds s) (select_interval s).
 
   Definition ap' (UH: forall l p, concrete.invariant (l, p) -> ' b <= component p):
-    abstract.Parameters chs :=
-      interval_abstraction.parameters chs component (NoDup_bnats _) (spec_bounds s) (select_interval' s UH).
+    abstract.Space chs :=
+      interval_abstraction.space chs component (NoDup_bnats _) (spec_bounds s) (select_interval' s UH).
 
 End contents.
 

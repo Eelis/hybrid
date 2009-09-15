@@ -1,5 +1,5 @@
 Require Import util c_util stability.
-Require geometry abstract hinted_abstract_continuous_transitions.
+Require geometry abstract abstract_cont_trans_over.
 
 Set Implicit Arguments.
 
@@ -31,25 +31,25 @@ Section contents.
     rewrite H...
   Qed.
 
-  Definition parameters: abstract.Parameters chs :=
-    abstract.Build_Parameters chs _ _ NoDup_regions
+  Definition space: abstract.Space chs :=
+    abstract.Build_Space chs _ _ NoDup_regions
       in_region_mor select_interval.
 
-  Definition hints (r r': abstract.Region parameters) (l: concrete.Location chs):
+  Definition hints (l: concrete.Location chs) (r r': abstract.Region space) (E: r <> r'):
     (forall x, strongly_increasing (component ∘ concrete.flow chs l x)) ->
-    option (hinted_abstract_continuous_transitions.StrongHint parameters l r r').
+    option (abstract_cont_trans_over.strong_redundant space l E).
   Proof with auto.
     intros.
-    unfold hinted_abstract_continuous_transitions.StrongHint.
+    unfold abstract_cont_trans_over.strong_redundant, containers.In.
     simpl abstract.in_region.
     unfold in_region.
     destruct (bounds r) as [[ci_lo ci_hi] ci_le].
     destruct (bounds r') as [[ci'_lo ci'_hi] ci'_le].
     unfold geometry.in_orange, geometry.orange_left, geometry.orange_right.
     simpl @fst. simpl @snd.
-    destruct ci_lo; [idtac | exact None].
-    destruct ci'_hi; [idtac | exact None].
-    destruct (Qeq_dec q q0) as [A|B]; [idtac | exact None].
+    destruct ci_lo; [ | exact None].
+    destruct ci'_hi; [ | exact None].
+    destruct (Qeq_dec q q0) as [A|B]; [ | exact None].
     apply Some.
     intros p [H0 H4] t [H1 H5].
     apply (strongly_increasing_inv_mild (X p)).

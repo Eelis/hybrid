@@ -1,14 +1,10 @@
 get rid of dummy reset functions for unallowed discrete transitions.
-automate hints
-alternative to hints mechanism? named constants perhaps
 investigate just how badly we need the trichotomy axiom
-shorten thermostat development
-get rotators running again
-remaining arithmetic lemmas
+remaining arithmetic lemma: exp_pos
 thorough review and general cleanup
 more kinds of flow (sine, etc)
 more flow combinators like scale that preserve invertability (this would amount to "a little language" for flow)
 documentation(!)
 allow multiple discrete transitions between a given pair of locations
 generalization from squares to polyhedra defined by linear boolean predicates and all that stuff
-extraction
+get rid of binary_setoid_morphism and unary_setoid_morphism.

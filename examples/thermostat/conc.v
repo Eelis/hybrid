@@ -1,4 +1,4 @@
-Require Import List Ensembles util stability flow list_util
+Require Import List Ensembles util stability flow list_util containers
   geometry hs_solver concrete.
 Require decreasing_exponential_flow EquivDec.
 Set Implicit Arguments.
@@ -25,7 +25,7 @@ Let Point := geometry.Point.
 Let State : Type := (Location * Point)%type.
 
 Definition point: State -> Point := snd.
-Definition loc: State -> Location := fst.
+Definition location: State -> Location := fst.
 Definition clock: State -> CR := fst ∘ point.
 Definition temp: State -> CR := snd ∘ point.
 
@@ -35,7 +35,7 @@ Open Local Scope CR_scope.
 
 Definition invariant (s: State): Prop :=
   '0 <= clock s /\
-  match loc s with
+  match location s with
   | Heat => temp s <= '10 /\ clock s <= '3
   | Cool => '5 <= temp s
   | Check => clock s <= '1
@@ -46,12 +46,12 @@ Lemma invariant_wd: forall l l', l = l' ->
 Proof. unfold invariant. grind ltac:(destruct l'). Qed.
 
 Lemma invariant_stable s: Stable (invariant s).
-Proof. intros [l p]. destruct l; intros; unfold invariant; simpl loc; auto. Qed.
+Proof. intros [l p]. destruct l; intros; unfold invariant; simpl location; auto. Qed.
 
 (* Initial *)
 
 Definition initial (s: State): Prop :=
-  loc s = Heat /\
+  location s = Heat /\
   '5 <= temp s /\ temp s <= '10 /\
   clock s == '0.
 
@@ -83,7 +83,7 @@ Definition reset (l l': Location) (p: Point): Point :=
 (* Guard *)
 
 Definition guard (s: State) (l: Location): Prop :=
-  match loc s, l with
+  match location s, l with
   | Heat, Cool => '9 <= temp s
   | Cool, Heat => temp s <= '6
   | Heat, Check => '2 <= clock s
@@ -97,7 +97,6 @@ Definition system: System :=
   Build_System
   _ _
   NoDup_locations
-  initial
   initial_invariant
   invariant_wd
   invariant_stable

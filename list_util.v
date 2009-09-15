@@ -383,6 +383,24 @@ Proof.
   intros. destruct (decide_exists_in H); [left | right]; firstorder.
 Defined.
 
+Program Instance overestimate_exists_in
+   `{H: forall x: T, overestimation (P x)} l: overestimation (exists x, In x l /\ P x) := existsb H l.
+Next Obligation.
+  intros [x [A B]].
+  rewrite (snd (existsb_exists H l)) in H0.
+    discriminate.
+  eauto 20 using overestimation_true.
+Defined.
+
+Instance overestimate_exists `{ExhaustiveList T} `{forall x: T, overestimation (P x)}: overestimation (exists x, P x).
+Proof.
+  intros.
+  exists (overestimate_exists_in H).
+  intro.
+  pose proof (overestimation_false _ H1).
+  firstorder.
+Defined.
+
 Instance In_decision `{EquivDec.EqDec T eq} (x: T) y: decision (In x y) := In_dec EquivDec.equiv_dec x y.
 
 Section carts.

@@ -27,23 +27,6 @@ Ltac CRcmp_to_O :=
       end
   end.
 
-Ltac wd_helper :=
-  match goal with
-  | H: regFunEq ?x ?y |- 
-    `match CR_le_le_dec ?x ?v with
-    | left _ => _ | right _ => _
-     end
-    =
-    `match CR_le_le_dec ?y ?v' with
-    | left _ => _ | right _ => _
-     end =>
-    let e := fresh "e" in
-    set (e := @CR_le_le_dec_wd _ _ v v H (genericSetoid_Reflexive _ _)); clearbody e;
-    destruct (CR_le_le_dec x v) in *; 
-    destruct (CR_le_le_dec y v) in *; 
-    auto; try discriminate; clear e
-  end.
-
 Ltac qrange := unfold uncurry; vm_compute; intuition; discriminate.
 
 Ltac decomp_hyp H := 
@@ -126,8 +109,6 @@ Ltac grind tac :=
           qrange
       | |- OQle _ =>
           qrange
-      | H: regFunEq ?x ?y |- `_ = `_ =>
-          repeat wd_helper
       | |- NoDup _ =>
           prove_NoDup
       | |- EquivDec.EqDec _ _ =>

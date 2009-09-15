@@ -12,25 +12,20 @@ Definition deci: Qpos := (1#10)%Qpos.
 Definition centi: Qpos := (1#100)%Qpos.
 Definition milli: Qpos := (1#1000)%Qpos.
 
-Program Definition CRnonNeg_dec eps r: overestimation (CRnonNeg r) :=
-  match CR_epsilon_sign_dec eps r with
-  | Lt => false
-  | _ => true
-  end.
+Program Definition overestimate_CRnonNeg eps r: overestimation (CRnonNeg r) :=
+  if Qle_total (- (2) * QposAsQ eps) (approximate r (Qpos2QposInf eps)) then true else false.
 Next Obligation.
-  unfold CR_epsilon_sign_dec in Heq_anonymous.
   intro.
-  set (w := H0 eps).
+  pose proof (H1 eps).
   set (ax := approximate r eps) in *.
-  destruct (QMinMax.Qle_total ax (2 * eps)); try discriminate.
-  destruct (QMinMax.Qle_total (- (2) * eps) ax); try discriminate.
+  clear H0. clear H1.
   apply (Qlt_not_le (-(2)*eps) (-eps)).
     change (-eps)%Q with (- (1)%positive * eps)%Q.
     apply Qmult_lt_compat_r; compute; trivial.
   apply Qle_trans with ax; trivial.
 Defined.
 
-Definition CRle_dec eps x y: overestimation (CRle x y) := CRnonNeg_dec eps (y - x).
+Definition overestimate_CRle eps x y: overestimation (CRle x y) := overestimate_CRnonNeg eps (y - x).
 
 Lemma CRadd_0_r x: x + '0 == x.
   intros.
@@ -913,45 +908,53 @@ Proof with auto.
   apply CRneg_nonPos...
 Qed.
 
-Axiom CR_lt_eq_dec: forall (x y: CR), sum (x==y) (sum (x<y) (y<x)).
-(* hm, if we make this a {x<=y}+{y<=x} axiom, we can be sure it won't be used in
- computation, because that's in prop, no? it may not be enough for
- our proofs though.. *)
-
-Lemma CR_le_le_dec x y: {x<=y}+{y<=x}.
+Lemma CRneg_lt_0 x: x < '0 -> CRneg x.
+  unfold CRlt.
   intros.
-  destruct (CR_lt_eq_dec x y).
-    left. rewrite s. apply CRle_refl.
-  destruct s; [left | right]; apply CRlt_le; assumption.
-Defined.
-
-Definition CR_le_lt_dec x y: (x <= y) + (y < x).
-Proof with auto.
-  intros x y.
-  destruct (CR_lt_eq_dec x y).
-    left. rewrite s. apply CRle_refl.
-  destruct s...
+  apply CRneg_opp.
+  apply CRpos_wd with ('0 - x).
+    rewrite (Radd_comm CR_ring_theory).
+    apply CRadd_0_r.
+  assumption.
 Qed.
 
-Lemma CR_le_le_dec_wd: forall x x' y y', x == x' -> y == y' ->
-  unsumbool (CR_le_le_dec x y) =
-  unsumbool (CR_le_le_dec x' y').
+Definition CRle_lt_dec: forall x y, DN ((x <= y) + (y < x)).
 Proof with auto.
   intros.
-  unfold CR_le_le_dec.
-  destruct (CR_lt_eq_dec x y) as [a | [b | c]];
-   destruct (CR_lt_eq_dec x' y') as [a' | [b' | c']]; auto; elimtype False.
-        apply CRlt_irrefl with y.
-        apply CRlt_wd with y' x'... symmetry...
-        rewrite <- H...
-      apply CRlt_asym with x y...
-      apply CRlt_wd with y' x'; auto; symmetry...
-    apply CRlt_irrefl with y.
-    apply CRlt_wd with y x...
-    rewrite H. rewrite H0...
-  apply CRlt_asym with x y...
-  apply CRlt_wd with x' y'; auto; symmetry...
+  apply (DN_fmap (@DN_decisionT (y < x))).
+  intros [A | B]...
+  left.
+  apply (leEq_def CRasCOrdField x y)...
 Qed.
+
+Implicit Arguments CRle_lt_dec [].
+
+Definition CRnonNeg_or_pos: forall x, DN (CRnonNeg x + CRneg x).
+Proof with auto.
+  intros.
+  apply (DN_fmap (CRle_lt_dec ('0) x)).
+  intro.
+  destruct H; [left | right].
+    apply <- CRnonNeg_le_zero...
+  apply CRneg_lt_0...
+Qed.
+
+Definition CRle_cases: forall x y: CR, x <= y -> DN ((x < y) + (x == y))
+  := leEq_less_or_equal CRasCOrdField.
+
+Definition CRle_dec: forall (x y: CR), DN ((x<=y) + (y<=x)).
+Proof. intros. apply (DN_fmap (CRle_lt_dec x y)). intros [A | B]; auto. Qed.
+
+Implicit Arguments CRle_dec [].
+
+Lemma CR_trichotomy x y: DN ((x == y) + ((x < y) + (y < x))).
+Proof with intuition.
+  intros.
+  apply (DN_bind (@CRle_lt_dec x y)). intros [A | A]...
+  apply (DN_fmap (CRle_cases A))...
+Qed.
+
+Implicit Arguments CR_trichotomy [].
 
 Section function_properties.
 
@@ -968,24 +971,6 @@ Section function_properties.
   Definition decreasing: CProp :=
     forall x x', x <= x' -> f x' <= f x.
 
-  Lemma strongly_increasing_inv:
-    strongly_increasing -> forall x x', f x < f x' -> x < x'.
-  Proof with auto.
-    unfold strongly_increasing.
-    intros.
-    destruct (CR_lt_eq_dec x x').
-      elimtype False.
-      destruct (def_leEq _ _ _ _ _ CRisCOrdField (f x') (f x)).
-      apply H0...
-      rewrite (f_wd s).
-      apply CRle_refl.
-    destruct s...
-    destruct (ax_less_strorder _ _  _ _ _ CRisCOrdField).
-    elimtype False.
-    apply (so_asym (f x) (f x') H).
-    apply X...
-  Qed.
-
   Lemma strongly_increasing_inv_mild:
     strongly_increasing -> forall x x', f x <= f x' -> x <= x'.
   Proof with auto.
@@ -1001,24 +986,6 @@ Section function_properties.
     elimtype False.
     destruct (def_leEq _ _ _ _ _ CRisCOrdField (f x) (f x')).
     apply H0...
-    apply X...
-  Qed.
-
-  Lemma strongly_decreasing_inv:
-    strongly_decreasing -> forall x x', f x < f x' -> x' < x.
-  Proof with auto.
-    unfold strongly_decreasing.
-    intros.
-    destruct (CR_lt_eq_dec x x').
-      elimtype False.
-      destruct (def_leEq _ _ _ _ _ CRisCOrdField (f x') (f x)).
-      apply H0...
-      rewrite (f_wd s).
-      apply CRle_refl.
-    destruct s...
-    destruct (ax_less_strorder _ _  _ _ _ CRisCOrdField).
-    elimtype False.
-    apply (so_asym (f x) (f x') H).
     apply X...
   Qed.
 
@@ -1054,7 +1021,7 @@ Section function_properties.
     elimtype False.
     destruct (def_leEq _ _ _ _ _ CRisCOrdField x x').
     apply H0...
-  Qed. (* todo: i'm not convinced CR_lt_eq_dec is needed for this *)
+  Qed.
 
   Lemma mildly_decreasing:
     strongly_decreasing -> forall x x', x <= x' -> f x' <= f x.

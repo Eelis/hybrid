@@ -1,39 +1,25 @@
 Require Import List Bool util list_util.
 Require abstract digraph.
-Require Import reachability.
+
+Require Import EquivDec.
 
 Set Implicit Arguments.
 
 Local Open Scope type_scope.
 
-(* Given an abstract system, we can compute reachability overestimations. We do this by
- making a graph corresponding to the abstract system, and using a graph reachability
- algorithm on it. *)
-
 Section using_duplication.
 
   Variables
     (chs: concrete.System)
-    (ap: abstract.Parameters chs)
+    (ap: abstract.Space chs)
     (ahs: abstract.System ap).
 
   Let Vertex := bool * abstract.State ap.
 
-  (* The purpose of the bool component is the following. In the graph, some edges will
-   correspond to abstract _continuous_ transitions, while others will correspond to abstract
-   _discrete_ transitions. We do not want to allow two successive transitions of the same
-   kind. The solution we use (for now) is to add two vertices for each abstract state,
-   one with fst = true, and one with fst = false. Next, we only add edges corresponding to
-   abstract continuous transitions from a vertex with fst = true to a vertex with fst = false, and
-   only add edges corresponding to abstract discrete transitions from a vertex with
-   fst = false to a vertex with fst = true. This ensures that paths through the graph alternate
-   between vertices with fst = true and vertices with fst = false, and that the corresponding
-   abstract traces alternate between continuous and discrete transitions. *)
-
   Definition nexts (v: Vertex): list (abstract.State ap) :=
-    let (k, s) := v in (if k
-      then map (pair (fst s)) (` (abstract.cont_trans ahs s))
-      else ` (abstract.disc_trans ahs s)).
+    let (k, s) := v in
+      if k then ` (abstract.cont_trans_over ahs s)
+      else ` (abstract.disc_trans_over ahs s).
 
   Definition edges (v: Vertex): list Vertex := map (pair (negb (fst v))) (nexts v).
 
@@ -42,30 +28,22 @@ Section using_duplication.
     intros [k [l r]].
     apply NoDup_map...
     unfold nexts.
-    destruct abstract.cont_trans. destruct abstract.disc_trans.
-    simpl.
-    destruct l0... destruct l1... destruct k...
-    apply NoDup_map...
+    destruct k.
+      destruct abstract.cont_trans_over. simpl. destruct l0...
+    destruct abstract.disc_trans_over. simpl. destruct l0...
   Qed.
 
-  Definition g : digraph.DiGraph :=
+  Definition g: digraph.DiGraph :=
     @digraph.Build (bool * abstract.State ap) _ _ edges NoDup_edges.
-
-  (* Next, we show that reachability in the graph is equivalent to reachability in the abstract system. *)
 
   Lemma edges_match_transitions y b x: In y (nexts (b, x)) <-> abstract.trans ahs b x y.
   Proof with auto.
     intros [l' r'] b [l r]. simpl.
     split; destruct b...
-      intro.
-      destruct (fst (in_map_iff _ _ _) H) as [x [C D]].
-      inversion C. subst...
-    intros [A B].
-    subst...
   Qed.
 
   Lemma paths_match_traces x y:
-    (exists b, digraph.reachable ((b, x): digraph.Vertex g) y) <->
+    (exists b, trans_refl_closure.R (digraph.edge g) (b, x) y) <->
     end_with (abstract.trans ahs) (negb (fst y)) x (snd y).
   Proof with auto.
     split.
@@ -84,19 +62,18 @@ Section using_duplication.
     destruct y.
     simpl.
     generalize b. clear b.
-    cut (forall b, end_with (abstract.trans ahs) b x s -> exists b0, digraph.reachable ((b0, x): digraph.Vertex g) (negb b, s)).
+    cut (forall b, end_with (abstract.trans ahs) b x s -> exists b0, trans_refl_closure.R (digraph.edge g) ((b0, x): digraph.Vertex g) (negb b, s)).
       intros.
       rewrite <- (negb_involutive b)...
     intros b r.
     induction r.
       unfold digraph.reachable.
-      exists (negb b).
-      apply reachable_refl.
+      exists (negb b)...
     unfold digraph.reachable in *.
     destruct IHr.
     rewrite negb_involutive in H0.
     exists x0.
-    apply (@reachable_next _ (fun v w : digraph.Vertex g => In w (digraph.edges v)) (x0, x) (b, y) (negb b, z) H0).
+    apply (@trans_refl_closure.step _ (fun v w : digraph.Vertex g => In w (digraph.edges v)) (x0, x) (b, y) (negb b, z) H0).
     unfold digraph.edges.
     simpl.
     unfold edges.
@@ -105,32 +82,35 @@ Section using_duplication.
     apply <- edges_match_transitions...
   Qed.
 
-  Definition graph_reachable (s: abstract.State ap): Prop :=
-    exists i: digraph.Vertex g, overestimation_bool (abstract.initial_dec ahs (snd i)) = true /\
-    exists k, digraph.reachable i (k, s).
-
-  Hint Unfold graph_reachable In.
-
-  Theorem respect s: abstract.reachable ahs s <-> graph_reachable s.
-  Proof with auto.
-    unfold abstract.reachable.
-    unfold graph_reachable.
-    split.
-      intros [x [H [x0 H0]]].
-      rewrite <- (negb_involutive x0) in H0.
-      destruct (snd (paths_match_traces x (_, _)) H0).
-      exists (x1, x). eauto.
-    intros [[b s0] [H [k H0]]].
-    exists s0. split...
-    exists (negb k).
-    apply (paths_match_traces s0 (k, s)). eauto.
-  Qed.
-
-  (* Since we can decide reachability in the graph, we can now decide reachability in the abstract system. *)
+  Hint Unfold In.
 
   Definition init_verts: list Vertex :=
     filter (fun v: Vertex => overestimation_bool (abstract.initial_dec ahs (snd v)))
       ExhaustivePairList.
+
+  Theorem respect: forall s: abstract.State ap,
+    abstract.reachable ahs s <-> exists k, @digraph.reachable g init_verts (k, s).
+  Proof with auto.
+    unfold abstract.reachable.
+    split.
+      intros [x [H [x0 H0]]].
+      rewrite <- (negb_involutive x0) in H0.
+      destruct (snd (paths_match_traces x (_, _)) H0).
+      unfold digraph.reachable, init_verts.
+      exists (negb x0) (x1, x).
+      auto using in_filter.
+    intros [k [v [vi R]]].
+    exists (snd v).
+    unfold init_verts in vi.
+    apply filter_In in vi.
+    destruct vi.
+    split...
+    unfold alternate.
+    exists (negb k).
+    apply (paths_match_traces (snd v) (k, s)).
+    destruct v.
+    eauto.
+  Qed.
 
   Hint Unfold init_verts.
 
@@ -145,47 +125,31 @@ Section using_duplication.
   Qed.
 
   Program Let reachable_verts := digraph.reachables g NoDup_init_verts.
+    (* Having this as a separate definition is critical for efficiency. *)
 
-  Program Let state_reachable s: decision (abstract.reachable ahs s) :=
-    @equivalent_decision (exists b, In (b, s) (`reachable_verts)) _ _ decide.
+  Program Let state_reachable: decider (abstract.reachable ahs) :=
+    fun s => @equivalent_decision (exists b, In (b, s) (`reachable_verts)) _ _ decide.
 
   Hint Resolve in_filter.
 
-  Next Obligation. Proof with auto.
+  Next Obligation. Proof with eauto.
     split.
       intros [x H].
       destruct reachable_verts.
-      simpl proj1_sig in H.
       apply <- respect.
-      unfold graph_reachable.
-      destruct (fst (i (_, s)) H) as [x1 [H0 H1]].
-      exists x1.
-      split...
-        destruct (fst (filter_In _ _ _) H0)...
-      eauto.
+      exists x.
+      apply -> i...
     intro.
-    destruct (fst (respect s) H) as [x [H0 [x0 H1]]].
+    apply respect in H.
+    destruct H.
+    destruct H.
+    exists x.
     destruct reachable_verts.
-    exists x0.
+    simpl proj1_sig.
     apply <- i.
-    unfold init_verts.
-    eauto.
+    unfold digraph.reachable...
   Qed.
 
-  (* Using the above, we can overestimate reachability of sets of concrete states. *)
-
-  Variables
-    (cstates: concrete.State chs -> Prop)
-    (astates: list (abstract.State ap))
-    (astates_cover_cstates: forall s, cstates s -> forall r, abstract.abs s r -> In r astates).
-
-  Program Definition some_reachable: overestimation (overlap cstates concrete.reachable) :=
-    unsumbool (@decide (exists u, In u astates /\ abstract.reachable ahs u) decide).
-
-  Next Obligation. Proof with eauto.
-    intros H [x [Px r]].
-    apply (@abstract.safe _ _ ahs x)...
-    repeat intro. apply (decision_false _ H)...
-  Qed.
+  Definition some_reachable := abstract.some_reachable_2 (decider_to_overestimator _ state_reachable).
 
 End using_duplication.

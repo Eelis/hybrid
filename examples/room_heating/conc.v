@@ -210,7 +210,7 @@ Module RoomHeatingConcrete (Import RHS : RoomHeatingSpec).
   Admitted.
 
   Definition concrete_system: concrete.System :=
-    concrete.Build_System _ _ NoDup_locations initial
+    concrete.Build_System _ _ NoDup_locations
     initial_invariant invariant_wd invariant_stable flow guard reset.
 
 End RoomHeatingConcrete.

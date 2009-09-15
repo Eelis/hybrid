@@ -50,6 +50,9 @@ Inductive Stable P := mkStable: (DN P -> P) -> Stable P.
 Lemma DN_apply {T: Type}: DN T -> forall P, Stable P -> (T -> P) -> P.
 Proof. firstorder. Qed.
 
+Lemma DN_free P: Stable P -> DN P -> P.
+Proof. firstorder. Qed.
+
 Lemma Stable_neg (P: Prop): Stable (~P).
 Proof. firstorder. Qed.
 
@@ -84,6 +87,14 @@ Lemma Qle_dec x y: decision (Qle x y).
 Defined.
   (* Todo: Don't I have this elsewhere? *)
 
+(* Everything is decidable in DN: *)
+
+Lemma DN_decision (P: Prop): DN (decision P).
+Proof. firstorder. Qed.
+
+Lemma DN_decisionT (P: Type): DN (P + (P->False)).
+Proof. firstorder. Qed.
+
 Lemma CRnonNeg_stable x: Stable (CRnonNeg x).
 Proof with auto.
   unfold CRnonNeg.
@@ -114,27 +125,12 @@ Open Local Scope CR_scope.
 Lemma DN_or P Q: Not ((Not P) /\ (Not Q)) -> DN (P + Q).
 Proof. firstorder. Qed.
 
-Definition CRle_cases: forall x y: CR, x <= y -> DN ((x < y) or (x == y))
-  := leEq_less_or_equal CRasCOrdField.
+Coercion COr_to_sum A B (x: COr A B): A + B :=
+  match x with
+  | Cinleft y => inl y
+  | Cinright y => inr y
+  end.
 
-(* What on earth is the point of COr? Is it not the exact same as sum? *)
-
-Definition CRle_dec: forall (x y: CR), DN ((x<=y) or (y<=x))
-  := leEq_or_leEq CRasCOrdField.
-
-Lemma CRle_lt_dec x y: DN ((x <= y) + (y < x)).
-Proof with intuition.
-  intros.
-  apply (DN_bind (CRle_dec x y))...
-  apply (DN_fmap (CRle_cases _ _ b))...
-  left.
-  rewrite b0.
-  apply CRle_refl.
-Qed.
-
-Lemma CR_trichotomy x y: DN ((x == y) + ((x < y) + (y < x))).
-Proof with intuition.
-  intros.
-  apply (DN_bind (CRle_lt_dec x y)). intros [A | A]...
-  apply (DN_fmap (CRle_cases _ _ A))...
-Qed.
+Definition not_forall_exists_not_DN (T: Type) (P: T -> Prop) (Pd: forall x, P x \/ ~ P x):
+  (~ forall x, P x) -> DN (exists x, ~ P x).
+Proof. firstorder. Qed.

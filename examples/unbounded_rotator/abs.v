@@ -27,7 +27,7 @@ Definition yinterval := interval_spec.select_interval system snd_mor spec.
 
 (* Abstraction parameters *)
 
-Definition ap: abstract.Parameters system :=
+Definition ap: abstract.Space system :=
   square_abstraction.ap _ _ _ (NoDup_bnats 5) (NoDup_bnats 5)
   Interval_bounds Interval_bounds xinterval yinterval.
 
@@ -125,19 +125,19 @@ Program Definition disc_trans_dec eps := square_abstraction.disc_trans
 (* Abstract continuous transitions *)
 
 Definition hints (l : Location) (r r' : abstract.Region ap) (i: r <> r'):
-  option (hinted_abstract_continuous_transitions.StrongHint ap l r r') := None.
+  option (abstract_cont_trans_over.strong_redundant ap l i) := None.
 
-Program Let cont_trans eps := hinted_abstract_continuous_transitions.cont_trans
+Program Let cont_trans eps := abstract_cont_trans_over.cont_trans
   (square_abstraction.cont_trans_cond_dec
     (@id (concrete.Point system)) _ _ _ _
   x_flow_inv y_flow_inv x_rfis y_rfis
   _ (invariant_dec eps) eps)
-  (@hinted_abstract_continuous_transitions.weaken_hints _ ap hints).
+  (@abstract_cont_trans_over.weaken_hints _ ap hints).
 
 (* Abstract system *)
 
 Definition system (eps: Qpos): abstract.System ap :=
-  abstract.Build_System (initial_dec eps) (disc_trans_dec eps) (cont_trans eps).
+  abstract.Build_System (initial_dec eps) (disc_trans_dec eps) (abstract_cont_trans_over.cont_sharing_overestimator_from_substantial_overestimator (cont_trans eps)).
 
 (* Abstract safety *)
 

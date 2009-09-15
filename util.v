@@ -16,7 +16,6 @@ Ltac destruct_and :=
   | _ => idtac
   end.
 
-
 Section predicate_reflection.
 
   Inductive PredicateType: Type -> Type :=
@@ -54,6 +53,18 @@ Existing Instance PT_Prop_instance.
 Existing Instance PT_pred_instance.
 
 Class decision (P: Prop): Set := decide: { P } + { ~ P }.
+
+Program Instance decide_conjunction `{Pd: decision P} `{Qd: decision Q}: decision (P /\ Q) :=
+  match Pd, Qd with
+  | right _, _ => right _
+  | _, right _ => right _
+  | left _, left _ => left _
+  end.
+
+Instance decide_equality {A} {R: relation A} `{e: EqDec A R} x y: decision (R x y) := e x y.
+
+Next Obligation. firstorder. Qed.
+Next Obligation. firstorder. Qed.
 
 Definition decision_to_bool P (dec : decision P) : bool :=
   match dec with
@@ -209,22 +220,26 @@ Definition prod_map A B C D (f: A -> B) (g: C -> D) (p: A*C): B*D :=
 
 Definition flip (A B C: Type) (f: A -> B -> C) (b: B) (a: A): C := f a b.
 
+Definition dep_flip (A B: Type) (C: A -> B -> Type) (f: forall a b, C a b) (b: B) (a: A): C a b := f a b.
+
 Hint Extern 4 => match goal with
   |- ?P (@proj1_sig ?T ?P ?x) => destruct x; auto
   end.
 
-Definition overestimation (P: Prop): Set := { b: bool | b = false -> ~ P }.
+Class overestimation (P: Prop): Set := overestimate: { b: bool | b = false -> ~ P }.
+Definition underestimation (P: Prop): Set := option P.
 
 Coercion overestimation_bool P: overestimation P -> bool := @proj1_sig _ _.
+Coercion underestimation_bool P: underestimation P -> bool := @opt_to_bool _.
 
-Program Definition opt_overestimation (A: Type) (P: A -> Prop)
+Program Instance opt_overestimation {A: Type} (P: A -> Prop)
   (H: forall a, overestimation (P a)) (o: option A): overestimation (opt_prop o P) :=
   match o with
   | None => true
   | Some v => H v
   end.
 
-Program Definition overestimate_conj (P Q: Prop)
+Program Instance overestimate_conj {P Q: Prop}
   (x: overestimation P) (y: overestimation Q): overestimation (P /\ Q) := x && y.
 Next Obligation.
   intros [A B].
@@ -236,19 +251,44 @@ Qed.
 Lemma overestimation_false P (o: overestimation P): (o: bool) = false -> ~ P.
 Proof. destruct o. assumption. Qed.
 
+Lemma underestimation_true P (o: underestimation P): (o: bool) = true -> P.
+Proof. destruct o. intro. assumption. intro. discriminate. Qed.
+
 Lemma overestimation_true P (o: overestimation P): P -> (o: bool) = true.
 Proof. destruct o. destruct x. reflexivity. intros. absurd P; auto. Qed.
 
-Definition overestimator `{ipt: IsPredicateType T}: T -> Type :=
-  pred_rect (fun _ _ => Type) overestimation (fun U R p i X => forall x, X x) ipt.
+Section doers.
 
-Goal overestimator lt = forall x y, overestimation (lt x y).
-  reflexivity.
+  Context `{ipt: IsPredicateType T}.
+
+  Definition overestimator: T -> Type :=
+    pred_rect (fun _ _ => Type) overestimation (fun U R p i X => forall x, X x) ipt.
+
+  Definition underestimator: T -> Type :=
+    pred_rect (fun _ _ => Type) underestimation (fun U R p i X => forall x, X x) ipt.
+
+  Definition decider: T -> Type :=
+    pred_rect (fun _ _ => Type) decision (fun U R p i X => forall x, X x) ipt.
+
+End doers.
+
+Program Coercion decision_overestimation (P: Prop) (d: decision P): overestimation P := d: bool.
+Next Obligation. destruct d; firstorder. Qed.
+  (* todo: rename, because we can do the same for underestimation *)
+
+Coercion decision_overestimation: decision >-> overestimation.
+
+Definition decider_to_overestimator `{ipt: IsPredicateType T} (P: T): decider P -> overestimator P.
+  unfold decider, overestimator.
+  intro.
+  unfold IsPredicateType.
+  unfold pred_rect.
+  induction ipt; simpl.
+    apply decision_overestimation.
+  intuition.
 Defined.
 
-Program Definition weaken_decision (P: Prop) (d: decision P):
-  overestimation P := d: bool.
-Next Obligation. destruct d; firstorder. Qed.
+Coercion decider_to_overestimator: decider >-> overestimator.
 
 Definition LazyProp (T: Prop): Prop := () -> T.
 Definition force (T: Prop) (l: LazyProp T): T := l ().
@@ -256,7 +296,7 @@ Definition force (T: Prop) (l: LazyProp T): T := l ().
 Hint Constructors unit.
 
 Require Import Ensembles.
-Notation "x ⊆ y" := (Ensembles.Included _ x y) (at level 40).
+
 Implicit Arguments Complement [U].
 
 Definition overlap X (A B: Ensembles.Ensemble X): Prop := exists x, A x /\ B x.
@@ -269,7 +309,7 @@ Section eq_dep.
 Variables (U : Type) (eq_dec : forall x y : U, {x=y}+{~x=y}).
 
 Lemma eq_rect_eq : forall (p : U) Q x h, x = eq_rect p Q x p h.
-  
+
 Proof.
 exact (eq_rect_eq_dec eq_dec).
 Qed.
@@ -320,3 +360,56 @@ Lemma NoDup_bools: NoDup bools.
 Proof. prove_NoDup. Qed.
 
 Instance Bool_eq_dec: EquivDec.EqDec bool eq := bool_dec.
+
+Module trans_refl_closure.
+Section contents.
+
+  Variables (T: Type) (TR: relation T).
+
+  Inductive R: relation T :=
+    | refl' s: R s s
+    | step a b c: R a b -> TR b c -> R a c.
+
+  Hint Constructors R.
+
+  Instance trans: Transitive R.
+  Proof. repeat intro. induction H0; eauto. Qed.
+
+  Lemma flip (P: T -> Prop) (Pdec: forall s, decision (P s))
+   (a b: T): R a b -> P a -> ~ P b ->
+    exists c, exists d, P c /\ ~ P d /\ TR c d.
+  Proof.
+    intros P Pdec a b r.
+    induction r. firstorder.
+    destruct (Pdec b); eauto.
+  Qed.
+
+  Lemma flip_inv (P: T -> Prop) (Pdec: forall s, decision (P s))
+   (a b: T): R a b -> ~ P a -> P b ->
+    exists c, exists d, ~ P c /\ P d /\ TR c d.
+  Proof.
+    intros P Pdec a b r.
+    induction r. firstorder.
+    destruct (Pdec b); eauto.
+  Qed.
+
+End contents.
+End trans_refl_closure.
+
+Hint Constructors trans_refl_closure.R.
+
+Section alternate.
+
+  Variables (T: Type) (R: bool -> relation T).
+
+  Inductive end_with: bool -> relation T :=
+    | end_with_refl b s: end_with b s s
+    | end_with_next b x y:
+        end_with (negb b) x y -> forall z, R b y z -> end_with b x z.
+
+  Definition alternate: relation T :=
+    fun s s' => exists b, end_with b s s'.
+
+End alternate.
+
+Hint Constructors end_with.
