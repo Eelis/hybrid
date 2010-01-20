@@ -21,6 +21,9 @@
 
 %format . = "."
 %format forall = "\forall"
+%format Next = "\mathbf{Next}"
+%format Obligation = "\mathbf{Obligation}"
+%format Class = "\mathbf{Class}"
 %format Fixpoint = "\mathbf{Fixpoint}"
 %format Definition = "\mathbf{Definition}"
 %format Eval = "\mathbf{Eval}"
@@ -226,7 +229,7 @@ The remaining parts of a hybrid system (i.e. |flow|, |guard| and |reset|) descri
 \subsection{Flow and Continuous Transitions}
 \label{concreteflow}
 
-Each location in a concrete system has an accompanying \emph{flow function} which describes how the continuous variables change over time while the system is in that location. The idea is that the different locations corresponds to different uses of actuators available to the software system, the effects of which are described by the flow function. For instance, in our thermostat, the flow function corresponding to the |Heat| location will have the temperature increase with time, modeling the effect of the heater component in our imagined thermostat deviced.
+Each location in a concrete system has an accompanying \emph{flow function} which describes how the continuous variables change over time while the system is in that location. The idea is that the different locations corresponds to different uses of actuators available to the software system, the effects of which are described by the flow function. For instance, in our thermostat, the flow function corresponding to the |Heat| location will have the temperature increase with time, modeling the effect of the heater component in our imagined thermostat device.
 
 %format Duration = CR"_{\ge 0}"
 %format CRge0 = CR"_{\ge 0}"
@@ -485,11 +488,43 @@ As discussed in the last section, |CRle_unapplied| is not decidable. |overestima
 
 The types of underestimators and overerestimators often merely repeat a certain predicate's parameters, as in the |overestimate_CRle| example above. Using a bit of type class magic to achieve variadicity, we can rid us of this repetition. Given a predicate |P: A_0 -> ... -> A_n -> Prop|, we define |underestimator P| as the type \begin{code}forall (a_0: A_0) ... (a_n: A_n), underestimation (P a_0 ... a_n).\end{code} (And similar for |overestimator|.) With these, the type of |overestimate_CRle| may be written as |Qpos -> overestimator (CRle_unapplied)|.
 
-Underestimators and overestimators can be combined to form underestimators (resp. overestimators) for things like conjunctions and quantifications over finite domains. Applying these combinators by hand is somewhat tedious, and for this reason we have made |overestimation| and |underestimation| type classes. We will not go into the details, but the net effect is that whenever we need an overestimation of some proposition |P|, we may say |overestimate P|, and Coq's type class resolution will try to construct an overestimation for |P| based on a collection of type class instances that amount to a database of registered overestimator combinators and primitives.
+We use the same techniques for real decision procedures (in the few places we use those): we define |decision P| as |{P}+{~P}|, and given a predicate |P: A_0 -> ... -> A_n -> Prop|, we define |decider P| as the type |forall (a_0: A_0) ... (a_n: A_n), decision (P a_0 ... a_n)|.
 
-Finally, while we're on the subject of decision-procedure-like things, we note that we use the same techniques for real decision procedures (in the few places we use those): we define |decision P| as |{P}+{~P}|, and given a predicate |P: A_0 -> ... -> A_n -> Prop|, we define |decider P| as the type |forall (a_0: A_0) ... (a_n: A_n), decision (P a_0 ... a_n)|. And here, too, we make |decision| a type class, so that we may simply say |decide P| and have Coq use type class resolution to try and construct a decider deciding |P|.
+\subsection{Automating estimator/decider composition}
 
-%\todo{Things like the Qpos above throw dirt in the food though. We could make a type class for ``epsilon-parameterized overestimators'', but meh.}
+Underestimators, overestimators and deciders can be combined to form underestimators (resp. overestimators, deciders) for things like conjunctions and quantifications over finite domains. For instance, here is a combinator that forms conjunction overestimators:
+
+\begin{code}
+Program Definition overestimate_conj {P Q: Prop}
+  (x: overestimation P) (y: overestimation Q):
+    overestimation (P /\ Q) := x && y.
+Next Obligation.
+  intros [A B].
+  destruct x. destruct y.
+  simpl in H.
+  destruct (andb_false_elim _ _ H); intuition.
+Qed.
+\end{code}
+\todo{clean up proof}
+Applying these combinators by hand to form estimators/deciders for composite propositions is somewhat tedious, but fortunately this process can be automated if we make |overestimation|, |underestimation|, and |decision| type classes:
+
+\begin{code}
+Class overestimation (P: Prop): Set
+  := overestimate: { b: bool | b = false -> ~ P }.
+\end{code}
+If we now say |overestimate P|, the type class instance resolution mechanism will try to find (or build) a term of type |overestimation P| by recursively applying declared type class instances. For instance, if we declare |overestimate_conj| above as a type class instance (instead of a plain definition) and then say |overestimate (A /\ B)| where |A| and |B| are already known to be overestimatable (meaning the resolution mechanism is able to build terms of types |overestimation A| and |overestimation B|), then the resolution mechanism will be able to build a term of type |overestimation (A /\ B)| by applying |overestimate_conj|.
+
+We show one nontrivial example to illustrate the convenience of this mechanism: at one point in the development we have Coq automatically construct an overestimator of the property
+\begin{code}
+  exists u: abstract.State, In u astates /\ reachable u,
+\end{code}
+simply by saying
+\begin{code}
+  overestimate (exists u: abstract.State, In u astates /\ reachable u).
+\end{code}
+To construct this overestimator, Coq recursively applies a variety of instances that show that (1) decidable properties are overestimatable; (2) existentially quantified decidable properties over finite domains are decidable; (3) |abstract.State| is a finite domain; (4) conjunctions of decidable properties are decidable; (5) list membership is decidable if equality is decidable for the element type; (6) equality is decidable for products (such as |abstract.State|) if equality is decidable for the components; (7) equality is decidable for |Location|s; (8) equality is decidable for abstract (symbolic) regions; (9) reachability in the abstract system is decidable.
+
+In \cite{hintsinunification}, Asperti et al. use a similar technique (but implemented using unification hints instead of type classes) to automate reflection of algebraic expressions in concrete syntax into a an inductively defined abstract syntax.
 
 \section{Abstraction: Regions, States, and Spaces}
 \label{abstraction}
@@ -531,7 +566,7 @@ The |Container Point Region| type specified for |in_region| reduces to |Point ->
 
 It is \emph{necessary} because |regions_cover| boils down to a (partial) function that, given a concrete point, must select an abstract region containing that point. This means that it must be able to decide on which side of a border between two regions the given point lies. As we saw in section \ref{dn}, that kind of decidability is only available inside |DN| unless all region borders have nontrivial overlap, which as we will see later is undesireable.
 
-Fortunately, the double negation is also \emph{sufficient}, because we will ultimately only use |regions_cover| in a proof of of |... -> ~ concrete.reachable s| (for some universally quantified variable s), which, due to its head type being a negation, is stable, and can therefore be proved in and then extracted from |DN|. Hence, we only need |regions_cover|'s result in |DN|.
+Fortunately, the double negation is also \emph{sufficient}, because we will ultimately only use |regions_cover| in a proof of of |... -> ~ concrete.reachable s| (for some universally quantified variable |s|), which, due to its head type being a negation, is stable, and can therefore be proved in and then extracted from |DN|. Hence, we only need |regions_cover|'s result in |DN|.
 
 \
 
