@@ -414,7 +414,7 @@ For the first, we need only observe that |x <= y| is equivalent to |y </ x|, and
 \end{code}
 is a trivial tautology considering that |~ P| is taken to mean |P -> False|.
 
-One practical way to answer the question of how such a doubly negated proposition might be used to prove things is to observe that double negation, as a function on types/propositions, is a monad \cite{bla}. Writing |DN P| for |~ ~ P|, we have the following two key operations that make |DN| a monad:
+One practical way to answer the question of how such a doubly negated proposition might be used to prove things is to observe that double negation, as a function on types/propositions, is a monad \cite{wadler95monads}. Writing |DN P| for |~ ~ P|, we have the following two key operations that make |DN| a monad:
 
 %format return_DN
 %format bind_DN
