@@ -142,7 +142,7 @@ This technical report documents our development of a hybrid system safety prover
 
 In \cite{alur}, Alur presents a method for automated hybrid system safety verification based on the construction of an \emph{abstract} hybrid system (essentially a finite automaton) corresponding to the hybrid system of interest. The abstract system is constructed such that traces in the original system are represented in the abstract system. Consequently, one can draw conclusions about reachability of states in the concrete system from analysis of state reachability in the abstract system. Since the abstract system is an entirely finite discrete object (unlike the concrete system), reachability can simply be computed (using any graph reachability algorithm). Thus, the abstraction method brings the safety verification problem from a continuous and infinite domain into a discrete and finite domain, where it is amenable to what amounts to brute force.
 
-The prototype implementation described in \cite{alur} was developed in a conventional programming language using libraries that use ordinary floating point arithmetic \todo{which language/libraries exactly?}. The potential for bugs and floating point artifacts inherent in this approach limit the confidence one can justifiably have in safety judgements made by such an implementation. In this report, we describe a reimplementation of the basic technique in Coq, a proof assistant based on a rich type theory that also functions as a programming language, letting one develop ``certified'' programs: programs whose correctness is proved formally within the system. In our case, the program will be one that produces machine-checked proofs of hybrid system safety, obtained using the abstraction method.
+The prototype implementation described in \cite{alur} was developed in a conventional programming language using libraries that use ordinary floating point arithmetic \todo{which language/libraries exactly?}. The potential for bugs and floating point artifacts inherent in this approach limits the confidence one can justifiably have in safety judgements made by such an implementation. In this report, we describe a reimplementation of the basic technique in Coq, a proof assistant based on a rich type theory that also functions as a programming language, letting one develop ``certified'' programs: programs whose correctness is proved formally within the system. In our case, the program will be one that produces machine-checked proofs of hybrid system safety, obtained using the abstraction method.
 
 Our development relies crucially on computation using real numbers, for which we use the computable real number implementation developed by Russell O'Connor \cite{something}, and part of the C-CoRN library of formalized constructive mathematics \cite{something}. Indeed, this development showcases its use in a concrete and practical application, and subtleties regarding the nature of these computable reals are reflected in this development in several ways, which we will discuss in some detail.
 
@@ -243,7 +243,7 @@ We further require that |phi| is a morphism respecting |Point|'s setoid equality
 
 \todo{Unlike Alur, we don't have ``input'' (why?).}
 
-We now say that there is a (concrete) \emph{continuous transition} from a state |(l, p)| to a state |(l', p')| if |l = l'| and there is a nonnegative duration |d| such that |p' = flow l p d| with the invariant for |l| holding at every point along the way:
+We now say that there is a (concrete) \emph{continuous transition} from a state |(l, p)| to a state |(l', p')| if |l = l'| and there is a non-negative duration |d| such that |p' = flow l p d| with the invariant for |l| holding at every point along the way:
 
 \begin{code}
   Definition can_flow (l: Location): relation Point
@@ -290,7 +290,7 @@ Definition temp_flow (l: Location): Flow CRasCSetoid :=
 \subsection{Discrete Transitions}
 \label{conc.disc_trans}
 
-Where continuous transitions describe the flow of continuous variables, \emph{discrete} transitions between locations describe the logic of the software system. Each such transition is comprised of two components: a \emph{guard} predicate, and a \emph{reset} function. The former defines a subset of the continous state space in which the transition is enabled (permitted), while the latter describes an instantaneous change applied as a side effect of the transition, as seen in the following definition of the discrete transition relation:
+Where continuous transitions describe the flow of continuous variables, \emph{discrete} transitions between locations describe the logic of the software system. Each such transition is comprised of two components: a \emph{guard} predicate, and a \emph{reset} function. The former defines a subset of the continuous state space in which the transition is enabled (permitted), while the latter describes an instantaneous change applied as a side effect of the transition, as seen in the following definition of the discrete transition relation:
 
 \begin{code}
   Definition disc_trans: relation State := fun (l, p) (l', p') =>
@@ -341,7 +341,7 @@ We now say that a state |s| is \emph{reachable} if there is an initial state |i|
 \end{code}
 Here, |trans_refl_closure trans| is the transitive reflexive closure of |trans|.
 
-As mentioned before, the set of reachable states represent the possible behaviors exhibited by a hypothetical real-world implementation of the hybrid system (as software running on a device with sensor and actuators).
+As mentioned before, the set of reachable states represents the possible behaviors exhibited by a hypothetical real-world implementation of the hybrid system (as software running on a device with sensor and actuators).
 
 The idea now is that the purpose of a hybrid system is typically to keep the continuous variables within certain limits. In other words, to limit the set of reachable states to some ``safe'' subset of the complete state space. For our thermostat example, the intent is to keep the temperature above 4.5 degrees at all times, and so the safe states are defined to be those in which the temperature component is |> 4.5|:
 
@@ -962,7 +962,7 @@ Definition abstract.reachable (s: abstract.State): Prop :=
 
 % We now turn our attention to overestimation of |reachable_by_abstract_trace|, after which we will consider the implementation of the overstimators that comprise an abstract system, in sections \ref{bla} and \ref{bla}.
 
-% repeat somewhere that an overestimator could just return "true" all teh time, but that would make everything reachable, makign the thing useless for unreachability (and hence, safety) determination.
+% repeat somewhere that an overestimator could just return "true" all the time, but that would make everything reachable, makign the thing useless for unreachability (and hence, safety) determination.
 % and repeat somewhere that overestimation is all about inclusion of predicates, heuristics. basically, this paragraph:
 
 % The idea now is to define |abstract.reachable| by decidable heuristics that make a ``best effort'' to establish absence of reachable concrete states represented by a given abstract state, marking the latter unreachable if successful, and reachable otherwise. Better heuristics will result in fewer spuriously reachable abstract states, decreasing the risk that abstract states containing unsafe concrete states become reachable (these have to remain unreachable for the abstraction to be of use).
