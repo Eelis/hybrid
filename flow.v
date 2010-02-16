@@ -21,8 +21,7 @@ Record Flow (X: CSetoid): Type :=
   }.
 
 Definition mono (f: Flow CRasCSetoid): Type :=
-  sum (forall x, strongly_increasing (f x))
-    (forall x, strongly_decreasing (f x)).
+  ((forall x, strongly_increasing (f x)) + (forall x, strongly_decreasing (f x)))%type.
 
 Definition range_flow_inv_spec (f: Flow CRasCSetoid)
   (i: OpenRange -> OpenRange -> OpenRange): Prop :=

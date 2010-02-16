@@ -1,12 +1,13 @@
 import os, glob, string
 libs = os.environ["COQLIBS"]
+coqtop = os.environ["COQTOP"]
 corn_dir = libs + '/CoRN'
 color_dir = libs + '/color/color/trunk/color'
 
 Rs = [(corn_dir, 'CoRN'), (color_dir, 'CoLoR'), ('.', 'hybrid')]
 Rs = string.join(map(lambda (x,y): '-R "' + x + '" ' + y, Rs))
 
-coqc = 'coqc -noglob ' + Rs
+coqc = coqtop + '/bin/coqc -noglob ' + Rs
 
 def make_abs(s):
   if s[0] != '/': return Dir("#").abspath + "/" + s
