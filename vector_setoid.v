@@ -3,8 +3,11 @@ Require Export VecEq.
 Require Export CSetoids.
 Require Export SetoidClass.
 Require Import c_util.
+Require Export Coq.Classes.EquivDec.
 
 Set Implicit Arguments.
+
+(** * CSetoid on vectors. *)
 
 Section VectorCSetoid.
 
@@ -46,8 +49,9 @@ admit.
 
 End VectorCSetoid.
 
-(* FIXME, this should come from CoLoR.Utils.Vector.VecEq.v *)
-Add Parametric Morphism A n i (ip : (i < n)%nat) : (fun v : vecCSetoid A n => Vnth v ip)
+(* FIXME, this should come from CoLoR.Util.Vector.VecEq.v *)
+Add Parametric Morphism A n i (ip : (i < n)%nat) : 
+  (fun v : vecCSetoid A n => Vnth v ip)
   with signature (@cs_eq _) ==> (@cs_eq _)
     as Vnth_Cmorph.
 
@@ -55,20 +59,17 @@ Proof.
   intros. apply Vforall2n_nth with (R := @st_eq _). assumption.
 Qed.
 
-(*
-Why setoid rewrite doesn't work with this morphism?
+(** * Decidable Leibniz equality on vectors *)
 
-Require Import Morphisms.
-Print Instances Morphism.
+Section vector_eqdec.
 
-(* Let's test it... *)
-Lemma test n (x y : vecCSetoid CRasCSetoid n) :
-  x [=] y -> forall i (ip : (i < n)%nat), Vnth x ip [=] Vnth y ip.
-Proof.
-  intros.
-  (* It's just an instance of the morphism: *)
-(*  apply Vnth_Cmorph. assumption.*)
-  (* and yet we cannot rewrite... *)
-  rewrite H.
-Qed.
-*)
+  Variable n : nat.
+  Variable A : Type.
+  Variable eqA_dec : EqDec A eq.
+
+  Global Program Instance vector_EqDec : EqDec (vector A n) eq.
+  Next Obligation.
+    apply eq_vec_dec; auto.
+  Qed.
+
+End vector_eqdec.

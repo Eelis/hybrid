@@ -5,6 +5,10 @@ Require Import Morphisms.
 Set Implicit Arguments.
 Require Import EquivDec.
 Require concrete.
+Require Import CoLoR.Util.Vector.VecUtil.
+Require Import hybrid.vector_setoid.
+Require hybrid.nat_util.
+Require Import hybrid.hlist.
 
 Module c := concrete.
 
@@ -78,6 +82,47 @@ Section contents.
       in_region_mor regions_cover.
 
   End prod_space.
+
+  (* Below we generalize the product space above to n-dimensions, hence 
+     generalizing abstraction by squares in 2 dimensional space to abstraction
+     by hyper-cubes in n-dimensional space 
+
+     We first assume the structures for all dimensions to be homogenious and
+     just build appropriate [Space]. *)
+
+  Section hyper_space_homogenous.
+
+    Variable n : nat.
+    Variable Region : Set.
+    Variable RegionEqDec : EquivDec.EqDec Region eq.
+    
+    Let Regions := vector Region n.
+
+    Section Nregions.
+
+      Variable regions : Regions.
+
+      Variable regions_enum : vector (ExhaustiveList Region) n.
+
+      Variable regions_NoDup : nat_util.check_n 
+        (fun i ip => NoDup (Vnth regions_enum ip)).
+
+    End Nregions.
+
+    Program Definition hyper_space_homogenous : Space := @Build_Space Regions _ _ _ _ _ _.
+    Next Obligation.
+      unfold Regions; auto with typeclass_instances.
+    Qed.
+    Admit Obligations.
+      
+  End hyper_space_homogenous.
+
+  (* We again build n-dimensional space, but this time simply by 
+     taking n instances of [Space] and "putting them together".
+     This requires use of heterogenous lists. *)
+  Section hyper_space_heterogenous.
+
+  End hyper_space_heterogenous.
 
   Variable ap: Space.
 
