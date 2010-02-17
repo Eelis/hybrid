@@ -72,21 +72,32 @@ Section hlists.
     Proof.
     Admitted.
 
-    Hint Resolve hlist_eq_fst_eq hlist_eq_snd_eq : hlists.
+    Hint Resolve hlist_eq_fst_eq hlist_eq_snd_eq.
 
     Global Program Instance hlist_EqDec : EqDec (hlist l) eq.
     Next Obligation.
-      revert x y; induction l; intros; 
-        dep_destruct x; dep_destruct y.
-      intuition.
-      assert (a_al0 : In a (a :: l0)) by intuition.
-      destruct (EltsEqDec a_al0 b b0).
-      assert (IHpre : forall x, In x l0 -> EqDec (B x) eq) by intuition.
-      destruct (IHl0 IHpre x1 x0).
-       (* FIXME, why subst* does not work here? *)
-      rewrite e. rewrite e0. intuition.
-      compute. intuition eauto with hlists.
-      compute. intuition eauto with hlists.
+      revert x y; induction l; intros;
+        repeat 
+          match goal with
+          | hl : hlist [] |- _ => dep_destruct hl
+          | hl : hlist (_::_) |- _ => dep_destruct hl
+          end;
+        crunch;
+        match goal with
+        | EQ : forall x, ?a = x \/ In x ?l -> _, x : B ?a, y : B ?a 
+            |- context [HCons ?x _ === HCons ?y _] =>
+            let a_al0 := fresh "a_al0" in
+            assert (a_al0 : In a (a :: l0)) by intuition;
+            destruct (EQ a a_al0 x y)
+        end;
+        match goal with
+        | IH : (forall x, In x ?l -> EqDec (?B x) eq) -> forall x y, {x === y} + {x =/= y} 
+            |- context [HCons _ ?xs === HCons _ ?ys] =>
+            let IHpre := fresh "IHpre" in
+            assert (IHpre : forall x, In x l -> EqDec (B x) eq) by intuition;
+            destruct (IH IHpre xs ys)
+        end;
+        simpl_eqs; crunch; compute; crunch.
     Qed.
 
   End hlist_eqdec.
