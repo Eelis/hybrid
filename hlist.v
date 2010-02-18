@@ -167,32 +167,30 @@ Section HList_prods.
   Variable A : Type.
   Variable B : A -> Type.
 
-  (* [hlist_combine [x_1; ... x_n] [y_1; ... y_n] = [x_1::y_1; ... x_n::y_n; x_2::y_1 ... x_n::y_n]] *)
-  (* FIXME, I'm not sure why the below does not work without Program... *)
-  Program Fixpoint hlist_combine t (l : list t)
+  (* [hlist_combine [x_1; ... x_n] [y_1; ... y_n] = 
+     [x_1::y_1; ... x_n::y_n; x_2::y_1 ... x_n::y_n]] *)
+  Fixpoint hlist_combine t (l : list t)
     : forall ts, list (hlist id ts) -> list (hlist id (t::ts)) :=
     match l return 
       forall ts, list (hlist id ts) -> list (hlist id (t::ts)) 
     with
     | [] => fun _ _ => []
     | x::xs => fun _ l' => 
-        map (fun y_i => x:::y_i) l' ++ hlist_combine xs l'
+        map (fun y_i => (x : id t):::y_i) l' ++ hlist_combine xs l'
     end.
 
-(*
-  Fixpoint hlist_prod_tuple (l : list Type)
-    : hlist list l -> list (hlist id l) :=
-    match l as l return 
-      hlist list l -> list (hlist id l) with
-    | [] => fun _ => []
-    | [t] => fun elts => List.map (hsingleton id t) (hhd elts)
-    | t::ts => fun elts => hlist_combine (hhd elts) (@hlist_prod_tuple ts (htl elts))
+  Fixpoint hlist_prod_tuple (l : list Type) (hl : hlist (fun T => list T) l) 
+    : list (hlist id l) :=
+    match hl in hlist _ l return list (hlist id l) with
+    | HNil => [HNil]
+    | HCons _ _ x l' => hlist_combine x (hlist_prod_tuple l')
     end.
-*)
 
 End HList_prods.
 
-(*Eval vm_compute in hlist_prod_tuple [1:::false:::HNil; 2:::true:::HNil].*)
+(*
+Eval vm_compute in hlist_prod_tuple ([1; 2]:::[false;true]:::HNil).
+*)
 
 Section ExhaustiveHList.
 

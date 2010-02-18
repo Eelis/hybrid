@@ -446,8 +446,7 @@ Section List_prods.
    *)
   Fixpoint list_prod_tuple (elts : list (list A)) : list (list A) :=
     match elts with
-    | [] => []
-    | [x] => List.map (fun i => [i]) x
+    | [] => [[]]
     | x::xs => list_combine x (list_prod_tuple xs)
     end.
 
