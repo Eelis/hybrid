@@ -337,7 +337,7 @@ Section ExhaustivePairList.
 
   Context {A B} {EA: ExhaustiveList A} {EB: ExhaustiveList B}.
 
-  Instance ExhaustivePairList:
+  Global Instance ExhaustivePairList:
      ExhaustiveList (A*B)
       := { exhaustive_list := flat_map (fun i => map (pair i) EB) EA }.
   Proof.
@@ -360,8 +360,6 @@ Section ExhaustivePairList.
   Qed.
 
 End ExhaustivePairList.
-Existing Instance ExhaustivePairList.
-  (* No idea why this is necessary... *)
 
 Instance decide_exists_in `{forall x: T, decision (P x)} l: decision (exists x, In x l /\ P x).
 Proof.
@@ -431,3 +429,31 @@ Section carts.
   Qed.
 
 End carts.
+
+Section List_prods.
+
+  Variable A : Type.
+
+  (* [list_combine [x_1; ... x_n] [y_1; ... y_n] = [x_1::y_1; ... x_n::y_n; x_2::y_1 ... x_n::y_n]] *)
+  Fixpoint list_combine (l : list A) (l' : list (list A)) : list (list A) :=
+    match l with
+    | [] => []
+    | x::xs => List.map (fun y_i => x::y_i) l' ++ list_combine xs l'
+    end.
+
+  (* list_prod_tuple [xs_1; ... xs_n] gives a list containing every 
+     list of the form [x_1; ... x_n] where [In x_1 xs_1], ... [In x_n xs_n].
+   *)
+  Fixpoint list_prod_tuple (elts : list (list A)) : list (list A) :=
+    match elts with
+    | [] => []
+    | [x] => List.map (fun i => [i]) x
+    | x::xs => list_combine x (list_prod_tuple xs)
+    end.
+
+End List_prods.
+
+(*
+Eval vm_compute in list_combine [1; 2] [[3;4]; [5;6]].
+Eval vm_compute in list_prod_tuple [[1;2]; [3;4]; [5;6]].
+*)
