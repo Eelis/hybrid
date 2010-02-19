@@ -8,10 +8,9 @@ Set Implicit Arguments.
 
 (** * Heterogenous lists *)
 
-Section hlists.
+Section hlists_def.
 
-  Variable A : Type.
-  Variable B : A -> Type.
+  Context `{B : A -> Type}.
 
   (* heterogenous list parametrized by 'list signature' *)
   Inductive hlist : list A -> Type :=
@@ -19,100 +18,112 @@ Section hlists.
   | HCons : forall x xs, B x -> hlist xs -> hlist (x::xs)
   .
 
-  (* [hget] on [HList]s is similar to [Vnth] on [vector]s *)
-  Section hlist_get.
+End hlists_def.
 
-    Variable elt : A.
+Implicit Arguments HNil [A B].
+Implicit Arguments HCons [A B x xs].
 
-    Inductive member : list A -> Type :=
-    | MFirst : forall ls, member (elt :: ls)
-    | MNext : forall x ls, member ls -> member (x::ls)
-    .
+Ltac hlist_simpl :=
+  repeat 
+    match goal with
+    | hl : hlist [] |- _ => dep_destruct hl
+    | hl : hlist (_::_) |- _ => dep_destruct hl
+    end.
+
+Infix ":::" := HCons (right associativity, at level 60).
+
+ (** [hget] on [HList]s is similar to [Vnth] on [vector]s *)
+Section hlist_get.
+
+  Context `{B : A -> Type, elt : A}.
+
+  Inductive member : list A -> Type :=
+  | MFirst : forall ls, member (elt :: ls)
+  | MNext : forall x ls, member ls -> member (x::ls)
+  .
   
-    Fixpoint hget lt (l : hlist lt) : member lt -> B elt :=
-      match l with
-        | HNil => fun p =>
-          match p in member lt 
-            return 
-              match lt with 
-              | nil => B elt
-              | _ => unit 
-              end 
-          with
-          | MFirst _ => tt
-          | MNext _ _ _ => tt
+  Fixpoint hget lt (l : hlist lt) : member lt -> B elt :=
+    match l with
+      | HNil => fun p =>
+        match p in member lt 
+          return 
+            match lt with 
+            | nil => B elt
+            | _ => unit 
+            end 
+        with
+        | MFirst _ => tt
+        | MNext _ _ _ => tt
+        end
+      | HCons _ _ x xs => fun p =>
+        match p in member lt
+          return 
+          match lt with
+          | nil => unit
+          | x::lt => B x -> (member lt -> B elt) -> B elt
           end
-        | HCons _ _ x xs => fun p =>
-          match p in member lt
-            return 
-            match lt with
-            | nil => unit
-            | x::lt => B x -> (member lt -> B elt) -> B elt
-            end
-          with
-          | MFirst _ => fun x get_xs => x
-          | MNext _ _ p' => fun _ get_xs => get_xs p'
-          end x (hget xs)
-      end.
+        with
+        | MFirst _ => fun x get_xs => x
+        | MNext _ _ p' => fun _ get_xs => get_xs p'
+        end x (hget xs)
+    end.
 
-  End hlist_get.
+End hlist_get.
 
-  (* decidability of Leibniz equality on [HList]s (given 
-     decidable equality on all types of its elements). *)
-  Section hlist_eqdec.
+(** Decidability of Leibniz equality on [HList]s (given deecidable 
+    equality on all types of its elements). *)
+Section hlist_eqdec.
 
-    Variable lt : list A.
-    Variable EltsEqDec : forall x, In x lt -> EqDec (B x) eq.
+  Context `{B : A -> Type, lt : list A}.
+  Variable EltsEqDec : forall x, In x lt -> EqDec (B x) eq.
 
-    Lemma hlist_eq_fst_eq a lt (x y : B a) (xs ys : hlist lt) :
-       HCons x xs === HCons y ys ->
-       x === y.
-    Proof.
-      inversion 1; dep_subst; intuition.
-    Qed.
+  Lemma hlist_eq_fst_eq a lt (x y : B a) (xs ys : hlist lt) :
+    x:::xs === y:::ys ->
+    x === y.
+  Proof.
+    inversion 1; dep_subst; intuition.
+  Qed.
 
-    Lemma hlist_eq_snd_eq a lt (x y : B a) (xs ys : hlist lt) :
-       HCons x xs === HCons y ys ->
-       xs === ys.
-    Proof.
-      inversion 1; dep_subst; intuition.
-    Qed.
+  Lemma hlist_eq_snd_eq a lt (x y : B a) (xs ys : hlist lt) :
+    x:::xs === y:::ys ->
+    xs === ys.
+  Proof.
+    inversion 1; dep_subst; intuition.
+  Qed.
 
-    Hint Resolve hlist_eq_fst_eq hlist_eq_snd_eq.
+  Global Hint Resolve hlist_eq_fst_eq hlist_eq_snd_eq.
 
-    Global Program Instance hlist_EqDec : EqDec (hlist lt) eq.
-    Next Obligation.
-      revert x y; induction lt; intros;
-        repeat 
-          match goal with
-          | hl : hlist [] |- _ => dep_destruct hl
-          | hl : hlist (_::_) |- _ => dep_destruct hl
-          end;
-        crunch;
-        match goal with
-        | EQ : forall x, ?a = x \/ In x ?l -> _, x : B ?a, y : B ?a 
-            |- context [HCons ?x _ === HCons ?y _] =>
-            let a_al0 := fresh "a_al0" in
-            assert (a_al0 : In a (a :: l)) by intuition;
-            destruct (EQ a a_al0 x y)
-        end;
-        match goal with
-        | IH : (forall x, In x ?l -> EqDec (?B x) eq) -> forall x y, {x === y} + {x =/= y} 
-            |- context [HCons _ ?xs === HCons _ ?ys] =>
-            let IHpre := fresh "IHpre" in
-            assert (IHpre : forall x, In x l -> EqDec (B x) eq) by intuition;
-            destruct (IH IHpre xs ys)
-        end;
-        simpl_eqs; crunch; compute; crunch.
-    Qed.
+  Global Program Instance hlist_EqDec : EqDec (hlist (B:=B) lt) eq.
+  Next Obligation.
+    revert x y; induction lt; intros; hlist_simpl; crunch;
+      match goal with
+      | EQ : forall x, ?a = x \/ In x ?l -> _, x : B ?a, y : B ?a 
+          |- context [?x:::_ === ?y:::_] =>
+          let a_al0 := fresh "a_al0" in
+          assert (a_al0 : In a (a :: l)) by intuition;
+          destruct (EQ a a_al0 x y)
+      end;
+      match goal with
+      | IH : (forall x, In x ?l -> EqDec (?B x) eq) -> forall x y, {x === y} + {x =/= y} 
+          |- context [_:::?xs === _:::?ys] =>
+          let IHpre := fresh "IHpre" in
+          assert (IHpre : forall x, In x l -> EqDec (B x) eq) by intuition;
+          destruct (IH IHpre xs ys)
+      end;
+      simpl_eqs; crunch; compute; crunch.
+  Qed.
 
-  End hlist_eqdec.
+End hlist_eqdec.
 
-  (* [hsingleton x] is a [HList] with only one element [x] *)
-  Definition hsingleton (t : A) (x : B t) : hlist [t] := HCons x HNil.
+Section hlist_funs.
 
-  (* [hhd] of [x::xs] is [x] *)
-  Definition hhd lt (l : hlist lt) :=
+  Context `{B : A -> Type, lt : list A}.
+
+  (** [hsingleton x] is a [HList] with only one element [x] *)
+  Definition hsingleton (t : A) (x : B t) : hlist [t] := x:::HNil.
+
+  (** [hhd] of [x::xs] is [x] *)
+  Definition hhd (l : hlist lt) :=
     match l in hlist lt
       return match lt with
              | nil => unit
@@ -123,8 +134,8 @@ Section hlists.
     | HCons _ _ x _ => x
     end.
 
-  (* [htl] of [x::xs] is [xs] *)
-  Definition htl lt (l : hlist lt) :=
+  (** [htl] of [x::xs] is [xs] *)
+  Definition htl (l : hlist (B:=B) lt) :=
     match l in hlist lt
       return match lt with
              | nil => unit
@@ -135,8 +146,8 @@ Section hlists.
     | HCons _ _ _ tl => tl
     end.
 
-  (* [happ [x_1; ... x_n] [y_1; ... y_n] = [x_1; ... x_n; y_1; ... y_n]] *)
-  Fixpoint happ (lt1 : list A) (l1 : hlist lt1) : 
+  (** [happ [x_1; ... x_n] [y_1; ... y_n] = [x_1; ... x_n; y_1; ... y_n]] *)
+  Fixpoint happ (lt1 : list A) (l1 : hlist (B:=B) lt1) : 
     forall lt2, hlist lt2 -> hlist (lt1 ++ lt2) :=
     match l1 in hlist lt1 
       return forall lt2, hlist lt2 -> hlist (lt1 ++ lt2) 
@@ -147,38 +158,33 @@ Section hlists.
 
   Variable f : forall x, B x.
 
-  (* [hbuild [t_1; ... t_n] = [f t_1; ... f t_n]] *)
+  (** [hbuild [t_1; ... t_n] = [f t_1; ... f t_n]] *)
   Fixpoint hbuild (lt : list A) : hlist lt :=
     match lt with
     | nil => HNil
     | x::lt' => HCons (f x) (hbuild lt')
     end.
 
-End hlists.
+End hlist_funs.
 
-Implicit Arguments HNil [A B].
-Implicit Arguments HCons [A B x xs].
-
-Infix ":::" := HCons (right associativity, at level 60).
 Infix "+++" := happ (right associativity, at level 60).
 
 Section HList_prods.
 
-  Variable A : Type.
-  Variable B : A -> Type.
+  Context `{B : A -> Type}.
 
   (* [hlist_combine [x_1; ... x_n] [ys_1; ... ys_n] = 
      [x_1::ys_1; ... x_n::ys_n; x_2::ys_1 ... x_n::ys_n]] *)
   Fixpoint hlist_combine t (lt : list A) (xl : list (B t)) 
-    (ys : list (hlist B lt)) : list (hlist B (t::lt)) :=
+    (ys : list (hlist lt)) : list (hlist (t::lt)) :=
     match xl with
     | [] => []
     | x::xs => map (fun y_i => x:::y_i) ys ++ hlist_combine xs ys
     end.
 
-  Fixpoint hlist_prod_tuple (lt : list A) (l : hlist (fun T => list (B T)) lt)
-    : list (hlist B lt) :=
-    match l in hlist _ lt return list (hlist B lt) with
+  Fixpoint hlist_prod_tuple (lt : list A) (l : hlist (B := fun T => list (B T)) lt)
+    : list (hlist lt) :=
+    match l in hlist lt return list (hlist lt) with
     | HNil => [HNil]
     | HCons _ _ x l' => hlist_combine x (hlist_prod_tuple l')
     end.
@@ -197,13 +203,11 @@ Section ExhaustiveHList.
 
   Context `{EL : forall x, ExhaustiveList (B x)}.
 
-  Global Program Instance ExhaustiveHList : ExhaustiveList (hlist B l) :=
+  Program Instance ExhaustiveHList : ExhaustiveList (hlist l) :=
     { exhaustive_list := 
-        let ls := hbuild _ (fun x => @exhaustive_list _ (EL x)) l in
-          hlist_prod_tuple B ls
+        hlist_prod_tuple (hbuild (fun x => @exhaustive_list _ (EL x)) l)
     }.
-  Next Obligation.
-  Admitted.
+  Admit Obligations.
 
   Variable NoDup_EL : forall x, NoDup (EL x).
 
