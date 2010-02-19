@@ -117,7 +117,11 @@ End hlist_eqdec.
 
 Section hlist_funs.
 
-  Context `{B : A -> Type, lt : list A}.
+  Variables (A : Type) (B : A -> Type) (lt : list A).
+(* FIXME, using instead the Context below gives a wrong type for hbuild,
+          as [lt] is unneccessarily abstracted in it. This problem with
+          Context is fixed in 8.3 *)
+(*  Context `{B : A -> Type}{lt : list A}.*)
 
   (** [hsingleton x] is a [HList] with only one element [x] *)
   Definition hsingleton (t : A) (x : B t) : hlist [t] := x:::HNil.
@@ -175,12 +179,19 @@ Section HList_prods.
 
   (* [hlist_combine [x_1; ... x_n] [ys_1; ... ys_n] = 
      [x_1::ys_1; ... x_n::ys_n; x_2::ys_1 ... x_n::ys_n]] *)
-  Fixpoint hlist_combine t (lt : list A) (xl : list (B t)) 
-    (ys : list (hlist lt)) : list (hlist (t::lt)) :=
+  Fixpoint hlist_combine t (lt : list A) 
+    (xl : list (B t)) (ys : list (hlist lt)) : list (hlist (t::lt)) :=
     match xl with
     | [] => []
     | x::xs => map (fun y_i => x:::y_i) ys ++ hlist_combine xs ys
     end.
+
+  Lemma hlist_combine_In a lt (x : B a) (ys : hlist lt) all_x all_ys : 
+    In x all_x -> In ys all_ys ->
+    In (x:::ys) (hlist_combine all_x all_ys).
+  Proof.
+    induction all_x; crunch.
+  Qed.
 
   Fixpoint hlist_prod_tuple (lt : list A) (l : hlist (B := fun T => list (B T)) lt)
     : list (hlist lt) :=
@@ -201,13 +212,15 @@ Section ExhaustiveHList.
   Variable B : A -> Type.
   Variable l : list A.
 
-  Context `{EL : forall x, ExhaustiveList (B x)}.
+  Context {EL : forall x, ExhaustiveList (B x)}.
 
   Program Instance ExhaustiveHList : ExhaustiveList (hlist l) :=
     { exhaustive_list := 
-        hlist_prod_tuple (hbuild (fun x => @exhaustive_list _ (EL x)) l)
+        hlist_prod_tuple (hbuild _ (fun x => @exhaustive_list _ (EL x)) l)
     }.
-  Admit Obligations.
+  Next Obligation.
+    induction x; crunch; apply hlist_combine_In; crunch.
+  Qed.
 
   Variable NoDup_EL : forall x, NoDup (EL x).
 
