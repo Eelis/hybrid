@@ -116,9 +116,22 @@ with bool_simpl :=
 Notation "()" := tt.
 
 Ltac crunch :=
-  let intuition_ext := simpl in *; intuition eauto with datatypes; try subst; decomp; dep_subst; try congruence in
-  let solve_arith := try omega; try (elimtype False; omega) in
-    repeat progress intuition_ext; solve_arith.
+  let intuition_ext := 
+    simpl in *; 
+    intuition eauto with datatypes; 
+    try subst;
+    try existT_simpl;
+    decomp; 
+    dep_subst; 
+    try congruence
+      
+
+  in
+  let solve_arith := 
+    try omega; 
+    try (elimtype False; omega) 
+  in
+  repeat progress intuition_ext; solve_arith.
 
 Ltac dep_destruct E :=
   let x := fresh "x" in

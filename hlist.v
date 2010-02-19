@@ -1,5 +1,6 @@
 Require Export hybrid.tactics.
 Require Export hybrid.util.
+Require Import hybrid.list_util.
 Require Export Coq.Lists.List.
 Require Export Coq.Classes.EquivDec.
 Require Import Coq.Logic.Eqdep_dec.
@@ -23,14 +24,15 @@ End hlists_def.
 Implicit Arguments HNil [A B].
 Implicit Arguments HCons [A B x xs].
 
+Infix ":::" := HCons (right associativity, at level 60).
+
 Ltac hlist_simpl :=
   repeat 
     match goal with
     | hl : hlist [] |- _ => dep_destruct hl
     | hl : hlist (_::_) |- _ => dep_destruct hl
+    | H : _:::_ = _:::_ |- _ => inversion H; clear H
     end.
-
-Infix ":::" := HCons (right associativity, at level 60).
 
  (** [hget] on [HList]s is similar to [Vnth] on [vector]s *)
 Section hlist_get.
@@ -193,6 +195,53 @@ Section HList_prods.
     induction all_x; crunch.
   Qed.
 
+  Ltac NoDup_simpl :=
+    repeat
+      match goal with
+      | |- NoDup (_ ++ _) => apply NoDup_app
+      | |- NoDup (map _ _) => apply NoDup_map
+      | H : NoDup (_::_) |- _ => inversion H; clear H
+      end.
+
+  Ltac list_simpl :=
+    repeat 
+      match goal with
+      | H : In _ (?l ++ ?m) |- _ => 
+          destruct (in_app_or l m _ H); clear H
+      | H : In _ (map _ _) |- _ => 
+          destruct (proj1 (in_map_iff _ _ _) H); clear H
+      end.
+
+  Lemma hlist_combine_hd a lt (x : hlist (a :: lt)) xs ys :
+    In x (hlist_combine xs ys) ->
+    In (hhd x) xs.
+  Proof.
+    induction xs; repeat (hlist_simpl; crunch; list_simpl).
+  Qed.
+
+  Lemma map_In_head a lt (x : hlist (a::lt)) (el : B a) xs :
+    In x (map (fun tail => el ::: tail) xs) ->
+    hhd x = el.
+  Proof.
+  Admitted.
+
+  Hint Resolve hlist_combine_hd map_In_head.
+
+  Lemma hlist_combine_NoDup (a : A) lt (x : B a) (ys : hlist (B:=B) lt) all_x all_ys : 
+    NoDup all_x -> NoDup all_ys ->
+    NoDup (hlist_combine (t:=a)(lt:=lt) all_x all_ys).
+  Proof.
+    induction all_x; 
+      repeat progress
+        (crunch; hlist_simpl; NoDup_simpl;
+         try
+           match goal with
+           | H : In ?x (map (fun _ => ?elt ::: _) _) |- _ =>
+               assert (hhd x = elt) by crunch
+           end
+        ).
+  Qed.
+
   Fixpoint hlist_prod_tuple (lt : list A) (l : hlist (B := fun T => list (B T)) lt)
     : list (hlist lt) :=
     match l in hlist lt return list (hlist lt) with
@@ -224,8 +273,11 @@ Section ExhaustiveHList.
 
   Variable NoDup_EL : forall x, NoDup (EL x).
 
+  Hint Constructors NoDup.
+
   Lemma NoDup_ExhaustiveHList : NoDup ExhaustiveHList.
   Proof.
+    simpl; induction l; crunch.
   Admitted.
 
 End ExhaustiveHList.
