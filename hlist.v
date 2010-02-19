@@ -167,21 +167,18 @@ Section HList_prods.
   Variable A : Type.
   Variable B : A -> Type.
 
-  (* [hlist_combine [x_1; ... x_n] [y_1; ... y_n] = 
-     [x_1::y_1; ... x_n::y_n; x_2::y_1 ... x_n::y_n]] *)
-  Fixpoint hlist_combine t (l : list t)
-    : forall ts, list (hlist id ts) -> list (hlist id (t::ts)) :=
-    match l return 
-      forall ts, list (hlist id ts) -> list (hlist id (t::ts)) 
-    with
-    | [] => fun _ _ => []
-    | x::xs => fun _ l' => 
-        map (fun y_i => (x : id t):::y_i) l' ++ hlist_combine xs l'
+  (* [hlist_combine [x_1; ... x_n] [ys_1; ... ys_n] = 
+     [x_1::ys_1; ... x_n::ys_n; x_2::ys_1 ... x_n::ys_n]] *)
+  Fixpoint hlist_combine t (lt : list A) (xl : list (B t)) 
+    (ys : list (hlist B lt)) : list (hlist B (t::lt)) :=
+    match xl with
+    | [] => []
+    | x::xs => map (fun y_i => x:::y_i) ys ++ hlist_combine xs ys
     end.
 
-  Fixpoint hlist_prod_tuple (l : list Type) (hl : hlist (fun T => list T) l) 
-    : list (hlist id l) :=
-    match hl in hlist _ l return list (hlist id l) with
+  Fixpoint hlist_prod_tuple (lt : list A) (l : hlist (fun T => list (B T)) lt)
+    : list (hlist B lt) :=
+    match l in hlist _ lt return list (hlist B lt) with
     | HNil => [HNil]
     | HCons _ _ x l' => hlist_combine x (hlist_prod_tuple l')
     end.
@@ -198,12 +195,17 @@ Section ExhaustiveHList.
   Variable B : A -> Type.
   Variable l : list A.
 
-  Context `{EL : forall x, In x l -> ExhaustiveList (B x)}.
+  Context `{EL : forall x, ExhaustiveList (B x)}.
 
-  Global Program Instance ExhaustiveHList : ExhaustiveList (hlist B l).
-  Admit Obligations.
+  Global Program Instance ExhaustiveHList : ExhaustiveList (hlist B l) :=
+    { exhaustive_list := 
+        let ls := hbuild _ (fun x => @exhaustive_list _ (EL x)) l in
+          hlist_prod_tuple B ls
+    }.
+  Next Obligation.
+  Admitted.
 
-  Variable NoDup_EL : forall x (x_l : In x l), NoDup (EL _ x_l).
+  Variable NoDup_EL : forall x, NoDup (EL x).
 
   Lemma NoDup_ExhaustiveHList : NoDup ExhaustiveHList.
   Proof.
