@@ -223,11 +223,12 @@ Section HList_prods.
     In x (map (fun tail => el ::: tail) xs) ->
     hhd x = el.
   Proof.
-  Admitted.
+    repeat (list_simpl; crunch).
+  Qed.
 
   Hint Resolve hlist_combine_hd map_In_head.
 
-  Lemma hlist_combine_NoDup (a : A) lt (x : B a) (ys : hlist (B:=B) lt) all_x all_ys : 
+  Lemma hlist_combine_NoDup (a : A) lt all_x all_ys : 
     NoDup all_x -> NoDup all_ys ->
     NoDup (hlist_combine (t:=a)(lt:=lt) all_x all_ys).
   Proof.
@@ -274,10 +275,11 @@ Section ExhaustiveHList.
   Variable NoDup_EL : forall x, NoDup (EL x).
 
   Hint Constructors NoDup.
+  Hint Resolve @hlist_combine_NoDup.
 
   Lemma NoDup_ExhaustiveHList : NoDup ExhaustiveHList.
   Proof.
     simpl; induction l; crunch.
-  Admitted.
+  Qed.
 
 End ExhaustiveHList.
