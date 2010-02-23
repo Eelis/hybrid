@@ -8,10 +8,14 @@ Hint Unfold DN.
 Definition DN_return {T: Type}: T -> DN T :=
   fun x f => f x.
 
+Notation "'return' x" := (DN_return x) (at level 30).
+
 Hint Resolve @DN_return.
 
 Definition DN_bind {A: Type}: DN A -> forall B, (A -> DN B) -> DN B :=
   fun X Y Z P => X (fun a => Z a P).
+
+Notation "x <- e ; t" := (DN_bind e _ (fun x => t)) (right associativity, at level 60).
 
 Definition ext_eq: Prop := forall (A B: Type) (f g: A -> B), (forall x, f x = g x) -> f = g.
 

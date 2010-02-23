@@ -413,3 +413,5 @@ Section alternate.
 End alternate.
 
 Hint Constructors end_with.
+
+Notation "[= e =]" := (exist _ e _).

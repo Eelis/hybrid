@@ -66,20 +66,20 @@ Section contents.
     Let in_region_mor: Morphism (@cs_eq _ ==> eq ==> iff) in_region.
     Proof. unfold in_region. intros x x' e r r' e'. rewrite e, e'. split; auto. Qed.
 
-    Let regions_cover: forall (l : concrete.Location chs) (p : concrete.Point chs),
-      concrete.invariant (l, p) -> DN (sig (in_region p)).
-    Proof.
-      intros.
-      apply (DN_bind (regions_cover ap _ _ H)). intros [x i].
-      apply (DN_bind (regions_cover ap' _ _ H)). intros [x0 i0].
-      apply DN_return.
-      exists (x, x0).
-      split; assumption.
-    Qed. (* written with Program and monad notation, this should be much clearer *)
-
+    Program Definition regions_cover_prod l p : concrete.invariant (l, p) -> DN (sig (in_region p)) :=
+      fun H => 
+        C1 <- contents.regions_cover ap l p H;
+        let (x1, _) := C1 in
+        C2 <- contents.regions_cover ap' l p H;
+        let (x2, _) := C2 in
+        return [=(x1, x2)=].
+    Next Obligation.
+      split; crunch.
+    Qed.
+  
     Definition prod_space: Space := Build_Space _ _
       (NoDup_ExhaustivePairList (NoDup_regions ap) (NoDup_regions ap'))
-      in_region_mor regions_cover.
+      in_region_mor regions_cover_prod.
 
   End prod_space.
 
@@ -91,9 +91,6 @@ Section contents.
 
     Variable n : nat.
     Variable aps : list Space.
-(*
-    Variable aps : vector Space n.
-*)
 
     (* [Regions] is formed by an n-product of [Region]s of respective [Space]s,
        epxressed with heterogenous list *)
@@ -121,6 +118,8 @@ Section contents.
         | Rs : Regions |- _ => solve [induction Rs; crunch]
         end.
     Qed.
+    Next Obligation.
+    Admitted.
 
   End hyper_space.
 
