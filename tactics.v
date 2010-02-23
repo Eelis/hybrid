@@ -120,18 +120,32 @@ Ltac crunch :=
     simpl in *; 
     intuition eauto with datatypes; 
     try subst;
-    try existT_simpl;
     decomp; 
     dep_subst; 
     try congruence
-      
-
   in
   let solve_arith := 
     try omega; 
     try (elimtype False; omega) 
   in
-  repeat progress intuition_ext; solve_arith.
+  let rewriter :=
+    repeat 
+      match goal with
+      | [ H : _ |- _ ] =>
+          solve 
+            [ rewrite H; clear H; crunch
+            | rewrite <- H; clear H; crunch
+            ]
+      end
+  in
+  repeat progress (
+    intuition_ext; 
+    rewriter; 
+    intuition_ext; 
+    solve_arith
+  ).
+
+Tactic Notation "crunch" "with" tactic3(t) := repeat progress (crunch; t).
 
 Ltac dep_destruct E :=
   let x := fresh "x" in

@@ -264,7 +264,7 @@ Section ExhaustiveHList.
 
   Context {EL : forall x, ExhaustiveList (B x)}.
 
-  Program Instance ExhaustiveHList : ExhaustiveList (hlist l) :=
+  Global Program Instance ExhaustiveHList : ExhaustiveList (hlist l) :=
     { exhaustive_list := 
         hlist_prod_tuple (hbuild _ (fun x => @exhaustive_list _ (EL x)) l)
     }.

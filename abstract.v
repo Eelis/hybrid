@@ -17,7 +17,7 @@ Section contents.
   Variable chs: concrete.System.
 
   Record Space: Type :=
-    { Region: Set
+    { Region: Type
     ; Region_eq_dec: EquivDec.EqDec Region eq
     ; regions: ExhaustiveList Region
     ; NoDup_regions: NoDup regions
@@ -83,46 +83,46 @@ Section contents.
 
   End prod_space.
 
-  (* Below we generalize the product space above to n-dimensions, hence 
-     generalizing abstraction by squares in 2 dimensional space to abstraction
-     by hyper-cubes in n-dimensional space 
+  (* We generalize the product space above from 2 to arbitrary 'n' dimensions,
+     hence generalizing abstraction by squares in 2 dimensional space to 
+     abstraction by hyper-cubes in n-dimensional space *)
 
-     We first assume the structures for all dimensions to be homogenious and
-     just build appropriate [Space]. *)
-
-  Section hyper_space_homogenous.
+  Section hyper_space.
 
     Variable n : nat.
-    Variable Region : Set.
-    Variable RegionEqDec : EquivDec.EqDec Region eq.
-    
-    Let Regions := vector Region n.
+    Variable aps : list Space.
+(*
+    Variable aps : vector Space n.
+*)
 
-    Section Nregions.
+    (* [Regions] is formed by an n-product of [Region]s of respective [Space]s,
+       epxressed with heterogenous list *)
+    Notation Regions := (@hlist _ Region aps).
 
-      Variable regions : Regions.
+    Fixpoint in_region_aux (aps : list Space) p : @hlist _ Region aps -> Prop :=
+      match aps as aps return @hlist _ Region aps -> Prop with
+      | [] => fun _ => True
+      | s::ss => fun rs =>
+          in_region s p (hhd rs) /\ @in_region_aux ss p (htl rs)
+      end.
 
-      Variable regions_enum : vector (ExhaustiveList Region) n.
+    Obligation Tactic := program_simpl; auto with typeclass_instances.
 
-      Variable regions_NoDup : nat_util.check_n 
-        (fun i ip => NoDup (Vnth regions_enum ip)).
-
-    End Nregions.
-
-    Program Definition hyper_space_homogenous : Space := @Build_Space Regions _ _ _ _ _ _.
+    Program Definition hyper_space : Space := @Build_Space Regions _ _ _ 
+      (@in_region_aux aps)  _ _.
     Next Obligation.
-      unfold Regions; auto with typeclass_instances.
+       (* FIXME, can we avoid the change? *)
+      change (NoDup (ExhaustiveHList _ aps)).
+      apply NoDup_ExhaustiveHList; destruct 0; crunch.
     Qed.
-    Admit Obligations.
-      
-  End hyper_space_homogenous.
+    Next Obligation.
+      repeat intro; split;
+        match goal with
+        | Rs : Regions |- _ => solve [induction Rs; crunch]
+        end.
+    Qed.
 
-  (* We again build n-dimensional space, but this time simply by 
-     taking n instances of [Space] and "putting them together".
-     This requires use of heterogenous lists. *)
-  Section hyper_space_heterogenous.
-
-  End hyper_space_heterogenous.
+  End hyper_space.
 
   Variable ap: Space.
 
