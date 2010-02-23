@@ -69,10 +69,8 @@ Section contents.
     Program Definition regions_cover_prod l p : concrete.invariant (l, p) -> DN (sig (in_region p)) :=
       fun H => 
         C1 <- contents.regions_cover ap l p H;
-        let (x1, _) := C1 in
         C2 <- contents.regions_cover ap' l p H;
-        let (x2, _) := C2 in
-        return [=(x1, x2)=].
+        return [=(`C1, `C2)=].
     Next Obligation.
       split; crunch.
     Qed.
@@ -103,10 +101,22 @@ Section contents.
           in_region s p (hhd rs) /\ @in_region_aux ss p (htl rs)
       end.
 
+    Obligation Tactic := crunch.
+
+    Program Fixpoint regions_cover_aux (aps : list Space) l p : 
+      concrete.invariant (l, p) -> DN (sig (in_region_aux (aps:=aps) p)) :=
+      match aps with
+      | [] => fun H => return [= HNil =]
+      | s::ss => fun H =>
+          C1 <- contents.regions_cover s l p H;
+          C2 <- @regions_cover_aux ss l p H;
+          return [= `C1:::`C2 =]
+      end.
+    
     Obligation Tactic := program_simpl; auto with typeclass_instances.
 
     Program Definition hyper_space : Space := @Build_Space Regions _ _ _ 
-      (@in_region_aux aps)  _ _.
+      (@in_region_aux aps) _ (@regions_cover_aux aps).
     Next Obligation.
        (* FIXME, can we avoid the change? *)
       change (NoDup (ExhaustiveHList _ aps)).
@@ -118,8 +128,6 @@ Section contents.
         | Rs : Regions |- _ => solve [induction Rs; crunch]
         end.
     Qed.
-    Next Obligation.
-    Admitted.
 
   End hyper_space.
 
