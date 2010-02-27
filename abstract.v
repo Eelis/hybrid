@@ -8,7 +8,7 @@ Require concrete.
 Require Import CoLoR.Util.Vector.VecUtil.
 Require Import hybrid.vector_setoid.
 Require hybrid.nat_util.
-Require Import hybrid.hlist.
+Require Import hybrid.hlist_aux.
 
 Module c := concrete.
 
@@ -92,17 +92,22 @@ Section contents.
 
     (* [Regions] is formed by an n-product of [Region]s of respective [Space]s,
        epxressed with heterogenous list *)
-    Notation Regions := (@hlist _ Region aps).
+    Notation Regions aps := (@hlist _ (fun x => x) (List.map Region aps)).
 
-    Fixpoint in_region_aux (aps : list Space) p : @hlist _ Region aps -> Prop :=
-      match aps as aps return @hlist _ Region aps -> Prop with
+    Definition in_region_aux (aps : list Space) (p : concrete.Point chs) : Regions aps -> Prop.
+    Proof.
+    Admitted.
+(*
+      match aps as aps return Regions aps -> Prop with
       | [] => fun _ => True
       | s::ss => fun rs =>
           in_region s p (hhd rs) /\ @in_region_aux ss p (htl rs)
       end.
+*)
 
     Obligation Tactic := crunch.
 
+(*
     Program Fixpoint regions_cover_aux (aps : list Space) l p : 
       concrete.invariant (l, p) -> DN (sig (in_region_aux (aps:=aps) p)) :=
       match aps with
@@ -112,22 +117,25 @@ Section contents.
           C2 <- @regions_cover_aux ss l p H;
           return [= `C1:::`C2 =]
       end.
-    
+*)
+    Lemma in_region_aux_morph : Morphism (@st_eq _ ==> eq ==> iff) (@in_region_aux aps).
+    Proof.
+    Admitted.
+
     Obligation Tactic := program_simpl; auto with typeclass_instances.
 
-    Program Definition hyper_space : Space := @Build_Space Regions _ _ _ 
-      (@in_region_aux aps) _ (@regions_cover_aux aps).
+    Program Definition hyper_space : Space := @Build_Space (Regions aps) _ _ _ 
+      (@in_region_aux aps) _ _ (*(@regions_cover_aux aps)*).
     Next Obligation.
-       (* FIXME, can we avoid the change? *)
-      change (NoDup (ExhaustiveHList _ aps)).
-      apply NoDup_ExhaustiveHList; destruct 0; crunch.
-    Qed.
+    Admitted.
     Next Obligation.
-      repeat intro; split;
-        match goal with
-        | Rs : Regions |- _ => solve [induction Rs; crunch]
-        end.
-    Qed.
+    Admitted.
+    Next Obligation.
+    Admitted.
+    Next Obligation.
+    Admitted.
+    Next Obligation.
+    Admitted.
 
   End hyper_space.
 
@@ -147,7 +155,7 @@ Section contents.
 
   End CoverRelandsuch.
 
-  Definition CompleteCoverList (cs: c.State chs -> Prop): Set :=
+  Definition CompleteCoverList (cs: c.State chs -> Prop): Type :=
     sig (LazyProp ∘ (CompleteCover cs: list (State ap) -> Prop)).
 
   Section safe.
@@ -197,7 +205,7 @@ Section contents.
   Definition cont_trans (l: c.Location chs): relation (Region ap)
     := fun r r' => exists p q, p ∈ r /\ q ∈ r' /\ c.can_flow chs l p q.
 
-  Definition sharing_transition_overestimator (R: relation (concrete.State chs)): Set :=
+  Definition sharing_transition_overestimator (R: relation (concrete.State chs)): Type :=
     forall s: State ap, sig (fun l: list (State ap) => LazyProp (NoDup l /\
       SharedCover (concrete.invariant ∩ (overlap s ∘ util.flip R)) l)).
         (* the invariant part is important because it means the overestimators can use
