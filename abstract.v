@@ -92,44 +92,36 @@ Section contents.
 
     (* [Regions] is formed by an n-product of [Region]s of respective [Space]s,
        epxressed with heterogenous list *)
-    Notation Regions aps := (@hlist _ (fun x => x) (List.map Region aps)).
+    Notation Regions aps := (@hlist _ Region aps).
 
-    Definition in_region_aux (aps : list Space) (p : concrete.Point chs) : Regions aps -> Prop.
-    Proof.
-    Admitted.
-(*
+    Fixpoint in_region_aux (aps : list Space) (p : concrete.Point chs) : Regions aps -> Prop :=
       match aps as aps return Regions aps -> Prop with
       | [] => fun _ => True
       | s::ss => fun rs =>
           in_region s p (hhd rs) /\ @in_region_aux ss p (htl rs)
       end.
-*)
 
     Obligation Tactic := crunch.
 
-(*
     Program Fixpoint regions_cover_aux (aps : list Space) l p : 
-      concrete.invariant (l, p) -> DN (sig (in_region_aux (aps:=aps) p)) :=
+      concrete.invariant (l, p) -> DN (sig (@in_region_aux aps p)) :=
       match aps with
-      | [] => fun H => return [= HNil =]
+      | [] => fun H => return [= HNil (H:=_) =]
       | s::ss => fun H =>
           C1 <- contents.regions_cover s l p H;
           C2 <- @regions_cover_aux ss l p H;
           return [= `C1:::`C2 =]
       end.
-*)
+
     Lemma in_region_aux_morph : Morphism (@st_eq _ ==> eq ==> iff) (@in_region_aux aps).
     Proof.
-    Admitted.
+      repeat intro; split; induction aps; crunch.
+    Qed.
 
     Obligation Tactic := program_simpl; auto with typeclass_instances.
 
     Program Definition hyper_space : Space := @Build_Space (Regions aps) _ _ _ 
-      (@in_region_aux aps) _ _ (*(@regions_cover_aux aps)*).
-    Next Obligation.
-    Admitted.
-    Next Obligation.
-    Admitted.
+      (@in_region_aux aps) in_region_aux_morph (@regions_cover_aux aps).
     Next Obligation.
     Admitted.
     Next Obligation.
