@@ -74,7 +74,7 @@ Section contents.
     Next Obligation.
       split; crunch.
     Qed.
-  
+
     Definition prod_space: Space := Build_Space _ _
       (NoDup_ExhaustivePairList (NoDup_regions ap) (NoDup_regions ap'))
       in_region_mor regions_cover_prod.
@@ -120,14 +120,13 @@ Section contents.
 
     Obligation Tactic := program_simpl; auto with typeclass_instances.
 
+    Hint Resolve NoDup_regions.
+
     Program Definition hyper_space : Space := @Build_Space (Regions aps) _ _ _ 
       (@in_region_aux aps) in_region_aux_morph (@regions_cover_aux aps).
     Next Obligation.
-    Admitted.
-    Next Obligation.
-    Admitted.
-    Next Obligation.
-    Admitted.
+      set (w := NoDup_ExhaustiveHList). simpl in w. apply w. auto.
+    Qed.
 
   End hyper_space.
 

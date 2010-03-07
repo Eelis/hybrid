@@ -456,3 +456,20 @@ End List_prods.
 Eval vm_compute in list_combine [1; 2] [[3;4]; [5;6]].
 Eval vm_compute in list_prod_tuple [[1;2]; [3;4]; [5;6]].
 *)
+
+Ltac NoDup_simpl :=
+  repeat
+    match goal with
+    | |- NoDup (_ ++ _) => apply NoDup_app
+    | |- NoDup (map _ _) => apply NoDup_map
+    | H : NoDup (_::_) |- _ => inversion H; clear H
+    end.
+
+Ltac list_simpl :=
+  repeat 
+    match goal with
+    | H : In _ (?l ++ ?m) |- _ => 
+        destruct (in_app_or l m _ H); clear H
+    | H : In _ (map _ _) |- _ => 
+        destruct (proj1 (in_map_iff _ _ _) H); clear H
+    end.

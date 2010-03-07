@@ -195,23 +195,6 @@ Section HList_prods.
     induction all_x; crunch.
   Qed.
 
-  Ltac NoDup_simpl :=
-    repeat
-      match goal with
-      | |- NoDup (_ ++ _) => apply NoDup_app
-      | |- NoDup (map _ _) => apply NoDup_map
-      | H : NoDup (_::_) |- _ => inversion H; clear H
-      end.
-
-  Ltac list_simpl :=
-    repeat 
-      match goal with
-      | H : In _ (?l ++ ?m) |- _ => 
-          destruct (in_app_or l m _ H); clear H
-      | H : In _ (map _ _) |- _ => 
-          destruct (proj1 (in_map_iff _ _ _) H); clear H
-      end.
-
   Lemma hlist_combine_hd a lt (x : hlist (a :: lt)) xs ys :
     In x (hlist_combine xs ys) ->
     In (hhd x) xs.
