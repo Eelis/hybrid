@@ -125,7 +125,7 @@ Section contents.
     Program Definition hyper_space : Space := @Build_Space (Regions aps) _ _ _ 
       (@in_region_aux aps) in_region_aux_morph (@regions_cover_aux aps).
     Next Obligation.
-      set (w := NoDup_ExhaustiveHList). simpl in w. apply w. auto.
+      set (w := NoDup_ExhaustiveHList); simpl in w; apply w; auto.
     Qed.
 
   End hyper_space.
