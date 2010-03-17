@@ -3,6 +3,7 @@ Require Export hybrid.util.
 Require Import hybrid.list_util.
 Require Export Coq.Lists.List.
 Require Export Coq.Program.Program.
+Require Import CoLoR.Util.Vector.VecUtil.
 
 Set Implicit Arguments.
 
@@ -189,8 +190,6 @@ Section HList_prods.
 
 End HList_prods.
 
-About hlist_prod_tuple.
-About hbuild.
 Section ExhaustiveHList.
 
   Variable A : Type.
@@ -217,3 +216,19 @@ Section ExhaustiveHList.
   Qed.
 
 End ExhaustiveHList.
+
+Section hlist_map.
+
+  Variable A C : Type.
+  Variable B : A -> Type.
+  Variable n : nat.
+  Variable l : vector A n.
+  Variable f : forall i (ip : (i < n)%nat), B (Vnth l ip) -> C.
+
+  Definition hlist_map (f : forall i (ip : (i < n)%nat), B (Vnth l ip) -> C) :
+    hlist (B:=B) (list_of_vec l) -> 
+    vector C n.
+  Proof.
+  Admitted.
+
+End hlist_map.

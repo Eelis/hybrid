@@ -1,6 +1,7 @@
 Require Import hybrid.hypergeometry.
 Require Import hybrid.util.
 Require Import hybrid.c_util.
+Require Import hybrid.hlist_aux.
 Require Import hybrid.square_abstraction.
 Require Import hybrid.vector_setoid.
 Require Import hybrid.monotonic_flow.
@@ -67,28 +68,42 @@ Section contents.
         DN (sig (fun int : Vnth intervals ip => in_orange (intervals_range i ip int) (Vnth (pxy p) ip))
       ))).
 
-  Program Definition ap : abstract.Space chs :=
+  Definition ap_inv_DN :
+    forall (i : nat) (ip : (i < n)%nat) (l : concrete.Location chs) (p : concrete.Point chs),
+      concrete.invariant (l, p) ->
+      DN {i : Vnth intervals ip | in_orange (intervals_range ip i) (Vnth proj ip p)}.
+  Proof.
+    intros. set (w := absInterval l p H (ip:=ip)). simpl in w.
+    unfold pxy in w. rewrite Vnth_map in w. exact w.
+  Qed.
+
+  Definition ap : abstract.Space chs :=
     abstract.hyper_space 
       (list_of_vec (Vbuild (fun i (ip : (i < n)%nat) =>
          interval_abstraction.space chs (Vnth proj ip) (intervals_NoDup ip) (intervals_range ip)
-           (Region_eq_dec := intervals_eq_dec ip) _
+           (Region_eq_dec := intervals_eq_dec ip) (@ap_inv_DN i ip)
       ))).
-  Next Obligation.
-    intros. set (w := absInterval l p H (ip:=ip)). simpl in w.
-    unfold pxy in w. rewrite Vnth_map in w. exact w.
+
+  Definition region2range :
+    forall (i : nat) (ip : (i < n)%nat),
+      abstract.Region
+        (Vnth (Vbuild (fun i (ip : (i < n)%nat) =>
+          interval_abstraction.space 
+            (Region_eq_dec:=intervals_eq_dec ip) chs (Vnth proj ip)
+            (intervals_NoDup ip) (intervals_range ip) (@ap_inv_DN i ip)
+        )) ip) -> OpenQRange.
+  Proof.
+    intros.
+    rewrite Vbuild_nth in X.
+    exact (intervals_range ip X).
   Defined.
 
-(*
-  Program Definition square : abstract.Region ap -> OpenQHCube n.
-  Proof.
-    ...
-  Defined.
-*)
+  Definition square : abstract.Region ap -> OpenQHCube n :=
+    hlist_map _ region2range.
 
   (*  .. then we can define useful things.
 
   For instance, we can easily make an invariant overestimator 
   (if one's invariant can be overestimated by a list of open squares): *)
   
-
 End contents.
