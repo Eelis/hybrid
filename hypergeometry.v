@@ -11,3 +11,6 @@ Definition OpenQHCube n : Set := vector OpenQRange n.
 Definition OpenHCube n : Type := vector OpenRange n.
 
 Definition HyperPoint n : CSetoid := vecCSetoid CRasCSetoid n.
+
+Definition in_ohypercube n (p : HyperPoint n) (s : OpenHCube n) : Prop :=
+  Vforall2n in_orange s p.
