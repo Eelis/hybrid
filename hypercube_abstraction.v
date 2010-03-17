@@ -57,21 +57,23 @@ Section contents.
   (* .. and on both axes, abstraction parameters can be formed based on
    OpenRange regions.. *)
 
+  Context (A : Set) (B : A -> Set).
+
   Context
-    (intervals : vector Set n)
-    (intervals_eq_dec : forallDim (fun i ip => EquivDec.EqDec (Vnth intervals ip) eq))
-    (intervals_enum : forallDim (fun i ip => ExhaustiveList (Vnth intervals ip)))
-    (intervals_NoDup : forallDim (fun i ip => NoDup (intervals_enum i ip)))
-    (intervals_range : forallDim (fun i ip => Vnth intervals ip -> OpenQRange))
+    (intervals : vector A n)
+    (intervals_eq_dec : forall x, EquivDec.EqDec (B x) eq)
+    (intervals_enum : forall x, ExhaustiveList (B x))
+    (intervals_NoDup : forall x, NoDup (intervals_enum x))
+    (intervals_range : forallDim (fun i ip => B (Vnth intervals ip) -> OpenQRange))
     (absInterval : forall (l : concrete.Location chs) (p : concrete.Point chs), concrete.invariant (l, p) ->
       forallDim (fun i ip =>
-        DN (sig (fun int : Vnth intervals ip => in_orange (intervals_range i ip int) (Vnth (pxy p) ip))
+        DN (sig (fun int : B (Vnth intervals ip) => in_orange (intervals_range i ip int) (Vnth (pxy p) ip))
       ))).
 
   Definition ap_inv_DN :
     forall (i : nat) (ip : (i < n)%nat) (l : concrete.Location chs) (p : concrete.Point chs),
       concrete.invariant (l, p) ->
-      DN {i : Vnth intervals ip | in_orange (intervals_range ip i) (Vnth proj ip p)}.
+      DN {i : B (Vnth intervals ip) | in_orange (intervals_range ip i) (Vnth proj ip p)}.
   Proof.
     intros. set (w := absInterval l p H (ip:=ip)). simpl in w.
     unfold pxy in w. rewrite Vnth_map in w. exact w.
@@ -80,17 +82,14 @@ Section contents.
   Definition ap : abstract.Space chs :=
     abstract.hyper_space 
       (list_of_vec (Vbuild (fun i (ip : (i < n)%nat) =>
-         interval_abstraction.space chs (Vnth proj ip) (intervals_NoDup ip) (intervals_range ip)
-           (Region_eq_dec := intervals_eq_dec ip) (@ap_inv_DN i ip)
+         interval_abstraction.space chs (Vnth proj ip) (intervals_NoDup _) (intervals_range _) (@ap_inv_DN i ip)
       ))).
 
   Definition region2range :
     forall (i : nat) (ip : (i < n)%nat),
       abstract.Region
         (Vnth (Vbuild (fun i (ip : (i < n)%nat) =>
-          interval_abstraction.space 
-            (Region_eq_dec:=intervals_eq_dec ip) chs (Vnth proj ip)
-            (intervals_NoDup ip) (intervals_range ip) (@ap_inv_DN i ip)
+          interval_abstraction.space chs (Vnth proj ip) (intervals_NoDup _) (intervals_range _) (@ap_inv_DN i ip)
         )) ip) -> OpenQRange.
   Proof.
     intros.
