@@ -1,0 +1,549 @@
+\message{<Paul Taylor's commutative diagrams, 17 Dec 1990 >}
+%%======================================================================%
+%%	TeX  macros for drawing rectangular category-theory diagrams	%
+%%									%
+%%			Paul   Taylor					%
+%%									%
+%%	Department of Computing, Imperial College, London SW7 2BZ	%
+%%	+44 71 589 5111 x 5057			  pt@doc.ic.ac.uk	%
+%%									%
+%%		For user documentation, see "diagram-doc.tex"		%
+%%									%
+%% Contents:								%
+%%  (1)	arrow commands  (\rTo etc)					%
+%%  (2)	bits of arrows  (\rhvee etc)					%
+%% After the first two sections (40%) the rest is intended to be	%
+%% meaningless in the undocumented version.				%
+%%									%
+%% COPYRIGHT NOTICE:							%
+%%	This package may be copied and used freely for any academic     %
+%%	(not commercial or military) purpose, on condition that it      %
+%%	is not altered in any way, and that an acknowledgement is       %
+%%	included in any published work making substantial use of it.	%
+%%	It is supplied ``as is'' without warranty, express or implied.	%
+%%									%
+%% CORRUPTION WARNING:							%
+%%	BITNET (IBM) machines may corrupt certain important characters	%
+%%	in transmission by electronic mail:				%
+%%	{}=curly braces (grouping), \=backslash (keywords),		%
+%%	$=dollar (maths), %=percent (comment), &=and (alignment)	%
+%%	^=caret (superscript), _=underline (subscript), ~=tidle		%
+%%	#=hash (argument), []=square brackets, |=vertical		%
+%%									%
+%% HISTORY								%
+%% -- all following version numbers are post-facto --			%
+%%  3	(Jan 90) stretching vertical arrows				%
+%%  2	(Sept 89) stretching horizontal arrows; ``superscript'' labels	%
+%%  1	(1987) horiz arrows stretch to edge of cell			%
+%%  0	(1986) implementation of Knuth's TeXercise 18.46		%
+%%======================================================================%
+
+%% user-settable parameters:
+\newdimen\DiagramCellHeight\DiagramCellHeight3em %%
+\newdimen\DiagramCellWidth\DiagramCellWidth3em %%
+\newdimen\MapBreadth\MapBreadth.04em %%
+\newdimen\MapShortFall\MapShortFall.4em %%
+\newdimen\PileSpacing\PileSpacing1em %%
+\def\labelstyle{\ifincommdiag\textstyle\else\scriptstyle\fi}%%
+\let\objectstyle\displaystyle
+
+%%======================================================================%
+%%									%
+%%	(1) ARROW COMMANDS						%
+%%									%
+%%======================================================================%
+
+\def\rTo{\HorizontalMap\empty-\empty-\rhvee}%%
+\def\lTo{\HorizontalMap\lhvee-\empty-\empty}%%
+\def\dTo{\VerticalMap\empty|\empty|\dhvee}%%
+\def\uTo{\VerticalMap\uhvee|\empty|\empty}%%
+\let\uFrom\uTo\let\lFrom\lTo
+
+\def\rArr{\HorizontalMap\empty-\empty-\rhla}%%
+\def\lArr{\HorizontalMap\lhla-\empty-\empty}%%
+\def\dArr{\VerticalMap\empty|\empty|\dhla}%%
+\def\uArr{\VerticalMap\uhla|\empty|\empty}
+
+\def\rDotsto{\HorizontalMap\empty\hfdot\hfdot\hfdot\rhvee}%%
+\def\lDotsto{\HorizontalMap\lhvee\hfdot\hfdot\hfdot\empty}%%
+\def\dDotsto{\VerticalMap\empty\vfdot\vfdot\vfdot\dhvee}%%
+\def\uDotsto{\VerticalMap\uhvee\vfdot\vfdot\vfdot\empty}%%
+\let\uDotsfrom\uDotsto\let\lDotsfrom\lDotsto
+
+\def\rDotsarr{\HorizontalMap\empty\hfdot\hfdot\hfdot\rhla}%%
+\def\lDotsarr{\HorizontalMap\lhla\hfdot\hfdot\hfdot\empty}%%
+\def\dDotsarr{\VerticalMap\empty\vfdot\vfdot\vfdot\dhla}%%
+\def\uDotsarr{\VerticalMap\uhla\vfdot\vfdot\vfdot\empty}%%
+
+\def\rDashto{\HorizontalMap\empty\hfdash\hfdash\hfdash\rhvee}%%
+\def\lDashto{\HorizontalMap\lhvee\hfdash\hfdash\hfdash\empty}%%
+\def\dDashto{\VerticalMap\empty\vfdash\vfdash\vfdash\dhvee}%%
+\def\uDashto{\VerticalMap\uhvee\vfdash\vfdash\vfdash\empty}%%
+\let\uDashfrom\uDashto\let\lDashfrom\lDashto
+
+\def\rDasharr{\HorizontalMap\empty\hfdash\hfdash\hfdash\rhla}%%
+\def\lDasharr{\HorizontalMap\lhla\hfdash\hfdash\hfdash\empty}%%
+\def\dDasharr{\VerticalMap\empty\vfdash\vfdash\vfdash\dhla}%%
+\def\uDasharr{\VerticalMap\uhla\vfdash\vfdash\vfdash\empty}%%
+
+\def\rImplies{\HorizontalMap==\empty=\Rightarrow}%%
+\def\lImplies{\HorizontalMap\Leftarrow=\empty==}%%
+\def\dImplies{\VerticalMap\|\|\empty\|\Downarrow}%%
+\def\uImplies{\VerticalMap\Uparrow\|\empty\|\|}%%
+\let\uImpliedby\uImplies\let\lImpliedby\lImplies
+
+\def\rMapsto{\HorizontalMap\rtbar-\empty-\rhvee}%%
+\def\lMapsto{\HorizontalMap\lhvee-\empty-\ltbar}%%
+\def\dMapsto{\VerticalMap\dtbar|\empty|\dhvee}%%
+\def\uMapsto{\VerticalMap\uhvee|\empty|\utbar}%%
+\let\uMapsfrom\uMapsto\let\lMapsfrom\lMapsto
+
+\def\rMapsarr{\HorizontalMap\rtbar-\empty-\rhla}%%
+\def\lMapsarr{\HorizontalMap\lhla-\empty-\ltbar}%%
+\def\dMapsarr{\VerticalMap\dtbar|\empty|\dhla}%%
+\def\uMapsarr{\VerticalMap\uhla|\empty|\utbar}%%
+
+\def\rIntoA{\HorizontalMap\rthooka-\empty-\rhvee}%%
+\def\rIntoB{\HorizontalMap\rthookb-\empty-\rhvee}%%
+\def\lIntoA{\HorizontalMap\lhvee-\empty-\lthooka}%%
+\def\lIntoB{\HorizontalMap\lhvee-\empty-\lthookb}%%
+\def\dIntoA{\VerticalMap\dthooka|\empty|\dhvee}%%
+\def\dIntoB{\VerticalMap\dthookb|\empty|\dhvee}%%
+\def\uIntoA{\VerticalMap\uhvee|\empty|\uthooka}%%
+\def\uIntoB{\VerticalMap\uhvee|\empty|\uthookb}%%
+\let\uInfromA\uIntoA\let\uInfromB\uIntoB\let\lInfromA\lIntoA\let\lInfromB
+\lIntoB\let\rInto\rIntoA\let\lInto\lIntoA\let\dInto\dIntoB\let\uInto\uIntoA
+
+\def\rEmarr{\HorizontalMap{\ \rhla}-\empty-\rhla} \def\lEmarr{\HorizontalMap
+\lhla-\empty-{\lhla\ }} \def\dEmarr{\HorizontalMap\dhla-\empty-\dhla} \def
+\uEmarr{\HorizontalMap\uhla-\empty-\uhla}
+
+\def\rEmbed{\HorizontalMap\gt-\empty-\rhvee}%%
+\def\lEmbed{\HorizontalMap\lhvee-\empty-\lt}%%
+\def\dEmbed{\VerticalMap\vee|\empty|\dhvee}%%
+\def\uEmbed{\VerticalMap\uhvee|\empty|\wedge}
+
+\def\rProject{\HorizontalMap\empty-\empty-\triangleright}%%
+\def\lProject{\HorizontalMap\triangleleft-\empty-\empty}%%
+\def\uProject{\VerticalMap\triangleup|\empty|\empty}%%
+\def\dProject{\VerticalMap\empty|\empty|\littletriangledown}
+
+\def\rOnto{\HorizontalMap\empty-\empty-\twoheadrightarrow}%%
+\def\lOnto{\HorizontalMap\twoheadleftarrow-\empty-\empty}%%
+\def\dOnto{\VerticalMap\empty|\empty|\twoheaddownarrow}%%
+\def\uOnto{\VerticalMap\twoheaduparrow|\empty|\empty}%%
+\let\lOnfrom\lOnto\let\uOnfrom\uOnto
+
+\def\hEq{\HorizontalMap==\empty==}%%
+\def\vEq{\VerticalMap\|\|\empty\|\|}%%
+\let\rEq\hEq\let\lEq\hEq\let\uEq\vEq\let\dEq\vEq
+
+\def\hLine{\HorizontalMap\empty-\empty-\empty}%%
+\def\vLine{\VerticalMap\empty|\empty|\empty}%%
+\let\rLine\hLine\let\lLine\hLine\let\uLine\vLine\let\dLine\vLine
+
+\def\hDots{\HorizontalMap\empty\hfdot\hfdot\hfdot\empty}%%
+\def\vDots{\VerticalMap\empty\vfdot\vfdot\vfdot\empty}%%
+\let\rDots\hDots\let\lDots\hDots\let\uDots\vDots\let\dDots\vDots
+
+\def\hDashes{\HorizontalMap\empty\hfdash\hfdash\hfdash\empty}%%
+\def\vDashes{\VerticalMap\empty\vfdash\vfdash\vfdash\empty}%%
+\let\rDashes\hDashes\let\lDashes\hDashes\let\uDashes\vDashes\let\dDashes
+\vDashes
+
+\def\rPto{\HorizontalMap\empty-\empty-\rightharpoonup}%%
+\def\lPto{\HorizontalMap\leftharpoonup-\empty-\empty}%%
+\def\uPto{\VerticalMap\upharpoonright|\empty|\empty}%%
+\def\dPto{\VerticalMap\empty|\empty|\downharpoonright}%%
+\let\lPfrom\lPto\let\uPfrom\uPto
+
+\def\NW{\NorthWest\DiagonalMap{\lah111}{\laf100}{}{\laf100}{}(2,2)}%%
+\def\NE{\NorthEast\DiagonalMap{\lah22}{\laf0}{}{\laf0}{}(2,2)}%%
+\def\SW{\SouthWest\DiagonalMap{}{\laf0}{}{\laf0}{\lah11}(2,2)}%%
+\def\SE{\SouthEast\DiagonalMap{}{\laf100}{}{\laf100}{\lah122}(2,2)}
+
+\def\nNW{\NorthWest\DiagonalMap{\lah135}{\laf112}{}{\laf112}{}(2,3)}%%
+\def\nNE{\NorthEast\DiagonalMap{\lah36}{\laf12}{}{\laf12}{}(2,3)}%%
+\def\sSW{\SouthWest\DiagonalMap{}{\laf12}{}{\laf12}{\lah35}(2,3)}%%
+\def\sSE{\SouthEast\DiagonalMap{}{\laf112}{}{\laf112}{\lah136}(2,3)}
+
+\def\wNW{\NorthWest\DiagonalMap{\lah153}{\laf121}{}{\laf121}{}(3,2)}%%
+\def\eNE{\NorthEast\DiagonalMap{\lah63}{\laf21}{}{\laf21}{}(3,2)}%%
+\def\wSW{\SouthWest\DiagonalMap{}{\laf21}{}{\laf21}{\lah53}(3,2)}%%
+\def\eSE{\SouthEast\DiagonalMap{}{\laf121}{}{\laf121}{\lah163}(3,2)}
+
+\def\NNW{\NorthWest\DiagonalMap{\lah113}{\laf101}{}{\laf101}{}(2,4)}%%
+\def\NNE{\NorthEast\DiagonalMap{\lah25}{\laf01}{}{\laf01}{}(2,4)}%%
+\def\SSW{\SouthWest\DiagonalMap{}{\laf01}{}{\laf01}{\lah13}(2,4)}%%
+\def\SSE{\SouthEast\DiagonalMap{}{\laf101}{}{\laf101}{\lah125}(2,4)}
+
+\def\WNW{\NorthWest\DiagonalMap{\lah131}{\laf110}{}{\laf110}{}(4,2)}%%
+\def\ENE{\NorthEast\DiagonalMap{\lah52}{\laf10}{}{\laf10}{}(4,2)}%%
+\def\WSW{\SouthWest\DiagonalMap{}{\laf10}{}{\laf10}{\lah31}(4,2)}%%
+\def\ESE{\SouthEast\DiagonalMap{}{\laf110}{}{\laf110}{\lah152}(4,2)}
+
+\def\NNNW{\NorthWest\DiagonalMap{\lah115}{\laf102}{}{\laf102}{}(2,6)}%%
+\def\NNNE{\NorthEast\DiagonalMap{\lah16}{\laf02}{}{\laf02}{}(2,6)}%%
+\def\SSSW{\SouthWest\DiagonalMap{}{\laf02}{}{\laf02}{\lah15}(2,6)}%%
+\def\SSSE{\SouthEast\DiagonalMap{}{\laf102}{}{\laf102}{\lah116}(2,6)}
+
+\def\WWNW{\NorthWest\DiagonalMap{\lah151}{\laf120}{}{\laf120}{}(6,2)}%%
+\def\EENE{\NorthEast\DiagonalMap{\lah61}{\laf20}{}{\laf20}{}(6,2)}%%
+\def\WWSW{\SouthWest\DiagonalMap{}{\laf20}{}{\laf20}{\lah51}(6,2)}%%
+\def\EESE{\SouthEast\DiagonalMap{}{\laf120}{}{\laf120}{\lah161}(6,2)}
+
+%%======================================================================%
+%%									%
+%%	(2) BITS OF ARROWS						%
+%%									%
+%%======================================================================%
+
+\font\tenln=line10
+
+\mathchardef\lt="313C \mathchardef\gt="313E
+
+\def\rhvee{\mkern-10mu\gt}%%
+\def\lhvee{\lt\mkern-10mu}%%
+\def\dhvee{\vbox\tozpt{\vss\hbox{$\vee$}\kern0pt}}%%
+\def\uhvee{\vbox\tozpt{\hbox{$\wedge$}\vss}}%%
+\def\rhcvee{\mkern-10mu\succ}%%
+\def\lhcvee{\prec\mkern-10mu}%%
+\def\dhcvee{\vbox\tozpt{\vss\hbox{$\curlyvee$}\kern0pt}}%%
+\def\uhcvee{\vbox\tozpt{\hbox{$\curlywedge$}\vss}}%%
+\def\rhvvee{\mkern-10mu\gg}%%
+\def\lhvvee{\ll\mkern-10mu}%%
+\def\dhvvee{\vbox\tozpt{\vss\hbox{$\vee$}\kern-.6ex\hbox{$\vee$}\kern0pt}}%%
+\def\uhvvee{\vbox\tozpt{\hbox{$\wedge$}\kern-.6ex\hbox{$\wedge$}\vss}}%%
+\def\twoheaddownarrow{\rlap{$\downarrow$}\raise-.5ex\hbox{$\downarrow$}}%%
+\def\twoheaduparrow{\rlap{$\uparrow$}\raise.5ex\hbox{$\uparrow$}}%%
+\def\triangleup{{\scriptscriptstyle\bigtriangleup}}%%
+\def\littletriangledown{{\scriptscriptstyle\triangledown}}%%
+\def\rhla{\vbox\tozpt{\vss\hbox\tozpt{\hss\tenln\char'55}\kern\axisheight}}%%
+\def\lhla{\vbox\tozpt{\vss\hbox\tozpt{\tenln\char'33\hss}\kern\axisheight}}%%
+\def\dhla{\vbox\tozpt{\vss\hbox\tozpt{\tenln\char'77\hss}}}%%
+\def\uhla{\vbox\tozpt{\hbox\tozpt{\tenln\char'66\hss}\vss}}%%
+\def\htdot{\mkern3.15mu\cdot\mkern3.15mu}%%
+\def\vtdot{\vbox to 1.46ex{\vss\hbox{$\cdot$}}}%%
+\def\utbar{\vrule height 0.093ex depth0pt width 0.4em} \let\dtbar\utbar%%
+\def\rtbar{\mkern1.5mu\vrule height 1.1ex depth.06ex width .04em\mkern1.5mu}%
+\let\ltbar\rtbar%%
+\def\rthooka{\raise.603ex\hbox{$\scriptscriptstyle\subset$}}%%
+\def\lthooka{\raise.603ex\hbox{$\scriptscriptstyle\supset$}}%%
+\def\rthookb{\raise-.022ex\hbox{$\scriptscriptstyle\subset$}}%%
+\def\lthookb{\raise-.022ex\hbox{$\scriptscriptstyle\supset$}}%%
+\def\dthookb{\hbox{$\scriptscriptstyle\cap$}\mkern5.5mu}%%
+\def\uthookb{\hbox{$\scriptscriptstyle\cup$}\mkern4.5mu}%%
+\def\dthooka{\mkern6mu\hbox{$\scriptscriptstyle\cap$}}%%
+\def\uthooka{\mkern6mu\hbox{$\scriptscriptstyle\cup$}}%%
+\def\hfdot{\mkern3.15mu\cdot\mkern3.15mu}%%
+\def\vfdot{\vbox to 1.46ex{\vss\hbox{$\cdot$}}}%%
+\def\vfdashstrut{\vrule width0pt height1.3ex depth0.7ex}%%
+\def\vfthedash{\vrule width\MapBreadth height0.6ex depth 0pt}%%
+\def\hfthedash{\vrule\horizhtdp width 0.26em}%%
+\def\hfdash{\mkern5.5mu\hfthedash\mkern5.5mu}%%
+\def\vfdash{\vfdashstrut\vfthedash}%%
+
+\def\nwhTO{\nwarrow\mkern-1mu}%%
+\def\nehTO{\mkern-.1mu\nearrow}%%
+\def\sehTO{\searrow\mkern-.02mu}%%
+\def\swhTO{\mkern-.8mu\swarrow}%%
+
+\def\SEpbk{\rlap{\smash{\kern0.1em \vrule depth 2.67ex height -2.55ex width 0%
+.9em \vrule height -0.46ex depth 2.67ex width .05em }}}%%
+\def\SWpbk{\llap{\smash{\vrule height -0.46ex depth 2.67ex width .05em \vrule
+depth 2.67ex height -2.55ex width .9em \kern0.1em }}}%%
+\def\NEpbk{\rlap{\smash{\kern0.1em \vrule depth -3.48ex height 3.67ex width 0%
+.95em \vrule height 3.67ex depth -1.39ex width .05em }}}%%
+\def\NWpbk{\llap{\smash{\vrule height 3.6ex depth -1.39ex width .05em \vrule
+depth -3.48ex height 3.67ex width .95em \kern0.1em }}}
+
+%%======================================================================%
+
+\newcount\cdna\newcount\cdnb\newcount\cdnc\newcount\cdnd\cdna=\catcode`\@%
+\catcode`\@=11 \let\then\relax\def\loopa#1\repeat{\def\bodya{#1}\iteratea}%
+\def\iteratea{\bodya\let\next\iteratea\else\let\next\relax\fi\next}\def\loopb
+#1\repeat{\def\bodyb{#1}\iterateb}\def\iterateb{\bodyb\let\next\iterateb\else
+\let\next\relax\fi\next} \ifx\inputlineno\undefined\then\def\theinputlineno#1%
+{}\let\noerrcontext\relax\else\def\noerrcontext{\errorcontextlines=-1}\def
+\theinputlineno#1{ #1 line \number\inputlineno}\fi\def\commdiagname{%
+Commutative Diagrams}\def\mapclasherr{\message{! \commdiagname: clashing maps%
+\theinputlineno{in diagram ending at}}}\def\mapctxterr#1{\noerrcontext
+\errhelp={This combination of maps doesn't make geometrical sense.}%
+\expandafter\errmessage{\commdiagname: #1 \whyforbidmap is not allowed}}\def
+\Obsmess#1#2{\expandafter\message{! \commdiagname\space Warning: #1 \string#2
+is obsolete}\expandafter\message{ (ignored \theinputlineno{- first occurred on%
+})}}\def\ObsDim#1{\Obsmess{Dimension}{#1}\global\let#1\ObsDimq\ObsDimq}\def
+\ObsDimq{\dimen@=}\def\HorizontalMapLength{\ObsDim\HorizontalMapLength}\def
+\VerticalMapHeight{\ObsDim\VerticalMapHeight}\def\VerticalMapDepth{\ObsDim
+\VerticalMapDepth}\def\VerticalMapExtraHeight{\ObsDim\VerticalMapExtraHeight}%
+\def\VerticalMapExtraDepth{\ObsDim\VerticalMapExtraDepth}\def\ObsCount#1{%
+\Obsmess{Count}{#1}\global\let#1\ObsCountq\ObsCountq}\def\ObsCountq{\count@=}%
+\def\DiagonalLineSegments{\ObsCount\DiagonalLineSegments}\def\tozpt{to\z@}%
+\def\sethorizhtdp{\dimen8=\axisheight\dimen9=\MapBreadth\advance\dimen8.5%
+\dimen9\advance\dimen9-\dimen8}\def\horizhtdp{height\dimen8 depth\dimen9 }%
+\def\axisheight{\fontdimen22\the\textfont2 }\countdef\boxc@unt=14
+
+\def\bombparameters{\hsize\z@\rightskip\z@ plus1fil minus\maxdimen
+\parfillskip\z@\linepenalty9000 \looseness0 \hfuzz\maxdimen\hbadness10000
+\clubpenalty0 \widowpenalty0 \displaywidowpenalty0 \interlinepenalty0
+\predisplaypenalty0 \postdisplaypenalty0 \interdisplaylinepenalty0
+\interfootnotelinepenalty0 \floatingpenalty0 \brokenpenalty0 \everypar{}%
+\leftskip\z@\parskip\z@\parindent\z@\pretolerance10000 \tolerance10000
+\hyphenpenalty10000 \exhyphenpenalty10000 \binoppenalty10000 \relpenalty10000
+\adjdemerits0 \doublehyphendemerits0 \finalhyphendemerits0 \prevdepth\z@}\def
+\startbombverticallist{\hbox{}\penalty1\nointerlineskip}
+
+\def\pushh#1\to#2{\setbox#2=\hbox{\box#1\unhbox#2}}\def\pusht#1\to#2{\setbox#%
+2=\hbox{\unhbox#2\box#1}}
+
+\newif\ifallowhorizmap\allowhorizmaptrue\newif\ifallowvertmap
+\allowvertmapfalse\def\whyforbidmap{outside diagram }\newif\ifincommdiag
+\incommdiagfalse
+
+\def\diagram{\leavevmode\hbox\bgroup$\vcenter\bgroup\startbombverticallist
+\incommdiagtrue\baselineskip\DiagramCellHeight\lineskip\z@\lineskiplimit\z@
+\mathsurround\z@\tabskip\z@\let\\\diagcr\allowhorizmaptrue\allowvertmaptrue
+\def\whyforbidmap{at the beginning of a cell }\halign\bgroup\lcdtempl##%
+\rcdtempl&&\lcdtempl##\rcdtempl\cr}\def\enddiagram{\crcr\egroup
+\reformatmatrix\egroup$\egroup}\def\commdiag#1{{\diagram#1\enddiagram}}
+
+\def\lcdtempl{\futurelet\thefirsttoken\dolcdtempl}\newif\ifemptycell\def
+\dolcdtempl{\ifx\thefirsttoken\rcdtempl\then\hskip1sp plus 1fil \emptycelltrue
+\else\hfil$\emptycellfalse\objectstyle\fi}\def\rcdtempl{\ifemptycell\else$%
+\hfil\fi}\def\diagcr{\cr} \def\across#1{\span\omit\mscount=#1 \loop\ifnum
+\mscount>2 \spAn\repeat\ignorespaces}\def\spAn{\relax\span\omit\advance
+\mscount by -1}
+
+\def\CellSize{\afterassignment\cdhttowd\DiagramCellHeight}\def\cdhttowd{%
+\DiagramCellWidth\DiagramCellHeight}\def\MapsAbut{\MapShortFall\z@}
+
+\newcount\cdvdl\newcount\cdvdr\newcount\cdvd\newcount\cdbfb\newcount\cdbfr
+\newcount\cdbfl\newcount\cdvdr\newcount\cdvdl\newcount\cdvd
+
+\def\reformatmatrix{\bombparameters\cdvdl=\insc@unt\cdvdr=\cdvdl\cdbfb=%
+\boxc@unt\advance\cdbfb1 \cdbfr=\cdbfb\setbox1=\vbox{}\dimen2=\z@\loop\setbox
+0=\lastbox\ifhbox0 \dimen1=\lastskip\unskip\dimen5=\ht0 \advance\dimen5 \dimen
+1 \dimen4=\dp0 \penalty2 \reformatrow\unpenalty\ht4=\dimen5 \dp4=\dimen4 \ht3%
+\z@\dp3\z@\setbox1=\vbox{\box4 \nointerlineskip\box3 \nointerlineskip\unvbox1%
+}\dimen2=\dimen1 \repeat\unvbox1}
+
+\newif\ifcontinuerow
+
+\def\reformatrow{\cdbfl=\cdbfr\penalty4 \noindent\unhbox0 \loopa\unskip
+\setbox\cdbfl=\lastbox\ifhbox\cdbfl\advance\cdbfl1\repeat\endgraf\unskip
+\unpenalty\dimen6=2\DiagramCellWidth\dimen7=-\DiagramCellWidth\setbox3=\hbox{%
+}\setbox4=\hbox{}\setbox7=\box\voidb@x\cdvd=\cdvdl\continuerowtrue\loopa
+\advance\cdvd-1 \adjustcells\ifcontinuerow\advance\dimen6\wd\cdbfl\cdda=.5%
+\dimen6 \ifdim\cdda<\DiagramCellWidth\then\dimen6\DiagramCellWidth\advance
+\dimen6-\cdda\nopendvert\cdda\DiagramCellWidth\fi\advance\dimen7\cdda\dimen6=%
+\wd\cdbfl\reformatcell\advance\cdbfl-1 \repeat\advance\dimen7.5\dimen6
+\outHarrow} \def\adjustcells{\ifnum\cdbfr>\cdbfl\then\ifnum\cdvdr>\cdvd\then
+\continuerowfalse\else\setbox\cdbfl=\hbox to\wd\cdvd{\lcdtempl\VonH{}%
+\rcdtempl}\fi\else\ifnum\cdvdr>\cdvd\then\advance\cdvdr-1 \setbox\cdvd=\vbox{%
+}\wd\cdvd=\wd\cdbfl\dp\cdvd=\dp1 \fi\fi}
+
+\def\reformatcell{\sethorizhtdp\penalty5 \noindent\unhbox\cdbfl\skip0=%
+\lastskip\unskip\endgraf\ifcase\prevgraf\reformatempty\or\reformatobject\else
+\reformatcomplex\fi\unskip\unpenalty}\def\reformatobject{\setbox6=\lastbox
+\unskip\vadjdon6\outVarrow\setbox6=\hbox{\unhbox6}\advance\dimen7-.5\wd6
+\outHarrow\dimen7=-.5\wd6 \pusht6\to4}\newcount\globnum
+
+\def\reformatcomplex{\setbox6=\lastbox\unskip\setbox9=\lastbox\unskip\setbox9%
+=\hbox{\unhbox9 \skip0=\lastskip\unskip\global\globnum\lastpenalty\hskip\skip
+0 }\advance\globnum9999 \ifcase\globnum\reformathoriz\or\reformatpile\or
+\reformatHonV\or\reformatVonH\or\reformatvert\or\reformatHmeetV\fi}
+
+\def\reformatempty{\vpassdon\ifdim\skip0>\z@\then\hpassdon\else\ifvoid2 \then
+\else\advance\dimen7-.5\dimen0 \cdda=\wd2\advance\cdda.5\dimen0\wd2=\cdda\fi
+\fi}\def\VonH{\edef\HmeetingV{\string\VonH}\doVonH6}\def\HonV{\edef\HmeetingV
+{\string\HonV}\doVonH7}\def\HmeetV{\edef\HmeetingV{\string\HmeetV}\MapBreadth
+-2\MapShortFall\doVonH4}\def\doVonH#1{\cdna-999#1 \def\next{\mapctxterr
+\HmeetingV}\ifallowhorizmap\ifallowvertmap\then\def\next{\futurelet
+\thenexttoken\dooVonH}\allowhorizmapfalse\allowvertmapfalse\edef\whyforbidmap
+{after \HmeetingV\space}\fi\fi\next}\def\dooVonH{\sethorizhtdp\ifx
+\thenexttoken[\then\let\next\VonHstrut\else\sethorizhtdp\dimen0\MapBreadth
+\let\next\VonHnostrut\fi\next}\def\VonHstrut[#1]{\setbox0=\hbox{$#1$}\dimen0%
+\wd0\dimen8\ht0\dimen9\dp0 \VonHnostrut}\def\VonHnostrut{\setbox0=\hbox{}\ht0%
+=\dimen8\dp0=\dimen9\wd0=.5\dimen0 \copy0\penalty\cdna\box0 }\def
+\reformatHonV{\hpassdon\doreformatHonV}\def\reformatHmeetV{\dimen@=\wd9
+\advance\dimen7-\wd9 \outHarrow\setbox6=\hbox{\unhbox6}\dimen7-\wd6 \advance
+\dimen@\wd6 \setbox6=\hbox to\dimen@{\hss}\pusht6\to4\doreformatHonV}\def
+\doreformatHonV{\setbox9=\hbox{\unhbox9 \unskip\unpenalty\global\setbox
+\globbox=\lastbox}\vadjdon\globbox\outVarrow}\def\reformatVonH{\vpassdon
+\advance\dimen7-\wd9 \outHarrow\setbox6=\hbox{\unhbox6}\dimen7=-\wd6 \setbox6%
+=\hbox{\kern\wd9 \kern\wd6}\pusht6\to4}\def\hpassdon{}\def\vpassdon{\dimen@=%
+\dp\cdvd\advance\dimen@\dimen4 \advance\dimen@\dimen5 \dp\cdvd=\dimen@
+\nopendvert}\def\vadjdon#1{\dimen8=\ht#1 \dimen9=\dp#1 }
+
+\def\HorizontalMap#1#2#3#4#5{\sethorizhtdp\setbox1=\makeharrowpart{#1}\def
+\arrowfillera{#2}\def\arrowfillerb{#4}\setbox5=\makeharrowpart{#5}\ifx
+\arrowfillera\justhorizline\then\def\arra{\hrule\horizhtdp}\def\kea{\kern-0.%
+01em}\let\arrstruthtdp\horizhtdp\else\def\kea{\kern-0.15em}\setbox2=\hbox{%
+\kea${\arrowfillera}$\kea}\def\arra{\copy2}\def\arrstruthtdp{height\ht2 depth%
+\dp2 }\fi\ifx\arrowfillerb\justhorizline\then\def\arrb{\hrule\horizhtdp}\def
+\keb{kern-0.01em}\ifx\arrowfillera\empty\then\let\arrstruthtdp\horizhtdp\fi
+\else\def\keb{\kern-0.15em}\setbox4=\hbox{\keb${\arrowfillerb}$\keb}\def\arrb
+{\copy4}\ifx\arrowfilera\empty\then\def\arrstruthtdp{height\ht4 depth\dp4 }%
+\fi\fi\setbox3=\makeharrowpart{{#3}\vrule width\z@\arrstruthtdp}\ifincommdiag
+\then\ifallowhorizmap\then\allowvertmapfalse\allowhorizmapfalse\def
+\whyforbidmap{after horizontal map }\else\mapctxterr{horizontal}\fi\fi\let
+\execmap\execHorizontalMap\gettwoargs}\def\justempty{\empty}\def
+\makeharrowpart#1{\hbox{\mathsurround\z@\offinterlineskip\def\next{#1}\ifx
+\next\justempty\else$\mkern-1.5mu{\next}\mkern-1.5mu$\fi}}\def\justhorizline{%
+-}
+
+\def\execHorizontalMap{\dimen0=\wd6 \ifdim\dimen0<\wd7\then\dimen0=\wd7\fi
+\dimen3=\wd3 \ifdim\dimen0<2em\then\dimen0=2em\fi\skip2=.5\dimen0
+\ifincommdiag plus 1fill\fi minus\z@\advance\skip2-.5\dimen3 \skip4=\skip2
+\advance\skip2-\wd1 \advance\skip4-\wd5 \kern\MapShortFall\box1 \xleaders
+\arra\hskip\skip2 \vbox{\lineskiplimit\maxdimen\lineskip.5ex \ifhbox6 \hbox to%
+\dimen3 {\hss\box6\hss}\fi\vtop{\box3 \ifhbox7 \hbox to\dimen3 {\hss\box7\hss
+}\fi}}\ifincommdiag\kern-.5\dimen3\penalty-9999\null\kern.5\dimen3\fi
+\xleaders\arrb\hskip\skip4 \box5 \kern\MapShortFall}
+
+\def\reformathoriz{\vadjdon6\outVarrow\ifvoid7\else\mapclasherr\fi\setbox2=%
+\box9 \wd2=\dimen7 \dimen7=\z@\setbox7=\box6 }
+
+\def\resetharrowpart#1#2{\ifvoid#1\then\ifdim#2=\z@\else\setbox4=\hbox{%
+\unhbox4\kern#2}\fi\else\ifhbox#1\then\setbox#1=\hbox to#2{\unhbox#1}\else
+\widenpile#1\fi\pusht#1\to4\fi}\def\outHarrow{\resetharrowpart2{\wd2}\pusht2%
+\to4\resetharrowpart7{\dimen7}\pusht7\to4\dimen7=\z@}
+
+\def\pile#1{{\incommdiagtrue\let\pile\innerpile\allowvertmapfalse
+\allowhorizmaptrue\def\whyforbidmap{inside pile }\baselineskip.5\PileSpacing
+\lineskip\z@\lineskiplimit\z@\mathsurround\z@\tabskip\z@\let\\\pilecr\vcenter
+{\halign{\hfil$##$\hfil\cr#1 \crcr}}}\ifincommdiag\then\ifallowhorizmap\then
+\penalty-9998 \allowvertmapfalse\allowhorizmapfalse\def\whyforbidmap{after
+pile }\else\mapctxterr{pile}\fi\fi}\def\pilecr{\cr}\def\innerpile#1{\noalign{%
+\halign{\hfil$##$\hfil\cr#1 \crcr}}}
+
+\def\reformatpile{\vadjdon9\outVarrow\ifvoid7\else\mapclasherr\fi\penalty3
+\setbox9=\hbox{\unhbox9 \unskip\unpenalty\setbox9=\lastbox\unhbox9 \global
+\setbox\globbox=\lastbox}\unvbox\globbox\setbox9=\vbox{}\setbox7=\vbox{}%
+\loopb\setbox6=\lastbox\ifhbox6 \skip3=\lastskip\unskip\splitpilerow\repeat
+\unpenalty\setbox9=\hbox{$\vcenter{\unvbox9}$}\setbox2=\box9 \dimen7=\z@}\def
+\pilestrut{\vrule height\dimen0 depth\dimen3 width\z@}\def\splitpilerow{%
+\dimen0=\ht6 \dimen3=\dp6 \penalty6 \noindent\unhbox6\unskip\setbox6=\lastbox
+\unskip\unhbox6\endgraf\setbox6=\lastbox\unskip\ifcase\prevgraf\or\setbox6=%
+\hbox\tozpt{\hss\unhbox6\hss}\ht6=\dimen0 \dp6=\dimen3 \setbox9=\vbox{\vskip
+\skip3 \hbox to\dimen7{\hfil\box6}\nointerlineskip\unvbox9}\setbox7=\vbox{%
+\vskip\skip3 \hbox{\pilestrut\hfil}\nointerlineskip\unvbox7}\or\setbox7=\vbox
+{\vskip\skip3 \hbox{\pilestrut\unhbox6}\nointerlineskip\unvbox7}\setbox6=%
+\lastbox\unskip\setbox9=\vbox{\vskip\skip3 \hbox to\dimen7{\pilestrut\unhbox6%
+}\nointerlineskip\unvbox9}\fi\unskip\unpenalty}
+
+\def\widenpile#1{\setbox#1=\hbox{$\vcenter{\unvbox#1 \setbox8=\vbox{}\loopb
+\setbox9=\lastbox\ifhbox9 \skip3=\lastskip\unskip\setbox8=\vbox{\vskip\skip3
+\hbox to\dimen7{\unhbox9}\nointerlineskip\unvbox8}\repeat\unvbox8 }$}}
+
+\def\VerticalMap#1#2#3#4#5{\setbox1=\makevarrowpart{#1}\def\arrowfillera{#2}%
+\setbox3=\makevarrowpart{#3}\def\arrowfillerb{#4}\setbox5=\makevarrowpart{#5}%
+\ifx\arrowfillera\justverticalline\then\def\arra{\vrule width\MapBreadth}\def
+\kea{\kern-0.05ex}\else\def\kea{\kern-0.35ex}\setbox2=\vbox{\kea
+\makevarrowpart\arrowfillera\kea}\def\arra{\copy2}\fi\ifx\arrowfillerb
+\justverticalline\then\def\arrb{\vrule width\MapBreadth}\def\keb{\kern-0.05ex%
+}\else\def\keb{\kern-0.35ex}\setbox4=\vbox{\keb\makevarrowpart\arrowfillerb
+\keb}\def\arrb{\copy4}\fi\ifallowvertmap\else\mapctxterr{vertical}\fi\let
+\execmap\execVerticalMap\allowhorizmapfalse\def\whyforbidmap{after vertical }%
+\gettwoargs}\def\justverticalline{|}\def\makevarrowpart#1{\hbox to\MapBreadth
+{\offinterlineskip\hss$\kern\MapBreadth{#1}$\hss}}
+
+\def\execVerticalMap{\setbox3=\makevarrowpart{\box3}\setbox0=\hbox{}\ht0=\ht3
+\dp0\z@\ht3\z@\box6 \setbox8=\vtop spread2ex{\offinterlineskip\box3 \xleaders
+\arrb\vfill\box5 \kern\MapShortFall}\dp8=\z@\box8 \kern-\MapBreadth\setbox8=%
+\vbox spread2ex{\offinterlineskip\kern\MapShortFall\box1 \xleaders\arra\vfill
+\box0}\ht8=\z@\box8 \ifincommdiag\then\kern-.5\MapBreadth\penalty-9995 \null
+\kern.5\MapBreadth\fi\box7\hfil}
+
+\newcount\colno\newdimen\cdda\newbox\globbox\def\reformatvert{\setbox6=\hbox{%
+\unhbox6}\cdda=\wd6 \dimen3=\dp\cdvd\advance\dimen3\dimen4 \setbox\cdvd=\hbox
+{}\colno=\prevgraf\advance\colno-2 \loopb\setbox9=\hbox{\unhbox9 \unskip
+\unpenalty\dimen7=\lastkern\unkern\global\setbox\globbox=\lastbox\advance
+\dimen7\wd\globbox\advance\dimen7\lastkern\unkern\setbox9=\lastbox\vtop to%
+\dimen3{\unvbox9}\kern\dimen7 }\ifnum\colno>0 \ifdim\wd9<\PileSpacing\then
+\setbox9=\hbox to\PileSpacing{\unhbox9}\fi\dimen0=\wd9 \advance\dimen0-\wd
+\globbox\setbox\cdvd=\hbox{\kern\dimen0 \box\globbox\unhbox\cdvd}\pushh9\to6%
+\advance\colno-1 \setbox9=\lastbox\unskip\repeat\advance\dimen7-.5\wd6
+\advance\dimen7.5\cdda\advance\dimen7-\wd9 \outHarrow\dimen7=-.5\wd6 \advance
+\dimen7-.5\cdda\pusht9\to4\pusht6\to4\nopendvert\dimen@=\dimen6\advance
+\dimen@-\wd\cdvd\advance\dimen@-\wd\globbox\divide\dimen@2 \setbox\cdvd=\hbox
+{\kern\dimen@\box\globbox\unhbox\cdvd\kern\dimen@}\dimen8=\dp\cdvd\advance
+\dimen8\dimen5 \dp\cdvd=\dimen8 \ht\cdvd=\z@}
+
+\def\outVarrow{\ifhbox\cdvd\then\deepenbox\cdvd\pusht\cdvd\to3\else
+\nopendvert\fi\dimen3=\dimen5 \advance\dimen3-\dimen8 \setbox\cdvd=\vbox{%
+\vfil}\dp\cdvd=\dimen3} \def\nopendvert{\setbox3=\hbox{\unhbox3\kern\dimen6}}%
+\def\deepenbox\cdvd{\setbox\cdvd=\hbox{\dimen3=\dimen4 \advance\dimen3-\dimen
+9 \setbox6=\hbox{}\ht6=\dimen3 \dp6=-\dimen3 \dimen0=\dp\cdvd\advance\dimen0%
+\dimen3 \unhbox\cdvd\dimen3=\lastkern\unkern\setbox8=\hbox{\kern\dimen3}%
+\loopb\setbox9=\lastbox\ifvbox9 \setbox9=\vtop to\dimen0{\copy6
+\nointerlineskip\unvbox9 }\dimen3=\lastkern\unkern\setbox8=\hbox{\kern\dimen3%
+\box9\unhbox8}\repeat\unhbox8 }}
+
+\newif\ifPositiveGradient\PositiveGradienttrue\newif\ifClimbing\Climbingtrue
+\newcount\DiagonalChoice\DiagonalChoice1 \newcount\lineno\newcount\rowno
+\newcount\charno\def\laf{\afterassignment\xlaf\charno='}\def\xlaf{\hbox{%
+\tenln\char\charno}}\def\lah{\afterassignment\xlah\charno='}\def\xlah{\hbox{%
+\tenln\char\charno}}\def\makedarrowpart#1{\hbox{\mathsurround\z@${#1}$}}\def
+\lad{\afterassignment\xlad\charno='}\def\xlad{\hbox{\setbox2=\xlaf\setbox0=%
+\hbox to.3\wd2{\hss.\hss}\dimen0=\ht0 \advance\dimen0-\dp0 \dimen1=.3\ht2
+\advance\dimen1-\dimen0 \dp0=.5\dimen1 \dimen1=.3\ht2 \advance\dimen1\dimen0
+\ht0=.5\dimen1 \raise\dp0\box0}}
+
+\def\DiagonalMap#1#2#3#4#5{\ifPositiveGradient\then\let\mv\raise\else\let\mv
+\lower\fi\setbox2=\makedarrowpart{#2}\setbox1=\makedarrowpart{#1}\setbox4=%
+\makedarrowpart{#4}\setbox5=\makedarrowpart{#5}\setbox3=\makedarrowpart{#3}%
+\let\execmap\execDiagonalLine\gettwoargs}
+
+\def\makeline#1(#2,#3;#4){\hbox{\dimen1=#2\relax\dimen2=#3\relax\dimen5=#4%
+\relax\vrule height\dimen5 depth\z@ width\z@\setbox8=#1\cdna=\dimen5 \divide
+\cdna\dimen2 \ifnum\cdna=0 \then\box8 \else\dimen4=\dimen5 \advance\dimen4-%
+\dimen2 \divide\dimen4\cdna\dimen3=\dimen1 \cdnb=\dimen2 \divide\cdnb1000
+\divide\dimen3\cdnb\cdnb=\dimen4 \divide\cdnb1000 \multiply\dimen3\cdnb\dimen
+6\dimen1 \advance\dimen6-\dimen3 \cdnb=0 \ifPositiveGradient\then\dimen7\z@
+\else\dimen7\cdna\dimen4 \multiply\dimen4-1 \fi\loop\raise\dimen7\copy8 \ifnum
+\cdnb<\cdna\hskip-\dimen6 \advance\cdnb1 \advance\dimen7\dimen4 \repeat\fi}}%
+\newdimen\objectheight\objectheight1.5ex
+
+\def\execDiagonalLine{\setbox0=\hbox\tozpt{\cdna=\xcoord\cdnb=\ycoord\dimen8=%
+\wd2 \dimen9=\ht2 \dimen0=\cdnb\DiagramCellHeight\advance\dimen0-2%
+\MapShortFall\advance\dimen0-\objectheight\setbox2=\makeline\box2(\dimen8,%
+\dimen9;.5\dimen0)\setbox4=\makeline\box4(\dimen8,\dimen9;.5\dimen0)\dimen0=2%
+\wd2 \advance\dimen0-\cdna\DiagramCellWidth\advance\dimen0 2\DiagramCellWidth
+\dimen2\DiagramCellHeight\advance\dimen2-\MapShortFall\dimen1\dimen2 \advance
+\dimen1-\ht1 \advance\dimen2-\ht2 \dimen6=\dimen2 \advance\dimen6.25\dimen8
+\dimen3\dimen2 \advance\dimen3-\ht3 \dimen4=\dimen2 \dimen7=\dimen2 \advance
+\dimen4-\ht4 \advance\dimen7-\ht7 \advance\dimen7-.25\dimen8
+\ifPositiveGradient\then\hss\raise\dimen4\hbox{\rlap{\box5}\box4}\llap{\raise
+\dimen6\box6\kern.25\dimen9}\else\kern-.5\dimen0 \rlap{\raise\dimen1\box1}%
+\raise\dimen2\box2 \llap{\raise\dimen7\box7\kern.25\dimen9}\fi\raise\dimen3%
+\hbox\tozpt{\hss\box3\hss}\ifPositiveGradient\then\rlap{\kern.25\dimen9\raise
+\dimen7\box7}\raise\dimen2\box2\llap{\raise\dimen1\box1}\kern-.5\dimen0 \else
+\rlap{\kern.25\dimen9\raise\dimen6\box6}\raise\dimen4\hbox{\box4\llap{\box5}}%
+\hss\fi}\ht0\z@\dp0\z@\box0}
+
+\def\NorthWest{\PositiveGradientfalse\Climbingtrue\DiagonalChoice0 }\def
+\NorthEast{\PositiveGradienttrue\Climbingtrue\DiagonalChoice1 }\def\SouthWest
+{\PositiveGradienttrue\Climbingfalse\DiagonalChoice3 }\def\SouthEast{%
+\PositiveGradientfalse\Climbingfalse\DiagonalChoice2 }
+
+\newif\ifmoremapargs\def\gettwoargs{\setbox7=\box\voidb@x\setbox6=\box
+\voidb@x\moremapargstrue\def\whichlabel{6}\def\xcoord{2}\def\ycoord{2}\def
+\contgetarg{\def\whichlabel{7}\ifmoremapargs\then\let\next\getanarg\let
+\contgetarg\execmap\else\let\next\execmap\fi\next}\getanarg}\def\getanarg{%
+\futurelet\thenexttoken\switcharg}\def\getlabel#1#2#3{\setbox#1=\hbox{\kern.2%
+em$\labelstyle{#3}$\kern.2em}\dimen0=\ht#1\advance\dimen0 .4ex\ht#1=\dimen0
+\dimen0=\dp#1\advance\dimen0 .4ex\dp#1=\dimen0 \contgetarg}\def
+\eatspacerepeat{\afterassignment\getanarg\let\junk= }\def\catcase#1:{{\ifcat
+\noexpand\thenexttoken#1\then\global\let\xcase\docase\fi}\xcase}\def\tokcase#%
+1:{{\ifx\thenexttoken#1\then\global\let\xcase\docase\fi}\xcase}\def\default:{%
+\docase}\def\docase#1\esac#2\esacs{#1}\def\skipcase#1\esac{}\def
+\getcoordsrepeat(#1,#2){\def\xcoord{#1}\def\ycoord{#2}\getanarg}\let\esacs
+\relax\def\switcharg{\global\let\xcase\skipcase\catcase{&}:\moremapargsfalse
+\contgetarg\esac\catcase\bgroup:\getlabel\whichlabel-\esac\catcase^:\getlabel
+6\esac\catcase_:\getlabel7\esac\tokcase{~}:\getlabel3\esac\tokcase(:%
+\getcoordsrepeat\esac\catcase{ }:\eatspacerepeat\esac\default:%
+\moremapargsfalse\contgetarg\esac\esacs}
+
+\catcode`\@=\cdna
+

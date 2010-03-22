@@ -1,0 +1,371 @@
+
+We are happy to inform you that your paper has been accepted for
+presentation at ITP-10, July 11-14.  Congratulations: only 33 papers
+were accepted out of 74 submissions, and only three rough diamonds
+were accepted of the nine that were submitted.
+
+Please revise your paper, paying careful attention to the referees'
+comments.  The referees worked with great professionalism, and even
+comments that seem wrong to you should suggest ways to improve your
+presentation.  The deadline for the final camera-ready version of your
+paper is Friday, April 9.  Please be on time, as the publishers'
+deadlines are absolute.
+
+We will soon form a schedule of talks.  If you have any timing
+conflicts, please send us email (for example, by replying to this
+message) as soon as possible.
+
+We look forward to seeing you at ITP-10 in Edinburgh!
+
+Best Regards,
+Matt Kaufmann and Larry Paulson (ITP-10 co-chairs)
+
+
+
+---------------------------------------------
+
+Paper: 58
+Title: Automated Machine-Checked Hybrid System Safety Proofs
+
+
+---------------------------- REVIEW 1 --------------------------
+PAPER: 58
+TITLE: Automated Machine-Checked Hybrid System Safety Proofs
+ 
+OVERALL RATING: 2 (accept) 
+REVIEWER'S CONFIDENCE: 3 (high) 
+
+The paper presents a automated safety prover for a a class of hybrid systems. 
+It generates fully certified safety proofs, that unsafe states cannot be
+reached, using a certified graph-readability algorithm and a constructive
+formalisation of computable reals.
+
+This appears to be the first time computable reals have been used for
+formal verification of hybrid systems. Moreover, I find the use of
+computable reals in the context of hybrid systems interesting and
+novel in general, as there is potential for e.g. giving an "ideal"
+semantics for hybrid languages in such terms, or letting constraints
+and considerations brought to fore by working with computable reals
+impact on the very design of languages for hybrid systems and how one
+go about reasoning about them, topics that the paper does touch upon
+even if they're not the main focus.
+
+Having said this, the paper, while mostly well-written, is targetted
+to a rather narrow audience. I think the authors quite easily, by
+providing just a little more explanation here and there, along with a
+little more background and context, could give the paper a
+significantly wider appeal. See below for some suggestions.
+
+The class of hybrid systems that can be handled is quite
+limited. Currently, this emerges only gradually. The paper should try
+to characterise the handled class of systems up front. That only a
+limited class of systems is handled is not in itself a problem: this
+is a first step. But should be made explicitly clear to clarify what
+can be expected from the paper.
+
+It would also be very interesting if the authors could say a bit more
+about what a system like this would be like to use. How difficult is
+it to find the right partitionings? Would it make sense to include
+notions of tolerances in the very system description, and could they
+then be used to guide the partitioning? E.g. it might not be
+unreasonable to ask the user to state what the epsilons should be on a
+case by case basis for the inequalities in a system description (with
+some sensible defaults).
+
+Finally, a discussion on how much difference the added reassurance of
+working with computable reals as opposed to plain floating point
+numbers really makes in this case would significantly strengthen
+the paper. Yes, the problems with floating point for numerical
+computations are well known, but the systems discussed in the paper
+are very simple, so it is not at all clear how problematic floating
+point numbers would be in this context.
+
+Detailed comments:
+
+Section 1, pg. 1, 1st paragraph:
+
+  The class of hybrid systems considered is assumed to have a finite
+  number of locations. This is a common assumption, indeed assumed in
+  standard definitions of *hybrid automata*, but not true for hybrid
+  systems in general. Moreover, it later emerges that there are quite
+  a few further constraints. Clarify what class of systems that can be
+  handled, or at least that you're concerned with "a class of hybrid
+  systems".
+
+  Also applies to the abstract.
+
+Section 2, pg. 2, 1st paragraph:
+
+  Would benefit from being broken down into a two or more smaller
+  paragraph.
+
+  Claims "reasonable" performance for the CoRN impl. "Reasonable" is
+  highly dependent on application and purpose, so this statement is
+  somewhat vacuous as it stands. Clarify.
+
+Section 3, pg. 3:
+
+  The basic idea of the example needs to be explained straight away,
+  along with its key aspects, before delving into
+  details. Specifically:
+
+    * What do the locations represent
+    * What do the variables mean 
+    * When do transitions occur
+    * What do the equations involving "dotted" variables mean
+      (make it clear they are differential equations specifying the
+      dynamics of the system state)
+
+  Also, T' = 2 in the cool location should be T' = -T to make sense
+  (ambient temperature should presumably decrease in the cool location)
+  and to be consistent with the flow function \phi_{Cool,2} on page 5.
+
+  Related to this, the first mention of the meaning of the variables
+  on the following page says "the first" is the clock, and "the
+  second" the ambient temperature, which does not agree with the order
+  in the figure.  Explicitly naming the variables here too would help.
+   
+Section 3, pg. 4, the invariants:
+
+  "Inv_{Cool}(C,t)" should be "Inv_{Cool}(c,T)"
+  "Inv_{Check}" should be "Inv_{Check}(c,T)" 
+
+Section 3, pg. 4, last two paragraphs:
+
+  Explicitly relate the discussed flow functions
+  and the differential equations used in figure 1.
+
+  Why is continuous state transfer specified as a transition
+  from (l,p) to (l',p') with a side condition l = l'?
+  A transition from (l,p) to (l,p') would be clearer.
+
+Section 3, pg. 5:
+
+  Emphasise "discrete" in "the following definition of the
+  discrete transition function" to aid reading.
+
+Section 3.1, pg. 6:
+
+  In the definitions of the abstract continuous transition and
+  abstract discrete transition the "l" in the target states
+  should presumably be "l'" in both cases. But it would again seem
+  beneficial to drop the condition "l = l'" and use "l" throughout
+  for the abstract continuous transition.
+
+Section 4.2, pg. 9:
+
+  Something has gone horribly wrong with the typesetting of
+  "letldec" at line 3. Also, shouldn't the forall quantification
+  mention x and y?
+
+  Could you explain why the computable reals admit letdecDN?
+
+  Could you explain why negation and non-strict inequalities
+  are stable, while strict inequalities are not?
+
+Section 4.3, pg. 10, the discussion on the "Off" state:
+
+  Remind the reader what notion of safe is used.
+
+  Why is it the case that "as soon as c >=2, T >= 9"?
+  The system will make a transition from "Cool" to "Heat"
+  when the ambient temperature drops below 6. In heat
+  the temperature increases by 2 degrees/s. So, after two
+  seconds, it should be close to 10? Sure, this is
+  >= 9, but by a wide margin, so I don't see the alleged
+  issue with measurement imprecision making the system
+  unreliable in this case?
+
+Section 4.3, pg. 11, penultimate paragraph, last sentence:
+
+  I cannot make sense of this, specifically "unless".
+  Possibly one negation too many? Either way, rephrase.
+
+Section 4.5, pg. 13, penultimate paragraph, last sentence:
+
+  "idea" => "ideal"
+
+Section 4.6, pg. 14, last paragraph:
+
+  "in more then one" => "in more than one"
+
+Section 5, pg. 17, sentence "Few tools ..."
+
+  Rephrase. Cannot make sense of this.
+
+Section 5, pg. 17, last paragraph:
+
+  "none of the previous work nor tools relies"
+  => "none of the work or tools discussed above rely"
+
+  or even
+
+  "none of the work or tools discussed above benefit from"
+
+Section 6, pg. 17, first paragraph:
+
+  "exprseeions" => "expressions" 
+
+
+
+---------------------------- REVIEW 2 --------------------------
+PAPER: 58
+TITLE: Automated Machine-Checked Hybrid System Safety Proofs
+ 
+OVERALL RATING: 3 (strong accept) 
+REVIEWER'S CONFIDENCE: 4 (expert) 
+
+This paper presents the implementation of a certified decision
+procedure for the safety of a class of hybrid system in the Coq
+system. Formal guarantee of safety is provided by a safe (but not
+complete) abstraction of the hybrid system and the study of state
+reachability in the abstraction. The authors focus on linear hybrid
+system, with well-behaved flow functions. The implement the whole
+prover in Coq, using constructive an existing library on exact real
+numbers.
+
+The corresponding code can be browsed on line. Unfortunately it is
+difficult to compile because it require extra tools and libraries for
+which no link to the appropriate version is provided (specially the
+ccorn library).
+
+
+The work presented is impressive. Though it does not reflect the state
+of the art methods used in (non formal) verification tools, it
+provides a very generic and well thought framework, whose components
+could probably be enriched with more involved abstraction methods and
+heuristics. Verification of hybrid systems, crucially involving real
+numbers and continuous functions is a very significant example of the
+benefit of the constructive approach. The authors deal with the
+difficulties arising from this demanding context in an elegant way,
+and the paper is most often highly readable. The paper gives a precise
+idea on how the various parts of the prover are organized, and explain
+clearly the solution found for the main problems encountered.  This
+formalization is not only constructive, but uses computations in
+practice, and makes the exact real numbers library shine.
+
+Some minor parts of the paper, and its presentation could yet be
+improved (see detailed comments below). Perhaps more importantly, the
+paper is too long (18 pages), but the text features a number of
+redundancy that should be enough to solve this problem without
+altering the content.
+
+
+Section 1
+- p1 : "using libraries that use": perhaps rephrase?
+
+- p2 : "Russell O'Connor": be consistent with Alur (no first name)
+
+- p3 "which we will discuss in some detail" : you (very) often make
+  forward references, this could be avoided (and shortened) by
+  announcing the plan of the article at the end of intro.
+
+Section 2
+  you could comment more (within space limitations) on the motivation
+  to be formal. This section is a bit messy and could be improved and
+  shortened ("a clock that can be rest, ... can be opened" for instance)
+
+Section 3
+- p3 "a linear hybrid system": but you never explain why "linear".
+  p3 "which is the same as [2]": perhaps rephrase?
+  p3 The text in the figure is too small
+  p3 "A hybrid system is...": why not start the section with this?
+  p4 "to a set of continuous variables": a finite set?
+  p4 "called the continuous state space": I am confused. Is the
+     continuous state space the set of variables or the set of values (or
+     the graph?) of these variables?
+  p4 "Inv_Heat(c, T)...": This line is difficult to read. Make your
+  notations explicit (I guess c for clock, T for temp., but then what
+  is small t?)
+  p5 (and after) I find the index notation for quantifiers difficult
+  to read.
+  p5 "It will be obvious": avoid "obvious". You use it at least 7 time
+  in the article and it's not always that obvious (and hence might
+  become suspicious). I no more mention them.
+  p6 "many traces": you might consider defining what a trace is.
+  p6 "predicate abstraction method of [2]": you should also cite
+  Cousot's original paper on predicate abstraction, cited by [2].
+  p6 : "if \forall...": the 'if' goes up on line.
+  p6 : "a fairly good heuristic": what does fairly good mean? natural?
+  p7 "The gray area...": the sentence is obscure. Does it mean 'State
+  in the grey area are reachable by discrete transitions'?
+  p7 "the Heat location all": typo: dot missing
+  p8 "Using this method": which one? which subset of the closure do
+  you consider?
+
+Section 4
+  p8 "can be found at ... or [23]": These locations seem the same.
+  p8 "Record System": strange it is to be found in a file called
+  'abstract.v'
+  p8 "Record System": Does your choice of Prop mean that apart form
+  Location eq, all these predicated are undecidable? If not couldn't
+  you use some boolean predicates here? 
+  Also I a bit puzzle about Locations + Is Location_eq_dec +
+  locations. If I understand correctly, Location is a Set with a
+  finite number of inhabitants, enumerated by the 'locations' list.
+  Then it sounds strange that you still need to require 
+  separately a decidable equality on the Location type. Couldn't you
+  represent locations by a list of elements in a decidable type (like
+  nat) ?
+  p8-9: How does the use of the double negation monad would compare
+  to the use of boolean predicates coerced to Prop (which might allow
+  to mix decidable and undecidable parts?)
+  p9 "We have seen why we required invariant stability": not really,
+  you show it now.
+  p9 "leltdecDNtd" : typo?
+  p10 "the classical abstraction method": what's this? the one you've
+  been talking so far?
+  p11 "~concrete,reachable": is it the same as p5?
+  p12 "It might seem ..": Not sure this paragraph is informative and
+  relevant.
+  p12 "Just P"-> Some P?
+  p12 "overestimate...": difficult to understand (CR = constructive
+  reals?)
+  p13 "In [2]...": You already wrote the same idea.
+  p14 "Proof./newpage": ugly
+  p15 "formally verified graph reachability algorithm": any reference
+  here?
+  p16 "it present": missing )
+  p17 "KeyMaera": how much formal is that tool? 
+
+
+
+---------------------------- REVIEW 3 --------------------------
+PAPER: 58
+TITLE: Automated Machine-Checked Hybrid System Safety Proofs
+ 
+OVERALL RATING: 2 (accept) 
+REVIEWER'S CONFIDENCE: 2 (medium) 
+
+This is a very nice paper, formalizing a non-trivial and potentially
+useful method for the verification of hybrid systems. Generally it
+is well-structured and clearly written, and I only noticed a few
+minor errors; "arbitrary precise" should be "arbitrarily precise"
+(twice), there is some kind of LaTeX fumble on the third line of p3,
+and "exprseeions" should be "expressions" in the conclusion.
+
+Although the work takes place in Coq, the authors generally make the
+paper broadly accessible. A bit more clarification of the distinction
+between Gallina and Ltac might help those not familiar with the
+system. Personally, I would also like to see conventional mathematical
+symbols in place of say `inter`, `compose` and `subset`.
+
+The authors might make more clear that the technique of predicate
+abstraction in software verification is both older and more general
+than the particular instance based on [2] presented here. Readers
+inclined to low-tech solutions might wonder whether good old interval
+arithmetic would not be a satisfactory solution to the inexactness of
+floating-point representation. This fits into the general "constraint
+solving" work the authors mention at the end, but maybe there are
+other examples (e.g. Hickey and Wittenburg's "Rigorous Modeling of
+Hybrid Systems using Interval Arithmetic Constraints"). Of course,
+this does not touch the separate question of verifying the abstraction
+method itself.
+
+It would be interesting to consider whether the authors' methods
+are applicable to hybrid systems in biology, which are a topic of
+some current interest, e.g. the work by Mishra. A good survey can
+be found in Campagna and Piazza: "Hybrid Automata in Systems
+Biology: How Far Can We Go?" 
+
+

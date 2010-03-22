@@ -1,0 +1,2010 @@
+\documentclass[runningheads]{llncs}
+\ifx\pdftexversion\undefined
+  \usepackage[dvips]{graphics}
+\else
+  \usepackage[pdftex]{graphics}
+\fi
+\usepackage{amsmath}
+%include format.tex
+%\usepackage{rotating}
+\usepackage{graphicx}
+\input{diagrams}
+\newcommand{\thetitle}{Automated Machine-Checked Hybrid System Safety Proofs}
+\newcommand{\eelis}{Eelis van der Weegen$^{\dagger}$}
+\newcommand{\herman}{Herman Geuvers$^{\dagger\ddagger}$}
+\newcommand{\dan}{Dan Synek$^{\dagger}$}
+\newcommand{\adam}{Adam Koprowski$^{\P}$}
+
+% For the final version:
+%\renewcommand{\todo}[1]{}
+\newcommand{\ADAM}[1] {\todo{\textsc{Adam says}: #1}}
+\newcommand{\HERMAN}[1] {\todo{\textsc{Herman says}: #1}}
+\newcommand{\DAN}[1] {\todo{\textsc{Dan says}: #1}}
+\newcommand{\EELIS}[1] {\todo{\textsc{Eelis says}: #1}}
+
+\newcommand{\Exists}[2]{\exists_{#1} \, . \, #2}
+\newcommand{\Forall}[2]{\forall_{#1} \, . \, #2}
+
+\def\phi{\varphi}
+\newcommand{\weg}[1]{}
+
+\newcommand{\DN}{{\sf DN}}
+\newcommand{\IR}{{\mathbf R}}
+\newcommand{\Heat}{{\sf Heat}}
+\newcommand{\Cool}{{\sf Cool}}
+\newcommand{\Chec}{{\sf Check}}
+\newcommand{\Off}{{\rm Off}} 
+\newcommand{\Loc}{{\rm Loc}}
+\newcommand{\AState}{{\rm AState}}
+\newcommand{\State}{{\rm State}}
+\newcommand{\Inv}{{\rm Inv}}
+\newcommand{\Init}{{\rm Init}}
+\newcommand{\Region}{{\rm Region}}
+\newcommand{\List}{{\rm List}}
+\newcommand{\Unsafe}{{\rm Unsafe}}
+\newcommand{\Safe}{{\rm Safe}}
+\newcommand{\AUnsafe}{{\rm AUnsafe}}
+\newcommand{\ASafe}{{\rm ASafe}}
+\newcommand{\Reach}{{\rm Reach}}
+\newcommand{\AReach}{{\rm AReach}}
+\newcommand{\guard}{{\rm guard}}
+\newcommand{\reset}{{\rm reset}}
+\newcommand{\trans}{\rightarrow_{CD}}
+\newcommand{\doubleheadrightarrow}{\mathrel{\rightarrow\!\!\!\!\rightarrow}}
+\newcommand{\ttrans}{\doubleheadrightarrow_{CD}}
+\newcommand{\attrans}{\stackrel{A}{\doubleheadrightarrow_{CD}}}
+\newcommand{\contrans}{\rightarrow_C}
+\newcommand{\distrans}{\rightarrow_D}
+\newcommand{\acontrans}{\stackrel{A}{\rightarrow_C}}
+\newcommand{\adistrans}{\stackrel{A}{\rightarrow_D}}
+\newcommand{\Dur}{{\IR_{\geq 0}}}
+\newcommand{\leltdec}{{\tt leltdec}}
+\newcommand{\leltdecoverlap}{{\tt leltdecoverlap}}
+\newcommand{\leltdecDN}{{\tt leltdecDN}}
+
+\newcommand{\overcontrans}{{\rm over\_cont\_trans}}
+\newcommand{\overdistrans}{{\rm over\_disc\_trans}}
+\usepackage{color}
+\usepackage{amsmath}
+
+\spnewtheorem*{propo}{Proposition}{\bfseries}{\rmfamily}
+
+\def\commentbegin{\quad\{\ }
+\def\commentend{\}}
+
+\def\typeset{}
+
+\usepackage{macros}
+
+%\arrayhs % i.e. no page breaks in code blocks
+
+% todo: mention deadlock
+
+% meta:
+%  - shoudl this be readable without having read alur?
+% 
+% presentation simplifications:
+% - don't show concrete./abstract.State system. just use "State", "Point", "Location", etc.
+% - use "a <= x <= b"
+% - don't show backtic coercions or notation scope tags
+% - some implicit arguments like plain eq instead of (@eq _)
+% - leave out all the NoDup stuff.
+% - instead of saying ProdCSetoid and CRasCSetoid, just say A*B and CR
+% - "exists x, x `in` c /\ P" -> "exists x `in` c, P"
+% - sigma projections and other coercions
+% - use plain "=" for setoid equality.
+% - patterns in fun's
+
+\title{\thetitle}
+\subtitle{An Implementation of the Abstraction Method In Coq}
+
+\author{Herman Geuvers\inst{1,2}, Adam Koprowski\inst{3}, Dan Synek\inst{1}, \\ Eelis van der Weegen\inst{1}}
+\authorrunning{H. Geuvers, A. Koprowski, D. Synek, E. van der Weegen}
+
+\institute{
+Institute for Computing and Information Sciences\\ 
+Radboud University Nijmegen 
+\and
+Faculty of Mathematics and Computer Science\\ 
+Technical University Eindhoven
+\and
+MLState, Paris
+}
+
+\usepackage[colorlinks,pdftitle=\thetitle,pdfauthor=]{hyperref}
+
+\begin{document}
+
+\maketitle
+
+%\authorrunning{\em}
+%\titlerunning{\em}
+
+\begin{abstract}
+We have developed a hybrid system safety prover, implemented in Coq
+using the abstraction method introduced by Alur, Dang and Ivan\v ci\'c
+(2006).  The development includes: a formalization of the structure of
+hybrid systems; a set of utilities for the construction of an abstract
+system (consisting of decidable ``overestimators'' of abstract
+transitions and initiality) faithfully representing a (concrete)
+hybrid system; a translation of abstract systems to graphs enabling
+the decision of abstract state reachability using a certified graph
+reachability algorithm; a proof of the safety of an example hybrid
+system generated using this tool stack.  The development critically
+relies on the computable real number implementation part of the CoRN
+library of formalized constructive mathematics in Coq.  The obtained
+safety proofs are fully certified and do not use floating point real
+numbers, but arbitrary precise approximations of computable real
+numbers. It also uses a nice interplay between constructive and
+classical logic via the double negation monad.
+
+\weg{ This technical report documents our development of a hybrid
+  system safety prover, implemented in Coq using the abstraction
+  method introduced by Alur in \cite{alur}. The development includes:
+  a formalization of the structure of hybrid systems; a systematic
+  approach and generic set of support utilities for the construction
+  of an abstract system (consisting of decidable ``overestimators'' of
+  abstract transitions and initiality) faithfully representing a
+  (concrete) hybrid system; a translation of abstract systems to
+  graphs enabling decision of abstract state reachability using a
+  certified graph reachability algorithm; a proof of an example hybrid
+  system (taken from \cite{alur}) generated using this tool stack. The
+  development critically relies on the computable real number
+  implementation part of the CoRN library of formalized constructive
+  mathematics. \todo{Hm, anything else worth mentioning?}  }
+
+\end{abstract}
+
+%\setcounter{tocdepth}{2}
+
+%\tableofcontents
+%\todo{How do I get rid of that silly author index at the top of the TOC?!}
+
+\nocite{*}
+
+\section{Introduction}
+
+In \cite{alur}, Alur et al.\ present an automated method for hybrid system
+safety verification based on the construction of an \emph{abstract}
+hybrid system (essentially a finite automaton) corresponding to the
+hybrid system of interest. The abstract system is constructed such
+that traces in the original system are represented in the abstract
+system. Consequently, one can draw conclusions about reachability of
+states in the concrete system from analysis of state reachability in
+the abstract system. Since the abstract system is an entirely finite
+discrete object (unlike the concrete system), reachability can simply
+be computed using any graph reachability algorithm. Thus, the
+abstraction method brings the safety verification problem from a
+continuous and infinite domain into a discrete and finite domain,
+where the problem can be dealt with using standard graph algorithms.
+%where it is amenable to what amounts to brute force.
+
+The prototype implementation described in \cite{alur} was developed in
+a conventional programming language using libraries that use ordinary
+floating point arithmetic. The potential for bugs and floating point
+artifacts inherent in this approach limits the confidence one can
+justifiably have in safety judgments made by such an
+implementation. In this paper, we describe a reimplementation of the
+basic technique of Alur et al.\ in Coq, a proof assistant based on a
+rich type theory that also functions as a programming language,
+letting one develop ``certified'' programs: programs whose correctness
+is proved formally within the system. In our case, the program will be
+one that produces machine-checked proofs of hybrid system safety,
+obtained using the abstraction method.
+
+Our development relies crucially on computations involving real
+numbers, for which we use the computable real number implementation
+developed by Russell O'Connor \cite{oconnor}, and part of the CoRN
+library of formalized constructive mathematics \cite{corn}. Indeed,
+this development showcases its use in a concrete and practical
+application. Subtleties regarding the nature of these computable reals
+are reflected in this development in several ways, which we will
+discuss in some detail.
+
+\section{Motivation}
+The motivation for this work is threefold. 
+
+First, we want to avoid the use of floating point number computation,
+because rounding errors may affect the correctness of the safety
+verification that has been performed. Instead, we want to use exact
+real arithmetic, which deals with infinitely precise real numbers and
+more importantly, infinitely precise algorithms for computing with
+real numbers. This means that, e.g.\ an algorithm for the function
+$f(x) = e^x$ can produce arbitrary many output precision (``digits'')
+by asking for more input precision. So, using exact real number
+algorithms, we can decide $\cos(\sin(e^2))<\cos(\sin(\frac{1}{e^2}))$
+by computing better and better approximations of the value of both
+expressions and observing at a certain point that the inequality
+holds. (Note that with this method we will never be able to determine
+in finite time that two such expressions denote the same number; for
+that we need a symbolic proof.) In Nijmegen we have developed a
+verified library of exact real arithmetic, formalized in the proof
+assistant Coq, as part of CoRN \cite{corn,oconnor}, our Constructice
+Coq Repository at Nijmegen. The algorithms (for $e^x$, $\cos$, $\sin$
+etc.) have been written in the programming language of Coq and have
+been proved correct using its logic. Coq is sufficiently fast that the
+algorithms can also be executed in reasonable time within the system,
+as can be witnessed by our online certified calculator
+\url{http://prover.cs.ru.nl/calc.html}. So, from this perspective,
+this work can also be seen as a case study in the use of this formal
+repository of exact real arithmetic: Can we use its computational
+capacities to verify safety of hybrid systems? Can we use exact real
+arithmetic to model the environment and verify the correctness of the
+controller?
+
+A second related point is that hybrid systems include continuous
+values. Some of these are controlled by the system itself, like a
+clock that can be reset, a valve that can be opened or a gas handle
+that can be opened. Others represent characteristics of the
+environment and can only be observed, like speed, pressure and
+temperature. Due to the fact that we deal with physical systems,
+measurements are always imprecise, and setting a valve in a certain
+position %may on a continuous scale 
+is also imprecise. 
+%Of course, we don't know exactly how imprecise, and we may assume
+%that better measuring instruments may arise
+This implies that when a controller makes a case distinction on the
+basis of $T>20$ or $T\leq 20$ -- e.g.\ if the temperature is larger
+that $20$, turn the heater off, if it is $20$ or below, keep it on --
+is always only ``approximately'' effective: The actual heater may
+remain on until just above $20$ degrees, because of a measuring
+imprecision. In a verification, one should actually take these things
+into account and we believe that constructive analysis provides the
+right way to model and verify hybrid systems. In constructive
+analysis, we do not have (for $x,y\in\IR$) $x>y \vee x\leq y$, so we
+cannot define an algorithm on the reals by making such a case
+distinction. On the other hand, we {\em do\/} have, for all
+$\epsilon>0$, $x+\epsilon>y \vee x-\epsilon< y$, which means that we
+can get an $\epsilon$-close enough approximation to a decision between
+$x>y$ and $x\leq y$.  So, the present work can also be seen as a
+confirmation of our belief that constructive analysis is the
+proper setting to model and verify hybrid systems.
+
+As a third point, the method to verify safety of hybrid systems of
+\cite{alur} uses so called ``predicate abstraction''. We will detail
+this approach in the next section; for now it suffices to say that it
+involves mapping the hybrid system to another, finite transition
+system, which is then verified. However, this abstraction itself is
+not verified. In this formalization we want to also verify the
+abstraction itself: show that the abstract system models the concrete
+one.
+
+% todo: document that fallback-to-making transitions
+% todo: document separability, and why we don't use alur's technique
+% read my mail about DN to see if all its contents is now part of section bla
+
+ % In our case, the specification of the program we write is this:
+ % given a description of a concrete system, the program . The whole
+ % implementation, including the computational part, serves only to
+ % prove a single theorem. Hence, one essentially only needs to trust
+ % Coq to be convinced of the safety proofs created by our
+ % development.
+
+%A key ingredient in our development 
+
+%Wherever we say ``|CR|'', we are really referring to the type
+%|CRplain| of computable reals, part of C-CoRN.
+
+%The computational steps become part of the complete proof of the
+%safety theorem.
+
+%We formally prove safety of the thermostat example used by Alur.
+
+
+\weg{
+\paragraph{Organization}
+
+Throughout this report, we present in parallel our general formalized
+framework (with particular emphasis on differences with Alur's
+presentation), and the way it is used to obtain a safety proof for an
+example hybrid system, taken from \cite{alur}, modeling the operation
+of a thermostat. In section \ref{concrete}, we begin by defining the
+structure of normal (concrete) hybrid systems, their semantics,
+reachability, and safety. We also define the concrete thermostat and
+the safety condition we wish to prove. In section \ref{dn}, we take a
+moment to discuss some of the limits on decidability of properties of
+computable real numbers, as these complicate matters in the remainder
+of the development. Next, in section \ref{estimation} we describe
+notions of underestimation and overestimation that are applied
+throughout the development. Then, in section \ref{abstraction}, we
+begin our presentation of the abstraction method by discussing
+abstract regions, states, and spaces. We build on these in section
+\ref{abs.reach}, where we first develop the ``obvious'' notions of
+abstract system and reachability, discuss why they fail, and then
+rework them to embrace reachability sharing. In section
+\ref{underestimatingsafety} we show how, assuming abstract
+reachability is decidable, we may prove hybrid system safety by
+computation. Then, in section \ref{graphs}, we show how an abstract
+system consisting of transition and initiality ``overestimators'' can
+be used to decide abstract reachability by construction of a directed
+graph corresponding to the system, and the use of an ordinary but
+verified graph reachability algorithm. Finally, in sections
+\ref{over_cont_trans} and \ref{over_disc_trans} we describe the
+implementation of the aforementioned overestimators. We end with
+conclusions in section \ref{conclusions}.
+}
+
+% proceed to define abstraction bla. Following that, we show that a
+% simple (certified) graph reachability can be employed to compute
+% reachability in the graph corresponding to the abstract system, and
+% that the resulting reachability judgement can be translated back
+% through the abstract system all the way to the concrete system. We
+% end with conclusions in section \ref{conclusions}.
+
+\section{Hybrid Systems and the Abstraction method}
+\label{sec:hybsys}
+We briefly introduce the notion of a {\em linear hybrid system}, as
+used by \cite{alur}, and we show how the abstraction method is used in
+that paper in order to verify safety. There are various notions
+(formal definitions) of hybrid systems
+\cite{henziger,lynchvaandrager}. To illustrate the definition, we give
+the example of a thermostat, which is the same as \cite{alur} uses as
+a running example to illustrate the abstraction method. We will use
+the same example to illustrate our formal verification in Coq.
+
+\begin{center}
+\begin{figure}[htb!]
+%\begin{turn}{180}
+\begin{center}
+%    \includegraphics[scale=.6, viewport=0 500 700 710, clip]{FIGS/traject}
+    \includegraphics[scale=.5]{FIGS/ThermoFig}
+\end{center}
+%\end{turn}
+\caption{The Thermostat as an example of a Hybrid Systems \label{fig:thermostat}}
+\end{figure}
+\end{center}
+
+A hybrid system is a model of how a software system, described as a
+finite set of \emph{locations}, $\Loc$ 
+%\footnote{We reserve the term ``state''
+%  for something else.} 
+with (discrete) transitions between them, acts
+on and responds to a set of continuous variables (called the
+\emph{continuous state space}), typically representing physical
+properties of some environment (such as temperature and pressure).
+
+In \cite{alur}, Alur requires that the continuous state space be a
+convex polyhedron in $\IR^ n$. 
+%In our definition of a hybrid system,
+%we initially let the continuous state space be an arbitrary
+%(constructive) setoid, called |Point|. We also explicitly require
+%decidability of location equality.
+In the running example of Figure \ref{fig:thermostat},
+the discrete component consists of three locations (called $\Heat$, $\Cool$,
+and $\Chec$), whose continuous state space is $\IR^2$,
+where $\IR$ are the \emph{computable} reals as defined in CoRN. 
+The $\Heat$ and $\Cool$ locations represent states in which the
+thermostat heats and cools the environment it operates in,
+respectively. The $\Chec$ state is a self-diagnostic state in which
+the thermostat does not heat or cool. The first $\IR$ component in the
+continuous state space represents an internally resettable clock,
+while the second represents the temperature in the environment in
+which the thermostat operates.
+
+A \emph{State} in a hybrid system is a pair $(l, p)$ consisting of a
+location $l$ and a point $p$ in the continuous state space
+(representing the value of the continuous variables). We use $\State$
+for the set of states of a hybrid system.
+
+The {\em invariant\/} predicate defines, for each location, a set of
+permitted values for the continuous variables. 
+\weg{
+We will use this in the
+definitions of transition relations in a moment. The morphism field
+expresses that this invariant respects |Point|'s setoid equality. We
+further require that it is \emph{stable}, where |stable P| is defined
+as |~ ~P -> P|. We discuss the reason for this stability requirement
+in section \ref{dn}.
+}
+For the thermostat, the invariant is as follows: $$\Inv_{\Heat}(c,T) := T\leq 10\wedge c\leq 3,\quad \Inv_{\Cool}(C,t) := 5 \leq T,\quad \Inv_{\Chec} := c\leq 1.$$
+
+A hybrid system also has a set of \emph{initial states}, for which we
+will use the predicate $\Init(s)$.  For the thermostat example,
+$\Init(l,c,T) := l= \Heat \wedge c= 0 \wedge 5 \leq T \leq 10.$
+\weg{
+\begin{code}
+  {s: State pipe location s = Heat /\ 5 <= temp s <= 10 /\ clock s == 0}
+\end{code}
+where |location|, |temp|, and |clock| are the obvious projections.
+} 
+There is the obvious requirement that the invariant holds at each
+initial state.
+
+
+The remaining parts of a hybrid system (i.e.\ {\em flow}, {\em guard}
+and {\em reset}) describe transitions between states, which, together
+with the set of initial states, determine the set of \emph{reachable}
+states, representing the possible behaviors exhibited by a
+hypothetical real-world implementation of the hybrid system (as
+software running on a device with sensors and actuators).
+
+%\subsection{Flow and Continuous Transitions}
+%\label{concreteflow}
+
+Each location in a concrete system has an accompanying \emph{flow
+  function} which describes how the continuous variables change over
+time while the system is in that location. The idea is that then
+different locations correspond to different uses of actuators
+available to the software system, the effects of which are described
+by the flow function. For instance, in the thermostat, the flow
+function corresponding to the $\Heat$ location will have the
+temperature increase with time, modeling the effect of the heater
+component in the imagined thermostat device.
+
+%format Duration = CR"_{\ge 0}"
+%format CRge0 = CR"_{\ge 0}"
+
+In the canonical definition of hybrid systems, flow functions are
+specified as solutions to differential equations describing the
+dynamics of the continuous variables. We follow \cite{alur} in
+abstracting from these, taking instead the solutions of these
+differential equations, which are flow functions $\Phi$ which satisfy:
+\begin{eqnarray*}
+  \Phi( p, 0) &=& p \\
+  \Phi (p, t + t') &=& \Phi (\Phi( p, t), t')
+\end{eqnarray*}
+\weg{
+We further require that $\Phi$ is a morphism respecting |Point|'s
+setoid equality. We bundle functions with these properties as a record
+type called |Flow| (not shown), which is parametrized over the
+continuous state space type, and is equipped with an implicit coercion
+to the |phi| function it contains.
+\todo{Unlike Alur, we don't have ``input'' (why?).}
+}
+
+We now say that there is a (concrete) \emph{continuous transition}
+from a state $(l, p)$ to a state $(l', p')$ if $l = l'$ and there is a
+non-negative duration $d$ such that $p' = \Phi_l( p,d)$ with the
+invariant for $l$ holding at every point along the way:
+$$ (l,p) \contrans (l',p') := l=l' \wedge \Exists{d\in
+\Dur}{\Phi_l(p, d) = p' \wedge \Forall{t}{0 \leq t\leq d \rightarrow
+\Inv_l(\Phi_l (p, t))}}.$$
+
+In case we are in $\IR ^2$, the flow function can be expressed as the
+product of two flow functions: $\Phi_l(c,T,t) = (\phi_{l,1}(c,T,t),
+\phi_{l,2}(c,T,t))$. In the thermostat example, as in many other
+examples of hybrid systems, $\phi_{l,1}(c,T,t)$ does not depend on $T$
+and $\phi_{l,2}(c,T)$ does not depend on $c$. We call this feature
+{\em separability\/} of the flow function; our development currently
+relies heavily on this property. Separability makes the form of the
+flow functions simpler:
+$$\Phi_l(c,T,t) = (\phi_{l,1}(c,t), \phi_{l,2}(T,t))$$
+
+In the thermostat, for all locations, $\phi_{l,1}(c,d) = c + d$ (for
+the clock) and $\phi_{\Heat,2}(T,d)= T + 2 * d$,
+$\phi_{\\Cool,2}(T,d)= T * e^{-d}$, $\phi_{\Chec,2}(T,d)= T * e^{-
+  \frac{1}{2}d}$.
+
+Where continuous transitions describe the flow of continuous
+variables, \emph{discrete} transitions between locations describe the
+logic of the software system. Each such transition is comprised of two
+components: a \emph{guard} predicate, and a \emph{reset} function. The
+former defines a subset of the continuous state space in which the
+transition is enabled (permitted), while the latter describes an
+instantaneous change applied as a side effect of the transition, as
+seen in the following definition of the discrete transition relation:
+
+$$ (l,p) \distrans (l',p') := \guard_{l,l'}(p) \wedge \reset_{l,l'}(p)= p' \wedge \Inv_l(p) \wedge \Inv_{l'}(p')$$
+
+\weg{
+\begin{code}
+  Definition disc_trans: relation State := fun (l, p) (l', p') =>
+    guard (l, p) l' /\ reset l l' p = p' /\
+    invariant (l, p) /\ invariant (l', p').
+\end{code}
+}
+
+It will be obvious from Figure \ref{fig:thermostat} what the guards
+and reset functions are. The reset function resets the clock for all
+but one of these transitions, and leaves the temperature variable as
+is. Here we can discern a conceptual distinction between continuous
+variables directly controlled by the system (such as the clock in the
+thermostat), and variables that model a physical phenomenon and that
+can only be observed (such as the temperature in the thermostat). This
+distinction is not made explicit in the definition of a hybrid system;
+in principle, nothing is stopping the thermostat from treating
+temperature as a variable of the former kind and resetting its
+value. However, this would simply make the system unimplementable.
+
+\weg{
+\begin{code}
+Definition thermo_reset (l l': Location) (p: Point): Point :=
+  ( match l, l' with
+    | Cool, Heat | Heat, Check | Check, Heat => 0
+    | _, _ => fst p
+    end
+  , snd p).
+\end{code}
+}
+
+%\subsection{Traces and Safety}
+
+A transition is either continuous or discrete $\trans:= \distrans \cup \contrans$. We now say that a state $s$ is \emph{reachable} if there is an initial state $i$ from which one can, by a finite number of transitions, end up in $s$:
+%format trans_refl_closure (x) = x "^{*}"
+$$\Reach(s):=
+    \Exists{i\in \State}{\Init(i) \wedge i \ttrans s}.$$
+Here, $\ttrans$ is the transitive reflexive closure of $\trans$.
+
+As mentioned before, the set of reachable states represents the
+possible behaviors exhibited by a hypothetical real-world
+implementation of the hybrid system (as software running on a device
+with sensors and actuators).
+
+The idea now is that the purpose of a hybrid system is typically to
+keep the continuous variables within certain limits. In other words,
+to limit the set of reachable states to some ``safe'' subset of the
+complete state space. For the thermostat example, the intent is to
+keep the temperature above $4.5$ degrees at all times, and so the safe
+states are defined to be those in which we have $T > 4.5$: $$\Safe(l,c,T) := T >4.5 \quad and \quad \Unsafe(l,c,T) := T\leq 4.5.$$
+The goal, then, is to verify that the reachable states are all safe.
+
+\subsection{The Abstraction Method}
+There are uncountably many traces in a hybrid system, so safety is
+undecidable in general. In concrete situations, safety may be (easily)
+provable, however, for example, if one finds the proper {\em proof
+  invariant}. As proof-invariants are often hard to find, one would
+like to have more automated heuristic methods for establishing
+safety. This is what the {\em predicate abstraction method\/} of
+\cite{alur} does. In general one divides the continuous state space
+into a finite number of convex subsets (polygons), $A_1, \ldots, A_n$,
+which yields a finite {\em abstract state space}, $\AState := \{ (l,
+A_i) \mid l \in \Loc, 1\leq i \leq n \}$, with an obvious embedding
+$A: \State \to \AState$ of concrete states into abstract states. On this
+abstract state space, one immediately defines {\em abstract continuous
+  transitions\/} and {\em abstract discrete transitions\/} as follows.
+\begin{eqnarray*}
+(l,P) \acontrans (l',Q) &:=& l=l' \wedge \Exists{p\in P, q\in Q}{(l,p) \contrans (l,q)}\\
+(l,P) \adistrans (l',Q) &:=& \Exists{p\in P, q\in Q}{(l,p) \distrans (l,q)}.
+\end{eqnarray*}
+Now {\em abstract reachability\/} can be defined in the obvious way as
+follows $\AReach(a) := \Exists{s_0\in\State}{\Init(s_0) \wedge A(s_0)
+\attrans a}$, and also the predicates $\ASafe$ and $\AUnsafe$, stating
+when abstract states are safe / unsafe are defined as expected.
+
+This yields a finite transition system (where it may be undecidable if
+there is a transition between two states!) which has the
+obvious property indicated in Figure \ref{diag:abstraction}.
+\begin{figure}[htb!]
+$$\begin{diagram}
+ s & \rArr_{CD} & s'&& s_0& \rArr_{CD} & s_1& \rArr_{CD} & s_2& \rArr_{CD} & \ldots\\
+\dTo &         &\dTo &&\dTo & &\dTo &&\dTo & &\\
+A(s)& \rArr^A_{CD} & A(s') && A(s_0)& \rArr^A_{CD} & A(s_1)& \rArr^A_{CD} & A(s_2)& \rArr^A_{CD} & \ldots\\
+\end{diagram}$$
+\caption{The abstraction function \label{diag:abstraction}}
+\end{figure}
+With this property, one can conclude safety of the concrete system
+from safety of the abstract system: $$\text{if}\ \Forall{a\in \AState}{\AReach(a) \rightarrow \ASafe(a)}, \text{then}\ \Forall{s\in \State}{
+\Reach(s) \rightarrow \Safe(s)}.$$
+
+The interest and power of the abstraction method lies in two
+facts. First, we do not need the {\em exact\/} definitions of
+$\acontrans$ and $\adistrans$ to conclude safety of the concrete
+system from safety of the abstract system. We only need the property
+of diagram \ref{diag:abstraction}, so we can {\em overestimate\/}
+$\acontrans$ and $\adistrans$ (that is: replace it with a transition
+relation that allows more transitions). Second, there is a fairly good
+heuristic for making the abstraction (how to divide the continuous
+state space into regions) and how to decide whether there should be an
+abstract transition from one abstract state to another.
+This is indicated in figure \ref{fig:abstraction}.
+
+\begin{center}
+\begin{figure}[htb!]
+%\begin{turn}{180}
+%    \includegraphics[scale=.6, viewport=0 500 700 710, clip]{FIGS/traject}
+    \includegraphics[scale=.5]{FIGS/traject}
+    \includegraphics[scale=.4]{FIGS/AThermo-new3}
+%\end{turn}
+\caption{The abstraction function computed
+\label{fig:abstraction}}
+\end{figure}
+\end{center}
+
+On the left side we schematically indicate how one can try to
+``follow'' the path that region $A$ takes when time passes and verify
+whether this path intersects with region $B$. The idea of
+overestimation is that one should only {\em not\/} put an arrow $A
+\acontrans B$ if we positively know that the path of $A$ will avoid
+$B$, which is the case for example for paths that follow the dashed lines.
+
+On the right side we see the abstract state space indicated for the
+location $\Heat$. The abstract state space consists of rectangles,
+possibly degenerated (extending to $-\infty$ or $+\infty$). For the
+bounds of these rectangles one takes the values that occur in the
+specification of the hybrid system (see Figure
+\ref{fig:thermostat}). According to \cite{alur}, this is a good
+choice. (In case one cannot prove safety in this, there is of course
+the opportunity for the user to refine it.)  The gray area indicates
+that from these states also abstract discrete transitions are
+possible. The dashed area is unreachable, because of the invariant for
+the $\Heat$ location %prevents these states from being reachable.  
+All the abstract
+transitions from the rectangle $[0.5,1) \times[5,6)$ are shown: as the
+    temperature flow function for $\Heat$ is $\phi_{\Heat,2}(T,d)= T +
+    2 * d$, and the clock flow function is $\phi_{\Heat,1}(c,d) = c +
+    d$, these are all the possible abstract transitions.
+
+There is a slight subtlety with the abstract transitions that we want
+to consider. If we just take $\attrans$ to be the reflexive transitive
+closure of $\acontrans \cup \adistrans$, we get far too many abstract
+traces. (There is no problem with the correctness of the method --
+Figure \ref{diag:abstraction} still applies -- but we get way too many
+traces to be able to prove any system safe.) The problem lies in the
+fact that there is no transition from any point in $[0.5,1)
+  \times[5,6)$ to $[0.5,1) \times[9,10)$, but the transitive closure
+        of $\adistrans$ gives us such a transition anyway. 
+% \ADAM{I will try to add some more explanation}
+Using this method, \cite{alur} proves the correctness of the thermostat. 
+
+\weg{
+\section{Motivation}
+
+1. Verify the correctness of the abstraction itself
+
+2. Avoid Floating Point arithmetic
+
+3. Avoid correctness proofs of systems that are ``almost wrong''.
+   (Add one arrow to Thermostat!)
+
+- One cannot decide x>0 of a measured value
+- One can't define a function on the basis of distinguishing x<=y \/ x >y
+}
+
+
+\section{Formalization}
+We now describe the formalization in Coq and the design choices
+made. Some of the design choices were due to specifics in Coq or its
+type theory CiC, while other are due to our choice to work with exact
+real arithmetic and a constructive logic. We will mostly discuss the
+latter design choices, because we feel they are most relevant.
+
+\subsection{(Concrete) Hybrid Systems}
+\label{concrete}
+
+We begin by showing our definition of a concrete system, the different
+parts of which we discuss in the remainder of this section.
+
+\begin{code}
+Record System: Type :=
+  { Point: CSetoid
+  ; Location: Set
+  ; Location_eq_dec: EqDec Location eq
+  ; locations: ExhaustiveList Location
+  ; State :=  Location x Point
+  ; initial: State -> Prop
+  ; invariant: State -> Prop
+  ; invariant_initial: initial subsetof invariant
+  ; invariant_stable: forall s, Stable (invariant s)
+  ; flow: Location -> Flow Point
+  ; guard: State -> Location -> Prop
+  ; reset: Location -> Location -> Point -> Point
+  }.
+\end{code}
+
+This Coq definition defines the record type of ``Systems'', which
+contains a field ``Point'', representing the continuous state space
+and a field ``Location'', representing the set of locations. Here, we
+take Point to be an arbitrary Constructive Setoid, which is basically
+just a type with an equality on it. For Location, we assume a
+decidable equality and we assume a finite enumeration (``exhaustive
+list'') of locations. The other parts are as expected (``Flow Point''
+is the type of flow functions on the type ``Point''), except for the
+requirement that the invariant $\Inv_l$ is ``Stable'' for every
+location $l$.
+
+\subsection{Stability and Double Negation}
+\label{dn}
+
+A property $P$ ({\tt P: Prop}) is {\em stable\/} if $\neg \neg P \rightarrow P$ holds. 
+Classically, this is trivially true, but constructively
+not. 
+%Especially when we work with real numbers, we don't have $\leltdec: \forall
+%x, y \in \IR (x\leq y \vee y<x)$. This conforms with the view of real
+%numbers as an infinite sequence of better approximations: if $x$
+%converges to $0$ we will not be able to decide $x\leq 0 \vee 0<x$ in a
+%finite amount of time.
+
+In constructive logic, a proof of a
+disjunction $A\vee B$ (where $A$ and $B$ are arbitrary propositions) is
+either a proof of $A$ or a proof of $B$. Similarly, to have a
+proof of $X \rightarrow A \vee B$ is to have a function that, given an $X$,
+either returns a proof of $A$, or a proof of $B$. With this in mind,
+suppose we try to implement $\leltdec: \forall
+%x, y \in \IR (x\leq y \vee y<x)$. Then given $x$ and $y$ in
+$\IR$, we are to produce a proof either of $x \leq y$ or of $y <
+x$. Unfortunately, the nature of computable reals only lets us observe
+arbitrarily close approximations of $x$ and $y$. Now suppose $x =
+y$. Then no matter how closely we approximate $x$ and $y$, the error
+margins (however small) will always leave open the possibility that
+$y$ is really smaller than $x$. Consequently, we will never be able to
+definitively conclude that $x \leq y$.
+
+Computable reals do admit two variations of the proposition:
+\begin{enumerate}
+\item $\leltdecoverlap: \forall x y: \IR. ( x < y \rightarrow \forall z. (z \leq y \vee x \leq z))$
+\item $\leltdecDN: \forall x y: \IR. \neg  \neg  (x \leq y \vee y < x)$
+\end{enumerate}
+
+Both are weaker than the original, and are less straightforward to
+use. Nevertheless, this is the path we will take in our development,
+because just taking $\leltdec$ as an axiom amounts to cheating.
+%and partly because in some parts of the development, we may need to
+%really ``run'' these lemmas to obtain $\leq$/$<$ proofs or to do a
+%case distinction in an algorithm. Having an axiom, disables such
+%algorithms to complete.
+ 
+A place where we definitely need the stability of the invariant is in
+proving the obvious and useful property of {\em transitivity of the
+  continuous transition relation}: Suppose we have $(l, p) \contrans
+(l, p')$ and $(l, p')\contrans (l, p'')$ for location $l$ and points
+$p, p', p''$. 
+To show $(l, p)\contrans (l, p'')$, we must show (among other things)
+%that
+%$\Exists{d''\in \Dur}{\Phi_l(p, d'') = p''}$ -- for which we
+%simply take $d''$ to be the sum of the durations from $p$
+%to $p'$ and from $p'$ to $p''$ (call these $d$ and $d'$,
+%respectively), and observe:
+%\begin{eqnarray*}
+%  \Phi_l(p, d + d') & =& \Phi_l( \Phi_l (p, d), d')\\
+%    & =& \Phi_l(p', d')\\
+%    & =& p'' \nonumber
+%\end{eqnarray*}
+%What remains is to show 
+that the invariant holds at each point along the way. That is,
+$$\forall t, 0 \leq t \leq d + d' \rightarrow \Inv_l( \Phi_L(p, t)).$$
+We know this is true for $0 \leq t \leq d$, and we know that this is
+true for $d \leq t \leq d + d'$. Classically, then, the proof is done,
+for one can simply distinguish cases $t \leq d$ or $d < t$.  In our
+transitivity proof, we will use the variant expressed using double
+negation. Now we need only observe that $x \leq y$ is equivalent to $\neg(y < x)$, and that the law of the excluded middle holds under double negation. That is,
+$\forall P( \neg  \neg  (P \vee \neg  P))$
+is a trivial tautology.
+
+A question that immediately arises is: How does one actually use this
+doubly negated variant in proofs?  One practical way is to observe
+that double negation, as a function on propositions, is a monad
+\cite{wadler95monads}. Writing $\DN P$ for $\neg  \neg  P$, we have the following two key
+operations that make $\DN$ a monad:
+
+%format return_DN
+%format bind_DN
+\begin{code}
+  return_DN: forall A, A -> DN A
+  bind_DN: forall A B, DN A -> (A -> DN B) -> DN B
+\end{code}
+
+The first expresses that any previously obtained result can always be
+inserted ``into'' the monad. The second expresses that results inside
+the monad may be used freely in proofs of additional properties in the
+monad. For instance, one may $bind_{\DN}$ a proof of $\DN (x \leq y \vee y < x)$ 
+(obtained from $\leltdecDN$ above) with a proof of $(x \leq y \vee y < x) \rightarrow \DN P$, yielding a proof of $\DN P$.
+ 
+Thus, $\DN$ establishes a ``proving context'' in which one may make
+use of lemmas yielding results inside $\DN$ that may not hold outside
+of it (such as $\leltdecDN$), as well as lemmas yielding results
+not in $\DN$, which can always be injected into $\DN$ using
+$return_{\DN}$. The catch is that such proofs always end up with results
+in $\DN$, which begs the question: what good is any of this? In
+particular, can $\leltdecDN$ be used to prove anything not doubly
+negated?
+ 
+As it happens, there is the class of \emph{stable} propositions (that
+are equivalent to their own double negation). Examples include
+negations, non-strict inequalities on real numbers, and any decidable
+proposition.
+ 
+We have seen why we required invariant stability:
+%in section \ref{concrete}: 
+in the transitivity proof for continuous transitions
+it allows
+us to employ $\leltdecDN$ to do case distinction on the $t$ variable
+when showing that the invariant holds at each point along the
+composite path. That is, we simply bind $\leltdecDN t d$ of type
+$\DN (t \leq d \vee d < t)$ with the straightforward proof of $(t \leq d
+\vee d < t) \rightarrow \DN (\Inv_l(\Phi_l (p, t)))$, and
+then pull the latter out of $\DN$ on account of its stability.
+ 
+Invariants are typically conjunctions of inequalities, which are
+stable only if the inequalities are non-strict. Hence, the limits on
+observability of computable real numbers ultimately mean that our
+development cannot cope with hybrid systems whose location invariants
+use strict inequalities. We feel that this is not a terrible loss. In
+section \ref{abstraction} we will see analogous limitations in the
+choice of one's abstraction parameters.
+ 
+%An important point to make here is that the $\DN$ version is also
+%\emph{sufficient\/} for proving safety, because the ultimate goal to
+%prove is $\forall s\in \State( \Unsafe(s) \rightarrow \neg\Reach(s))$.
+%This is a stable proposition, because the conclusion is a negated
+%proposition, so is we have prove it ``under $\DN$'' we can extract it
+%and conclude safety.
+
+\subsection{Abstract Hybrid Systems}
+\label{abshybsys}
+\label{abstraction}
+We now want to define an abstract system and an abstraction function
+satisfying the properties indicated in diagram
+\ref{diag:abstraction}. However, this is not possible, because we
+cannot make a case distinction like $x\leq 0 \vee 0< x$ and therefore
+we can't define a function that sends a point $(c,T)$ to the rectangle $R$
+it is in. We can define a function that approximates a point $(c,T)$
+up to, say $\epsilon$ ($\epsilon >0$) and then decides to send that
+point to the rectangle $R$ the approximation is in. This implies that,
+when one is close to the edge of a rectangle,
+\begin{itemize}
+\item 
+different {\em representations\/} of the same point $(c,T)$ may be
+sent to different rectangles,
+\item
+a point that is $<\epsilon$ outside the rectangle $R$ may still be sent to $R$.
+\end{itemize}
+The second is very problematic, because the property for the
+abstraction function $A$, as depicted in diagram
+\ref{diag:abstraction} is now just false.
+
+These may seem just anoying problems,
+caused by the fact that our logic is constructive, but we claim it is
+not. It is is a fact of physical reality that one can only get a
+finite approximation of a measured value, so case distinctions like
+$x\leq 0 \vee 0< x$ are unrealistic. Moreover, we claim that the
+classical abstraction method allows one to prove the safety of systems
+that are unreliable in practice. We will not expand on this here, but
+suppose we add a fourth location $\Off$ to the thermostat of Figure
+\ref{fig:thermostat}, with $\cdot{T} = -1$, $\cdot{c} =1$ and an arrow
+from $\Heat$ to $\Off$ with guard $c\geq 2 \wedge T<9$. Clearly, if
+the system can end up in location $\Off$, its is unsafe. Now, using
+the classical abstraction method, there is no transition to any state
+involving location $\Off$ from the initial state, because as soon as
+$c\geq 2$, $T\geq 9$. However, when we get close to $c=2$, any small
+mistake in the measurement of $T$ may send the system to $\Off$,
+making the whole hybrid system very unreliable.
+
+The good thing is that we don't really need the property in Diagram
+\ref{diag:abstraction}, because we can do something better. 
+\begin{itemize}
+\item
+We let regions in the abstract hybrid systems overlap (ideally as
+little as possible, e.g.\ only at the edges).
+
+\item
+We replace the {\em abstract continuous transition\/} relation
+$\acontrans$ by a function $\overcontrans$ that takes a region $R_0$
+as input and outputs a {\em list of regions\/} including $R_0$: $(R_o,
+R_1, \ldots, R_n)$ in such a way that $\cup_{0\leq i\leq n}R_i$ is an
+overapproximation of the set of states reachable by a continuous step
+from a state in $R_0$.\\
+We do something similar for the {\em abstract discrete transition}, and obtain $\overdistrans :\Region \rightarrow List \Region$.
+\item
+We loosen the requirement on the abstraction function $A$; for $s \in \State$, we only require $\DN {\exists r\in \Region}{(s\in r)}$.
+\end{itemize}
+
+So, to summarize, if $s\contrans s'$, then we don't require $s'$ to
+$A(s')$ to be in the list $\overcontrans(A(s))$, but we just require
+$s'$ to be in the $\bigcup \overcontrans(A(s))$. (Basically it should
+be in one of the regions in the list $\overcontrans(A(s))$.) This
+simple change relieves us from having to determine the exact regions
+that points are in: they just should be covered. The functions
+$\overcontrans$ and $\overdistrans$ yield a notion of {\em trace\/} in the abstract
+hybrid system in the obvious way: starting from $R_0$, take an $R_1$ in $\overcontrans( R_0)$, then an $R_2$ in $\overdistrans(R_1)$, and so forth.
+
+
+\weg{
+The abstraction method for verification of (concrete) hybrid system safety as we implement it can be summarized as follows:
+\begin{enumerate}
+\item build an abstract hybrid system corresponding to the concrete hybrid system;
+\item 
+\label{steptwo} 
+show that each trace in the concrete system corresponds to some trace
+in the abstract system (and as a corollary, that reachability in the
+concrete system implies reachability in the abstract system, and most
+importantly, that unreachability in the abstract system implies
+unreachability in the concrete system);
+\item 
+\label{stepthree} 
+run a certified graph reachability algorithm on the (finite, discrete)
+abstract system to verify that no unsafe \emph{abstract} states are
+reachable;
+\item 
+conclude from \ref{steptwo} and \ref{stepthree} that no unsafe
+\emph{concrete} states are reachable either.
+\end{enumerate}
+}
+
+Whereas in a concrete hybrid system states consist of a location
+paired with a point in the continuous state space, in an abstract
+hybrid system states consist of a location paired with the ``name'' of
+a region corresponding to a subset of the continuous state space.
+
+From now on we will use a ``|concrete.|'' prefix for names like
+|State| defined in section \ref{concrete}, which now have abstract
+counterparts. |Region| is a field from a record type |Space| bundling
+region sets with related requirements:
+
+\begin{code}
+  Record Space: Type :=
+    { Region: Set
+    ; Region_eq_dec: EqDec Region eq
+    ; regions: ExhaustiveList Region
+    ; NoDup_regions: NoDup regions
+    ; in_region: Container Point Region
+    ; regions_cover: forall (l: Location) (p: Point),
+        invariant (l, p) -> DN { r: Region | p `elem` r }
+    }.
+\end{code}
+
+The |Container Point Region| type specified for |in_region| reduces to
+|Point -> Region -> Prop|. |Container| is a type class that provides
+the notation ``|x `elem` y|'', prettier than ``|in_region x
+y|''. 
+%|in_region_mor| states that |in_region| respects |Point|'s
+%setoid equality.
+
+|regions_cover| expresses that each concrete point belonging to a
+valid state must be represented by a region---a crucial ingredient
+when arguing that unreachability in the abstract system implies
+unreachability in the concrete system. The double negation in its
+result type is both necessary and sufficient:
+
+It is \emph{necessary} because |regions_cover| boils down to a
+(partial) function that, given a concrete point, must select an
+abstract region containing that point. This means that it must be able
+to decide on which side of a border between two regions the given
+point lies. As we saw in section \ref{dn}, that kind of decidability
+is only available inside |DN| unless all region borders have
+nontrivial overlap, which as we will see later is undesireable.
+
+Fortunately, the double negation is also \emph{sufficient}, because we
+will ultimately only use |regions_cover| in a proof of of |... -> ~
+concrete.reachable s| (for some universally quantified variable s),
+which, due to its head type being a negation, is stable, and can
+therefore be proved in and then extracted from |DN|. Hence, we only
+need |regions_cover|'s result in |DN|.
+
+\subsection{Underestimation and Overestimation}
+\label{estimation}
+
+% It \emph{will} always terminate, so we are not writing a semidecision procedure either.
+Ultimately, in our development we are writing a program that
+\emph{attempts} to produce hybrid system safety proofs. Importantly,
+we are \emph{not} writing a complete hybrid system safety decision
+procedure: if the concrete system is unsafe or the abstraction method
+fails, our program will simply not produce a safety proof. It might
+seem, then, that we are basically writing a \emph{tactic} for a
+particular problem domain. However, tactics in Coq are normally
+written in a language called Ltac, and typically rely on things like
+pattern matching on syntax. Our development, on the other hand, is
+very much written in regular Gallina, with hardly any significant use
+of Ltac. 
+
+We define |underestimation P| to be either a proof of
+|P|, or not. In Coq, either of the following will do:
+\begin{code}
+Definition underestimation (P: Prop): Set := option P.
+Definition underestimation (P: Prop): Set := { b: bool | b = true -> P }.
+\end{code}
+The latter tends to work better with the |Program| family of commands
+\cite{sozeau} which have special support for dependent pairs. Using
+|Program|, an underestimation of the second variety may be
+provisionally defined strictly as a bool, and then separately proved
+to be a valid underestimation in a proof obligation generated by
+|Program|. The second form also nicely illustrates why we call this an
+underestimation: it may be |false| even when |P| holds. We can now
+describe the functionality of our program by saying that it
+underestimates hybrid system safety, yielding a term of type
+|underestimation Safe|, where |Safe| is a proposition expressing
+safety of a hybrid system.
+
+Considered as theorems, underestimations are not very interesting,
+because they can be trivially ``proved'' by taking
+|false|/|None|. Hence, the value of our program is not witnessed by
+the mere fact that it manages to produce terms of type
+|underestimation Safe|, but rather by the fact that when run, it
+actually manages to returns |true|/|Just P| for the hybrid system we
+are interested in (e.g.\ the thermostat). It is for this reason that
+we primarily think of the development as a program rather than a
+proof, even though the program's purpose is to produce proofs.
+The opposite of an underestimation is an overestimation:
+\begin{code}
+Definition overestimation (P: Prop): Set := { b: bool | b = false -> ~ P }.
+\end{code}
+
+Since hybrid system safety is defined as unreachability of unsafe
+states, we may equivalently express the functionality of our
+development by saying that it overestimates unsafe state
+reachability. Indeed, most subroutines in our programs will be
+overestimators rather than underestimators. Notions of overestimation
+and underestimation trickle down through all layers of our
+development, down to basic arithmetic. For instance, we employ
+functions such as:
+
+%format CRle_unapplied = <= "_{" CR "}"
+%format CRle a b = a <= "_{" CR "}" b
+%format Qpos = "\mathbb{Q}^{+}"
+%format overestimate_CRle = overestimate "_{" CRle_unapplied "}"
+
+%format epsilon = "\epsilon "
+
+\begin{code}
+overestimate_CRle (epsilon: Qpos): forall x y: CR, overestimation (CRle x y)
+\end{code}
+As discussed earlier, |CRle_unapplied| is not
+decidable. |overestimate_CRle| merely makes a ``best effort'' to prove
+|~ (CRle x y)| using |epsilon|-approximations. A smaller |epsilon|
+will result in fewer spurious |true| results.
+
+%\todo{|CRle_unapplied| can also be underestimated, right?}
+
+%format A_0
+%format A_n
+%format a_0
+%format a_n
+
+\weg{
+The types of underestimators and overerestimators often merely repeat
+a certain predicate's parameters, as in the |overestimate_CRle|
+example above. Using a bit of type class magic to achieve variadicity,
+we can rid us of this repetition. Given a predicate |P: A_0 -> ... ->
+A_n -> Prop|, we define |underestimator P| as the
+type 
+\begin{code}forall (a_0: A_0) ... (a_n: A_n), underestimation (P a_0 ... a_n).\end{code} 
+(And similar for |overestimator|.) With
+these, the type of |overestimate_CRle| may be written as |Qpos ->
+overestimator (CRle_unapplied)|. We use the same techniques for real decision procedures (in the few places we use those): we define |decision P| as |{P}+{~P}|, and given a predicate |P: A_0 -> ... -> A_n -> Prop|, we define |decider P| as the type |forall (a_0: A_0) ... (a_n: A_n), decision (P a_0 ... a_n)|.
+
+%\subsection{Automating estimator/decider composition}
+
+Underestimators, overestimators and deciders can be combined to form
+underestimators (resp. overestimators, deciders) for things like
+conjunctions and quantifications over finite domains. For instance,
+here is a combinator that forms conjunction overestimators:
+
+\begin{code}
+Program Definition overestimate_conj {P Q: Prop}
+  (x: overestimation P) (y: overestimation Q):
+    overestimation (P /\ Q) := x && y.
+Next Obligation.
+  intros [A B].
+  destruct x. destruct y.
+  simpl in H.
+  destruct (andb_false_elim _ _ H); intuition.
+Qed.
+\end{code}
+%\todo{clean up proof}
+Applying these combinators by hand to form estimators/deciders for
+composite propositions is somewhat tedious, but fortunately this
+process can be automated if we make |overestimation|,
+|underestimation|, and |decision| type classes:
+
+\begin{code}
+Class overestimation (P: Prop): Set
+  := overestimate: { b: bool | b = false -> ~ P }.
+\end{code}
+
+If we now say |overestimate P|, the type class instance resolution
+mechanism will try to find (or build) a term of type |overestimation
+P| by recursively applying declared type class instances. For
+instance, if we declare |overestimate_conj| above as a type class
+instance (instead of a plain definition) and then say |overestimate (A
+/\ B)| where |A| and |B| are already known to be overestimatable
+(meaning the resolution mechanism is able to build terms of types
+|overestimation A| and |overestimation B|), then the resolution
+mechanism will be able to build a term of type |overestimation (A
+/\ B)| by applying |overestimate_conj|.
+
+We show one nontrivial example to illustrate the convenience of this mechanism: at one point in the development we have Coq automatically construct an overestimator of the property
+\begin{code}
+  exists u: abstract.State, In u astates /\ reachable u,
+\end{code}
+simply by saying
+\begin{code}
+  overestimate (exists u: abstract.State, In u astates /\ reachable u).
+\end{code}
+To construct this overestimator, Coq recursively applies a variety of
+instances that show that (1) decidable properties are overestimatable;
+(2) existentially quantified decidable properties over finite domains
+are decidable; (3) |abstract.State| is a finite domain; (4)
+conjunctions of decidable properties are decidable; (5) list
+membership is decidable if equality is decidable for the element type;
+(6) equality is decidable for products (such as |abstract.State|) if
+equality is decidable for the components; (7) equality is decidable
+for |Location|s; (8) equality is decidable for abstract (symbolic)
+regions; (9) reachability in the abstract system is decidable.
+
+In \cite{hintsinunification}, Asperti et al. use a similar technique
+(but implemented using unification hints instead of type classes) to
+automate reflection of algebraic expressions in concrete syntax into a
+an inductively defined abstract syntax.
+}
+
+\weg{
+\section{Abstraction: Regions, States, and Spaces}
+
+We can lift the containment relation between points and regions to a containment relation between concrete states and abstract states:
+\begin{code}
+  Instance abs: Container concrete.State abstract.State
+    := fun (l, p) (l', r) => l = l' /\ p `elem` r.
+\end{code}
+Again, the |Container| application reduces to |concrete.State -> abstract.State -> Prop|, but the use of |Container| lets us say |s `elem` s'| instead of |abs s s'|. \todo{Coq trunk has nameless instances, I believe, which would let us dispense with the pointless |abs| name altogether.}
+
+%format inf = "\infty "
+%format closesquare = "\hspace{-1mm}] "
+
+% Suppose one has a very simple concrete system with the trivial invariant |True| and only a single continuous variable in |CR|. And suppose one wishes to abstract this system using two regions, corresponding to the ranges |(inf, 2 closesquare| and |(2, inf)|, respectively. Then implementing |regions_cover| amounts to deciding, for any |x|, whether |x <= 2| or |2 < x|. As discussed in section \ref{bla}, bla. And as before, the solution involved the double negation monad |DN|.
+
+
+
+% Unfortunately, the constructive real number representation we use does not feature decidability of this particular query, because they fundamentally only let one observe arbitrarily close approximations, and if |x| happens to be 2, no approximation of it can decisely determine whether |x <= 2| or |2 < x| (because 2 will always lie within the error range of the approximation).
+
+% One solution to this problem is to make sure one's abstract regions have nontrivial overlap. For example, one could instead have regions corresponding to |(inf, 2.01)| and |(2, inf)|. An approximation of |x| with error margin 0.05 would then let one find at least one range that definitely contains |x|. Unfortunately, as we will see later, region overlap can result in undesireable transitions (and therefore traces), which can adversely affect the abstract system's utility. We therefore use a different solution, which is where |DN| comes in.
+
+% As it turns out, there are propositions that are not provable themselves, but whose double negation \emph{is} provable. The proposition |x <= 2 \/ 2 < x| is an example of such a proposition. Defining |DN P| as |~ ~P|, |DN (x <= 2 \/ 2 < x)| is provable (for any |x|). This |DN| is a monad, which means that one can reason ``inside'' of it, deriving ever more doubly negated propositions, possibly making use of lemmas/functions with result types also in |DN|. Such lemmas/functions are ``weak'' in the sense that their result can only be used in proofs inside the |DN| monad.
+
+% Now, there exist propositions |P| for which |DN P| is equivalent to |P| (these are called ``stable'' propositions). One important example are propositions of the form |~ P|. To prove such a proposition, one may do so inside the |DN| monad, making use of propositions which are only true inside |DN|, until one has derived |DN P|, at which point |P| may be extracted.
+
+% In our hybrid system development, we willl ultimately only use |regions_cover| in a proof of |... -> ~ concrete_reachable s| (for some universally quantified variable s), which, due to its head type being a negation, is stable. Hence, this proof can be performed inside the DN monad, which means it is sufficient for |regions_cover| to have the weaker |DN| result, which in turn means it may make use of DN-only lemmas such as the trichotomy property for |CR|, which in turn means we need not resort to non-trivial region overlap.
+
+% The result type of |regions_cover|, |DN (sig (in_region p))|
+% On the other hand, |regions_cover| 
+}
+
+\subsection{Abstract Space Construction}
+\label{abs.space.constr}
+
+When building an abstract system, one is in principle free to divide the continuous state space up whichever way one likes. However:
+\begin{itemize}
+\item if the regions are too fine-grained, there will have to be very many of them to cover the continuous state space of the concrete system, resulting in poor performance;
+\item if the regions are too coarse, they will fail to capture the subtleties of the hybrid system that actually make it safe (if indeed it is safe at all);
+\item careless use of region overlap can result in undesireable abstract transitions (and therefore traces), adversely affecting the abstract system's utility 
+%(as we will discuss in detail in section \ref{trouble}).
+\end{itemize}
+
+\weg{ Like |Alur|, we use regions formed by multiplying intervals on
+  individual continuous variables. That is, for the thermostat, we
+  first define a |Space| partitioning the continous state space into
+  regions corresponding to clock intervals (which in the development
+  amounts to enumerating the interval bounds, thanks to some generic
+  space definition utilities we wrote), then define a |Space|
+  partitioning the continuous state space into regions corresponding
+  to temperature intervals, and then take the product of these to
+  obtain a |Space| where regions correspond to ``squares'' in the
+  continuous state space.
+
+\todo{Mention optional unbounded-ness? Of no theoretical interest, but makes implementation a bit more work.}
+}
+
+In \cite{alur}, a heuristic for interval bound selection is described,
+where the bounds are taken from the constants that occur in the
+invariant, guard, and safety predicates. For the thermostat, we
+initially attempted to follow this heuristic and use the same bounds,
+but found that due to our use of computable reals, we had to tweak the
+bounds somewhat to let the system successfully produce a safety
+proof. 
+\weg{
+We give one example of why such tweaking was required.
+
+Following the heuristic, Alur derives the following two regions:
+%format r_0
+%format r_1
+%format p_0
+%format p_1
+\begin{code}
+  r_0 := { (c, t): Point | c <= 0 /\ 5 <= t <=6 }
+  r_1 := { (c, t): Point | 2 <= c <= 3 /\ 6 < t < 9 }
+\end{code}
+
+In the |Heat| location, where both the clock and the temperature increase linearly, the latter twice as fast as the former, there is a concrete continuous transition from |p_0 := (0, 5) `elem` r_0| to |p_1 := (2, 9)|. |p_1| is not an element of |r_1|, and since the floating point representation Alur uses presumably easily lets one conclude that |5+2*2 </ 9|, Alur's procedure manages to determine that there is no continuous transition from any point in |r_0| to a point in |r_1|, justifying suppression of any abstract continuous transition from |(Heat, r_0)| to |(Heat, r_1)| (we will discuss abstract transitions in detail in the next section).
+
+Unfortunately, our computable reals only let us compute arbitrarily close approximations of |5+2*2|. 
+Consequently, in the process of determining whether there ought to be an abstract continuous transition from |(Heat, r_0)| to |(Heat, r_1)|, our procedure (which we will describe in \ref{over_cont_trans}) will fail to conclude with certainty that this value does not lie below 9, will thus be unable to definitively establish the absence of concrete continuous transitions from points in |r_0| to points in |r_1|, and will be forced to include the transition, to ensure that the abstract transition relation respects its concrete counterpart (in a way discussed in detail in the next section).
+
+As it happens, the thermostat's safety indirectly depends on unreachability of |(Heat, r_1)|, and since |(Heat, r_0)| is a reachable state, the addition of the transition mentioned above makes the abstract system unsafe, obviously preventing us from using it to conclude safety of the concrete system.
+
+% Hence, by the fallback mechanism we will describe in \ref{bla}, the procedure \emph{will} default to emitting an abstract continuous transition from |(Heat, r_0)| to |(Heat, r_1)|. 
+  
+To correct this kind of problem, we tweaked many of the bounds, nudging them slightly toward one side or the other. For this particular example, we changed the 9 bound to 8.9. That way, the comparison reduces to |5+2*2 </ 8.9|, which a sufficiently close approximation \emph{can} automatically establish.
+
+\todo{Mention that the epsilon we use in computation to determine whether there's a transition from some point to another (and in the side conditions and box comparisons and such) is a parameter of the abstraction procecudure. for the actual safety proof, we take this epsilon to be 0.001, which makes the 0.1 nudge in things like 8.9 large enough.}
+
+\todo{Note that since the abstract system is only an overestimation of the concrete system, its unsafety does not imply unsafety of the concrete system.}
+
+\todo{Emphasize that changing the abstraction interval bounds does not mean our result isn't as "pure" as Alur's, because the whole abstraction business only serves to prove concrete system safety, and we do prove safety of the same concrete system as Alur.}
+}
+Having to do this "tweaking" manually is obviously not idea. One may want to develop heuristics for this. 
+\
+
+% The main idea of abstraction is to come up with a finite set of "regions", each corresponding to a subset of the continuous state space, and to analyze traces through these regions instead of traces through points.
+
+
+Another way in which our thermostat regions differ from \cite{alur}
+lies in the fact that our bounds are always inclusive, which means
+adjacent regions overlap in lines. We will discuss this in more detail
+later.
+
+ %(* todo: hide the nodup part? *)
+% todo: embed AState := ?
+
+\weg{ \todo{mention that the reason the space definition could be
+    mostly automated is that |regions_cover| is essentially a whole
+    bunch of if-then-else's (which are only constructive inside |DN|)}
+}
+
+\subsection{Abstract Transitions and Reachability}
+\label{abs.reach}
+
+% hm, where shoudl we introduce alternating stuff?
+
+Once we have a satisfactory abstract |Space|, our goal is to construct
+an overestimatable notion of abstract reachability implied by concrete
+reachability, so that concrete unreachability results may be obtained
+simply by executing the abstract reachability overestimator. We first overestimate the continuous transitions; we need the following definition for that.
+
+\weg{
+It seems
+reasonable, then, to look for an overestimatable predicate
+|abstract.reachable| such that |reachable_respect| holds:
+\begin{code}
+Definition reachable_respect: Prop :=
+  forall (s: concrete.State), concrete.reachable s ->
+    forall (s': abstract.State), s `elem` s' -> abstract.reachable s'.
+\end{code}
+After all, this would imply
+\begin{code}
+forall (s: concrete.State) (s': abstract.State),
+   s `elem` s' -> ~ abstract.reachable s' -> ~ concrete.reachable s,
+\end{code}
+expressing that to conclude unreachability of a concrete state, one
+need only establish unreachability of an abstract state that contains
+it. However, as abstract states may overlap, the above definition of
+|reachable_respect| leads to problems, so this is not
+actually the definition we use in the development. We first introduce |shared_cover|, expressing that a collection of abstract states together covers a collection of concrete states.
+}
+
+\weg{
+However, in order
+to see the motivation for the actual definition we use, let us proceed
+as if without foresight for a few more moments.
+
+\subsection{The Straightforward (but Inadequate) Approach}
+\label{straightforward}
+
+The definition of |reachable_respect| above suggests that the property we would wish to overestimate is simply
+\begin{code}
+Definition abstract.reachable (s: abstract.State): Prop
+  := exists s': concrete.State, s' `elem` s /\ concrete.reachable s'.
+\end{code}
+In order to overestimate it, we could introduce the following obvious abstract versions of initiality and continuous and discrete transitions:
+\begin{code}
+  Definition abstract.initial (s: abstract.State): Prop
+    := exists c `elem` s, concrete.initial c.
+  Definition abstract.cont_trans: relation abstract.State
+    := fun s s' => exists (c `elem` s) (c' `elem` s'), concrete.cont_trans c c'.
+  Definition abstract.disc_trans: relation abstract.State
+    := fun s s' => exists (c `elem` s) (c' `elem` s'), concrete.disc_trans c c'.
+\end{code}
+We could then prove (by induction over traces) that |abstract.reachable| is included in the transitive closure of |abstract.cont_trans `union` abstract.disc_trans| starting at |abstract.initial|:\footnote{One would actually take the \emph{alternating} transitive closure, but we will get to that later.}
+
+\begin{code}
+  Definition abstract.trans: relation abstract.State :=
+    abstract.cont_trans `union` abstract.disc_trans.
+
+  Definition reachable_by_abstract_trace (s: abstract.State): Prop
+    := exists i, abstract.initial i /\ trans_refl_closure (abstract.trans) i s.
+
+  Lemma: abstract.reachable `subsetof` reachable_by_abstract_trace.
+\end{code}
+This would show that |abstract.reachable| could be overestimated by overestimating |reachable_by_abstract_trace|. For the latter, we would first define an \emph{abstract system} as a triple containing overestimators for |abstract.initial|, |abstract.cont_trans|, and |abstract.disc_trans|:
+\begin{code}
+Record abstract.System: Type :=
+  { over_initial: overestimator abstract.initial
+  ; over_cont_trans: overestimator abstract.cont_trans
+  ; over_disc_trans: overestimator abstract.disc_trans
+  }.
+\end{code}
+Given an instance of this record, we would then overestimate |reachable_by_abstract_trace| by constructing a graph with vertices representing abstract states and edges representing overestimated abstract transitions, and running an ordinary (but verified) graph reachability algorithm on this graph.
+
+Thus, the task would be reduced to construction of the three overestimators.
+
+\subsection{Clouds on the Horizon: Drift}
+\label{trouble}
+
+All of the above seems perfectly reasonable, but having gotten to the level of abstract transition overestimators, we can now see where things would (and did, in early versions of our development) go wrong. Unfolding the |overestimator| type specified for the |over_cont_trans| member in |abstract.System|, we get
+\begin{code}
+  forall (s s': abstract.State), { b: bool | b = false -> ~ abstract.cont_trans s s' }.
+\end{code}
+Hence, |over_cont_trans| would need to satisfy:
+\begin{code}
+  forall (s s': abstract.State), abstract.cont_trans s s' ->
+    abstract.cont_trans_over s s' = true
+\end{code}
+Which rewrites to:
+\begin{code}
+  forall (c c': concrete.State), concrete.cont_trans c c' ->
+  forall (s s': abstract.State), c `elem` s) -> c' `elem` s' ->
+    over_cont_trans s s' = true
+\end{code}
+In other words, the existence of a (continuous) transition from one concrete state to another would force inclusion of transitions between any two abstract states that contain the respective concrete states. When regions do not overlap, this is perfectly appropriate. However, consider the implications in the following example involving overlapping regions.
+
+Suppose our continuous state space is |CRge0|, and our abstract regions are intervals of the form |[n, n+1]| with |n `elem` nat|. Further suppose that in some location |l|, the flow function monotonically increases. Then by the above, |over_cont_trans| must yield |true| given |(l, [1, 2])| and |(l, [0, 1])| (in that order), because in |l|, there actually is a concrete continuous transition from a point in the former to a point in the latter, namely from 1 to 1 (since the continuous transition relation is reflexive). Hence, we would get an abstract transition from |(l, [1, 2])| to |(l, [0, 1])|, essentially introducing abstract flow in the opposite direction of the concrete flow. This can clearly have disastrous consequences for unreachability of abstract states containing unsafe states, which can render the abstraction useless.
+
+Intuitively, the transition from |(l, [1, 2])| and |(l, [0, 1])| seems \emph{redundant}, because the only point in |[0, 1]| that can be flowed to from |[1, 2]| is a point that is actually still in |[1, 2]|. Making |[0, 1]| reachable on account of this redundant transition seems wasteful. Let us formalize this notion of redundance:
+\begin{code}
+  Definition redundant_cont_trans (l: Location): relation Region
+    := fun r r' => forall p, p `elem` r -> forall t, 0 <= t -> flow l p t `elem` r' -> flow l p t `elem` r.
+\end{code}
+This relation can be lifted to abstract states. An analogous definition can be given for abstract discrete transitions.
+
+\todo{Discuss strong redundancy which holds over space composition.}
+
+We call the phenomenon of redundant transitions being generated by abstract transition overestimators: ``drift''. With the specifications for abstract transition overestimators given in the previous section, drift is an inescapable consequence when regions overlap, occurring not only for continuous abstract transitions (as shown above), but also for discrete abstract transitions (as will be discussed in section \ref{over_disc_trans}).
+
+It is important to note that drift is not just a consequence of ill-chosen specifications or regions. Suppose we use strictly non-overlapping regions. While this would solve the problem at the specification level (in that the specification would no longer force the overestimators to produce redundant transitions), the overestimator \emph{implementations} would still be bound to yield redundant transitions when no specific countermeasures are employed. As a trivial example, consider non-overlapping regions [0,1) and [1,2), again with monotonically increasing flow. To justify omission of an abstract continous transition from [1,2) to [0,1), an overestimator implementation would need to prove that |1 </ 1|, which is not decidable or meaningfully underestimatable given only arbitrarily close approximations of 1.
+
+Hence, our drift countermeasures will be twofold. First, we will first ensure that at the \emph{specification} level, transition overestimators are no longer forced to emit redundant transitions. Then, in sections \ref{over_cont_trans} and \ref{over_disc_trans}, we show how our overestimator \emph{implementations} exploit this freedom and use a redundancy hint mechanism to detect and omit redundant transitions.
+
+\todo{Describe somewhere how things go \emph{completely} wrong when regions have surface overlap.}
+
+\subsection{Specification Drift Avoidance: Sharing Overestimators}
+
+To avoid drift at the specification level, we must either alter the specifications of abstract transition overestimators to account for redundancy (which will necessitate analogous changes in the specifications of abstract reachability and respect, as we will see in a moment), or avoid region overlap.
+
+Practically speaking, using non-overlapping regions implies the use of non-strict equalities, as in the example above. As it happens, non-strict and strict constructive inequalities on real numbers live in different universes: the former live in |Prop|, while the latter live in |Type| \todo{explain why}. Since derived propositions (such as |p `elem` r| for a point |p| and a region |r|) all inherit this trait, we would essentially have to give up on |Prop| for the entire development. Unfortunately, several components in the Coq system, including the highly useful subset coercion functionality of the |Program| family of commands, currently only support |Prop|. While these are strictly engineering concerns that may or may not have theoretical substance, they do matter when developing a working system.
+
+On the other hand, changing the abstract transition overestimator specification, abstract reachability, and respect specifications, turns out to be a relatively local change, affecting only a few hundred lines of code, most of them in the one module that introduces these concepts and proves some key lemmas about them.
+
+From an engineering perspective, then, the choice is easy. We will now describe the changes in abstract transition overestimator specification in detail.
+
+% todo: The continuous hint mechanism only works with border-overlap.
+% todo: how about making abstraction bounds rationals?
+% Drift at the specification level (as discussed in the previous section) \emph{can} be avoided by restricting oneself to abstract spaces whose regions do not overlap, but drift at the implementation level cannot. 
+% blabla evil---even though we're using alternating transitions.
+% Discrete abstract transitions suffer the same fate, but in a slightly 
+
+\noindent In the discussion of the first example in the previous section, we judged the redundant abstract transition from |(l, [1, 2]|) to |(l, [0, 1])| to be ``wasteful'' because the destination of the sole concrete continuous transition from 1 to 1 that spawned it was already covered by |[1, 2]|, and so if |[1, 2]| is reachable, there should be no reason to make |[0, 1]| reachable as well. Implicit in this intuition is the idea that regions ought to \emph{share} the burden of being reachable on behalf of the points they represent: if 1 is a reachable concrete point, then reachability of |[1, 2]| should remove the need for reachability of |[0, 1]| (to represent reachability of 1), and vice versa.
+
+Unfortunately, as shown in the previous section, the overestimator specifications used in the definition of |abstract.System| given in section \ref{straightforward} do not permit this sharing. Let us consider how they would need to be changed to allow for it. We can easily make the unfolded specification of |over_cont_trans| shown in the previous section permit sharing by substituting one universal quantifier with an existential one:
+\begin{code}
+  forall c c', concrete.cont_trans c c' ->
+  forall (s: abstract.State), c `elem` s ->
+  exists (s': abstract.State), c' `elem` s' /\
+    over_cont_trans s s' = true
+\end{code}
+Applied to the example above, the existence of a concrete continuous transition from 1 to 1 now only results in the requirement that
+\begin{code}
+  forall (s: abstract.State), (l, 1) `elem` s ->
+  exists (s': abstract.State), (l, 1) `elem` s' /\
+    over_cont_trans s s' = true
+\end{code}
+This means |over_cont_trans| now has the freedom to return |false| given |(l, [1, 2])| and |(l, [0, 1])| (thereby suppressing creation of that abstract transition) if it returns |true| given |(l, [0, 1])| and |(l, [0, 1])| (which it will have to anyway).
+
+To give |over_cont_trans| and |over_disc_trans| new types that embody this new specification, to replace the old |overestimator| types, we first introduce |shared_cover|:
+}
+
+\begin{code}
+  Definition shared_cover
+    `{Container concrete.State C} `{Container abstract.State D}
+      (cs: C) (ss: D): Prop :=
+        forall s: concrete.State, In s cs -> DN (exists r: abstract.State, In s r /\ In r ss).
+\end{code}
+
+The details of the |Container| type class are of no interest to us
+right now; one may think of |C| and |D| as the types of lists over
+concrete states, respectively over abstract states.  What matters is
+that a ``container'' of concrete states is said to be sharedly-covered
+by a ``container'' of abstract states if for each of the concrete
+states in the former there is an abstract state in the latter that
+contains it.
+%\footnote{The double negation is here for much the same
+%  reasons as were given in section \ref{regionsandstates} for the
+%  double negation in the type of |regions_cover|.} 
+We state this in
+terms of |Container|s so that the definition applies to any types
+which have a reasonable notion of containment.
+
+\weg{
+Stated in terms of |shared_cover|, a reasonably straightforward type for |over_cont_trans| would be:
+\begin{code}
+over_cont_trans: forall s: abstract.State,
+  { p: abstract.State -> bool |
+    shared_cover (fun c' => exists c `elem` s, concrete.cont_trans c c') p }
+\end{code}
+That is, |over_cont_trans| would be a function that, given an abstract state, returns a boolean predicate on abstract states that, when interpreted as a container in the obvious way, covers all concrete states reachable by a single concrete continuous transition from a concrete state contained in the original abstract state. We make a few last adjustments to arrive at the actual type used in the development.
+
+First, the abstract transition only actually needs to cover points at which the invariant holds. Integrating that fact in the type of |over_cont_trans| allows us to use |regions_cover| in its implementation:
+\begin{code}
+over_cont_trans: forall s: abstract.State,
+  { p: abstract.State -> bool | shared_cover
+    (fun c' => concrete.invariant c' /\ exists c `elem` s, concrete.cont_trans c c') p }
+\end{code}
+Using some |Container| utilities, we may write this in a more point-free fashion:
+%format `inter` = "\cap "
+%format `compose` = "\circ "
+%format utilflip (a) = a "^{-1}"
+%format prettysig = "\Sigma"
+\begin{code}
+over_cont_trans: forall s: abstract.State,
+  { p: abstract.State -> bool | shared_cover
+    (concrete.invariant `inter` (overlap s `compose` utilflip (concrete.cont_trans))) p }
+\end{code}
+The use of a boolean predicate is less than ideal because it means that to enumerate all abstract states directly reachable from some given abstract state (which we will have to do eventually when computing reachability in a graph whose edges are built from these overestiamtors), one basically needs to filter an exhaustive list of all abstract regions using the predicate, while one could easily imagine that clever overestimator implementations could exploit locality to exclude certain classes of potential transition destinations a priori from consideration. To facilitate such overestimators (which we do not develop in this report), we replace the boolean predicate with a \emph{list} of abstract states. Since lists are also |Container|s, the rest of the definition remains unchanged:
+\begin{code}
+over_cont_trans: forall s: abstract.State,
+  { p: list abstract.State | shared_cover
+    (concrete.invariant `inter` (overlap s `compose` utilflip (concrete.cont_trans))) p }
+\end{code}
+
+Lists may contain duplicates. The graph reachability algorithm which we will use in section \ref{graphs} relies on absence of duplicates in the edge relation (expressed as a function returning lists) for its termination proof. While we could filter out duplicates at a much later stage to satisfy that requirement, we choose to let the no-duplicates requirement propagate through to our overestimator specification, avoiding premature pessimization:
+}
+
+We now specify what the type of $\overcontrans$ should be.
+\begin{code}
+over_cont_trans: forall s: abstract.State,
+  { p: list abstract.State | NoDup p /\ shared_cover
+    (concrete.invariant `inter` (overlap s `compose` utilflip (concrete.cont_trans))) p }
+\end{code}
+So, |over_cont_trans s| should produce a list of abstract states |p|
+without duplicates (to enhance the graph reachability algorithm that
+we don't detail here, but that will do the actual computation of the
+reachability set), such that |p| is a shared cover of the collection
+of concrete states |c| that satisfy the invariant and whose set of
+origins under |concrete.cont_trans| have an overlap with |s|. In more
+mathematical terms: |p| should form a shared cover of $\{ c \in \State
+\mid \Inv(c) \wedge s\cap \{c' \mid c' \contrans c\} \neq \emptyset\}$.
+
+\weg{
+The |vm_compute| tactic we will ultimately use to run our program
+tends to reduce terms in |Prop| a bit too eagerly, adversely affecting
+performance. So to work around this, we have introduced a bit of laziness in
+the form of a little ``unit abstraction'' that we will not detail here.
+}
+
+We similarly specify |over_disc_trans| as an overestimator for
+|concrete_disc_trans| and |over_initial| as an overestimator of
+|concrete.initial|. 
+
+ \weg{
+\begin{code}
+over_cont_trans: forall s: abstract.State,
+  { p: list abstract.State | () -> (NoDup l /\ shared_cover
+    (concrete.invariant `inter` (overlap s `compose` utilflip (concrete.cont_trans))) p) }
+\end{code}
+This will still let us use the property in proofs, but will stop |vm_compute| from unnecessarily evaluating its proof term.
+
+Finally, we actually need the same definition for abstract discrete transitions, so we factor out the common part:
+\begin{code}
+Definition sharing_transition_overestimator
+  (R: relation concrete.State): Set := forall s: abstract.State,
+    { p: list abstract.State | () -> (NoDup l /\ shared_cover
+      (concrete.invariant `inter` (overlap s `compose` utilflip R)) p) }.
+\end{code}
+We can now show the definition of |abstract.System| as it appears in the development:
+\begin{code}
+  Record abstract.System: Type :=
+    { over_initial: overestimator (overlap concrete.initial)
+    ; over_disc_trans: sharing_transition_overestimator concrete.disc_trans
+    ; over_cont_trans: sharing_transition_overestimator concrete.cont_trans
+    }.
+\end{code}
+
+\subsection{Propagating Sharing Upwards}
+
+Consider again the definition of |abstract.reachable| given in section \ref{straightforward}:
+\begin{code}
+Definition abstract.reachable (s: abstract.State): Prop
+  := exists s': concrete.State, s' `elem` s /\ concrete.reachable s'.
+\end{code}
+Clearly, this definition does not let abstract states share the burden
+of reachability, and can therefore not be overestimated using our
+retyped abstract transition overestimators. But recall that it
+followed directly from
+}
+
+We now consider the properties we require for |abstract.reachable|. The following basic specification we had in mind:
+
+\begin{code}
+Definition reachable_respect: Prop :=
+  forall (s: concrete.State), concrete.reachable s ->
+    forall (s': abstract.State), s `elem` s' -> abstract.reachable s'.
+\end{code}
+Which we chose because it implies
+\begin{code}
+forall (s: concrete.State)
+  (exists s': abstract.State, s `elem` s' /\ ~ abstract.reachable s') ->
+    ~ concrete.reachable s,
+\end{code}
+This expresses that to conclude unreachability of a concrete state,
+one need only establish unreachability of \emph{any} abstract state
+that contains it. However, this definition neglects to facilitate {\em
+  sharing}: remember that a concrete state may be in more then one
+abstract state. When abstract states ``share'' the burden of
+reachability, one should establish unreachability of \emph{all}
+abstract states containing the concrete state. Hence, what we really
+want is an |abstract.reachable| satisfying:
+\begin{code}
+forall s: concrete.State,
+  (forall s': abstract.State, s `elem` s' -> ~ abstract.reachable s') ->
+  ~ concrete.reachable s.
+\end{code}
+This property follows from the following new definition of |reachable_respect| we will use:
+\begin{code}
+Definition reachable_respect: Prop :=
+  shared_cover concrete.reachable abstract.reachable.
+\end{code}
+% This is only natural--in the example, to conclude unreachability of the concrete state |(l, 1)|, it is no longer sufficient to establish unreachability of the abstract state |(l, [0, 1])|.
+\weg{
+This new definition does not give rise to a nice simple definition of
+|abstract.reachable| distinct from the simple transitive closure of
+initiality and transition judgements made by the overestimators
+(analogous to |reachable_by_abstract_trace|), so we just take the
+latter and prove |reachable_respect| by induction over traces. There
+is, however, one last subtlety involved.
+
+%  Let us see what happens when we redefine it directly in terms of our abstract system overestimators, much like how |reachable_by_abstract_trace| was defined earlier:
+% \begin{code}
+% Definition trans (b: bool): relation abstract.State :=
+%   fun s1 s2 => s2 `elem` if b
+%     then cont_trans_over ahs s1
+%     else disc_trans_over ahs s1.
+% 
+% Definition abstract.reachable (s: abstrat.State): Prop :=
+%   exists is: State ap,
+%     overestimation_bool (initial_dec ahs is) = true /\ alternate trans is s.
+% \end{code}
+% By induction over traces, we can prove
+% \begin{code}
+% shared_cover concrete.reachable abstract.reachable,
+% \end{code}
+% which rewrites to
+% Having changed the abstract transition overestimator specifications to permit sharing, the definition of |abstract.reachable| given in \ref{inadequate} is no longer appropriate, 
+% we can no longer use these to overestimate |abstract.reachable| as defined in \ref{inadequate}. After all, when the burden of reachability is shared among abstract states, some abstract states may actually be unreachable even though they contain reachable concrete states.
+% 
+% In section \ref{inadequate}, we defined |reachable_by_abstract_trace| in terms of |abstract.cont_trans| and |abstract.desc_trans|, which were the simplistic ``is there a concrete transition between the regions?'' relations that our abstract transition overestimators overestimated, but which had no notion of sharing. Having changed the abstract transition overestimator specifications to permit sharing, we must mimic this change in |abstract.cont_trans| and |abstract.desc_trans| for |reachable_by_abstract_trace| to remain representative. Hence, we redefine these relations to simply reflect overestimator judgements:
+% \begin{code}
+% Definition abstract.cont_trans: relation abstract.State
+%   := fun s1 s2 => s2 ∈ cont_trans_over ahs s1.
+% 
+% Definition abstract.disc_trans: relation abstract.State
+%   := fun s1 s2 => s2 ∈ disc_trans_over ahs s1.
+% \end{code}
+% Unfortunately, after these changes, |reachable_by_abstract_trace `subsetof` abstract.reachable| is no longer provable, because after all, when the burden of reachability is shared among abstract states, some abstract states may actually be unreachable even though they contain reachable concrete states. However, we \emph{can} prove (again, by induction over traces) a variation of that bypasses |abstract.reachable| altogether, and embraces sharing:
+% \begin{code}
+% (* SharedCover concrete.reachable reachable *)
+% 
+% Definition reachable_respect: Prop :=
+%   forall (s: concrete.State),
+%     (forall s': abstract.State, s `elem` s' -> ~ reachable_by_abstract_trace s') ->
+%     ~ concrete.reachable s.
+% \end{code}
+% Where the previous definition of |unreachable_respect| stated that to conclude unreachability of a concrete state one needed only to prove unreachability of \emph{any} abstract state that contained it, this revised definition requires one to prove unreachability of \emph{all} abstract states containing the concrete state. We can see this in the example: to conclude unreachability of the concrete state |(l, 1)|, it is no longer sufficient to establish unreachability of the abstract state |(l, [0, 1])|.
+% 
+% At this point, what's left is to implement the three overestimators that make up an abstract system, and to use them to overestimate |reachable_by_abstract_trace|. However, before we do that, we make one more change.
+}
+
+\subsection{Underestimating Safety}
+\label{underestimatingsafety}
+
+In the next section we show that thanks to decidability of our
+transition and initiality overstimators, |abstract.reachable| is
+decidable. But first we show how a
+decision procedure for |abstract.reachable| lets us underestimate
+hybrid system safety, and in particular, lets us obtain a proof of
+thermostat safety. So suppose we have
+\begin{code}
+  reachable_dec: decider abstract.reachable
+\end{code}
+And suppose we are given the following specification of unsafe concrete states, covered by a finite list of abstract states:
+\begin{code}
+  Variables
+    (unsafe: concrete.State -> Prop)
+    (astates: list abstract.State)
+    (astates_cover_unsafe: forall s, unsafe s -> forall r, s `elem` r -> r `elem` astates).
+\end{code}
+
+Then, using |reachable_dec| and |unreachable_respect|, we can easily define
+\begin{code}
+  Definition over_unsafe_reachable: overestimation (overlap unsafe concrete.reachable).
+\end{code}
+Taking |unsafe := thermo_unsafe| and a suitable abstract cover, we obtain
+\begin{code}
+  Definition over_thermo_unsafe_reachable:
+    overestimation (overlap thermo_unsafe concrete.reachable).
+\end{code}
+Recall that |ThermoSafe| was defined as |thermo_unsafe `subsetof` concrete.unreachable| in section \ref{concrete}. Since we trivially have |~ overlap unsafe concrete.reachable -> ThermoSafe|, we also have:
+\begin{code}
+Definition under_thermo_unsafe_unreachable: underestimation ThermoSafe.
+\end{code}
+Finally, we \emph{run} the underestimation:
+\begin{code}
+Theorem: ThermoSafe.
+Proof.
+  apply (underestimation_true under_unsafe_unreachable).
+  vm_compute. sp1mm reflexivity.
+Qed.
+\end{code}
+|underestimation_true| is a tiny utility of type |forall P (o: underestimation P), o = true -> P|, whose application in the proof reduces the goal to
+\begin{code}under_thermo_unsafe_unreachable = true.\end{code} The |vm_compute| tactic invocation then forces evaluation of the left hand side, which will in turn evaluate |over_thermo_unsafe_reachable|, which will evaluate |reachable_dec|, which will (as we will see in the next section) evaluate the |abstract.System| overestimators (which we will build in sections \ref{over_cont_trans} and \ref{over_disc_trans}). This process, which takes about 35 seconds on a modern desktop machine, eventually reduces |under_thermo_unsafe_unreachable| to |true|, leaving |true = true|, proved by |reflexivity|.
+
+We can now also clearly see what happens when the abstraction method ``fails'' due to poor region selection, overly simplistic transition/initiality overestimators, or plain old unsafety of the system. In all these cases, |vm_compute| reduces |under_thermo_unsafe_unreachable| to |false|, and the subsequent |reflexivity| invocation will fail.
+
+This concludes the high level story of our development. What remains
+are the implementation of |reachable_dec| in terms of the decidable
+overestimators for abstract initiality and continuous and discrete
+transitions, and the implementation of those overestimators
+themselves. The former is a formally verified graph reachability
+algorithm, that we don't detail here. The overestimator for continuous
+transitions, |over_cont_trans| will be detailed in the next section
+for the thermostat case.
+%latter
+%in sections \ref{over_cont_trans} and \ref{over_disc_trans}.
+
+ % using  the particular heuristics and techniques we used to implement the decidable overestimators for abstract initiality and transitions, the specifications (types) of which were given in section \ref{abs.trans}.
+
+% next up:
+% - defining cont_trans
+% - defining disc_trans
+% - definign initial
+% - square_abstraction
+
+\weg{
+\section{Graphs for Reachability Decision}
+\label{graphs}
+
+Given an |abstract.System| containing overestimators for abstract transitions and initiality, we can decide |abstract.reachable| (as defined in the last section) by constructing a directed graph in which vertices and edges correspond to abstract states and transitions, respectively, and then using an ordinary graph reachability algorithm. Because the hybrid system safety proofs we ultimately wish to produce obviously depend on the correctness of the reachability determinations obtained this way, we have implemented a certified graph reachability algorithm inside Coq. \todo{say something about algorithm? does it have a name?} For efficiency reasons, it computes a list of all vertices reachable from a given list of initial vertices in one go:
+\begin{code}
+graph_reachables: forall (g : DiGraph) (start: list Vertex), NoDup start ->
+  {l : list Vertex | forall w : Vertex, In w l <-> digraph.reachable start w}
+\end{code}
+Here, |DiGraph| and |digraph.reachable| are defined as
+\begin{code}
+Record DiGraph: Type := Build_DiGraph
+  { Vertex: Set
+  ; Vertex_eq_dec: EqDec Vertex eq
+  ; vertices: ExhaustiveList Vertex
+  ; edges: Vertex -> list Vertex
+  ; edges_NoDup: forall v, NoDup (edges v)
+  }.
+
+Definition edge: relation Vertex := fun v w => In w (edges v).
+
+Definition digraph.reachable (start: list Vertex) (v: Vertex): Prop :=
+  exists s `elem` start, trans_refl_closure edge s v.
+\end{code}
+
+Naively equating vertices with abstract states and edges with abstract transitions (either continuous or discrete) would make vertex reachability in the graph equivalent to potentially-non-alternating abstract state reachability, which as we saw in section \ref{alter} would result in many needlessly reachable abstract states, potentially rendering the abstraction useless.
+
+To make vertex reachability in the graph equivalent to \emph{alternating} abstract state reachability, we first add a |bool| component to |Vertex|:
+\begin{code}
+Definition Vertex: Set := prod bool abstract.State.
+\end{code}
+Next, we only add edges corresponding to abstract \emph{continuous} transitions from a vertex |v| with |fst v = true| to a vertex |w| with |fst w = false|, and only add edges corresponding to abstract \emph{discrete} transitions from a vertex |v| with |fst v = false| to a vertex |w| with |fst w = true|:
+
+\begin{code}
+  Definition nexts (v: Vertex): list abstract.State :=
+    let (k, s) := v in
+      if k then over_cont_trans s
+      else over_disc_trans s.
+
+  Definition edges (v: Vertex): list Vertex := map (pair (negb (fst v))) (nexts v).
+
+  Definition graph: DiGraph := Build_DiGraph Vertex edges.
+    (*{-"\text{ Remaining record fields omitted for the sake of exposition. }"-}*)
+\end{code}
+This ensures that paths through the graph alternate between vertices |v| with |fst v = true| and vertices with |fst v = false|, and that the corresponding abstract traces alternate between continuous and discrete transitions. A few simple inductions now show that if we take as |start| those vertices selected by our initiality overestimator, |abstract.reachable| is equivalent to |digraph.reachable|:
+\begin{code}
+  Definition start: list Vertex := { v: Vertex | abstract.over_initial (snd v) }.
+
+  Theorem graph_respect: forall s: abstract.State ap,
+    abstract.reachable s <-> exists b: bool, digraph.reachable start (b, s).
+\end{code}
+
+Combining |graph_respect|, |abstract.unreachable_respect|, and |reachables|, it is now straightforward to construct a |decider abstract.reachable|.
+\todo{Show some more detail?}
+
+Through the definitions of |edges|, |nexts|, and |start|, this decider builds on the three overestimators in |abstract.System|. In the next two sections, we discuss how to define an |abstract.System| instance for the discretization (described in section \ref{abs.space.constr}) of the concrete thermostat's continuous state space.
+}
+
+\subsection{Overestimating Continuous Abstract Transitions}
+\label{over_cont_trans}
+
+We now discuss the implementation of  |over_cont_trans|:
+\weg{
+\begin{code}
+  over_cont_trans: sharing_transition_overestimator concrete.cont_trans
+\end{code}
+where |sharing_transition_overestimator| is defined as
+\begin{code}
+Definition sharing_transition_overestimator
+  (R: relation concrete.State): Set := forall s: abstract.State,
+    { l: list abstract.State | () -> (NoDup l /\ shared_cover
+      (concrete.invariant `inter` (overlap s `compose` utilflip R)) l) }.
+\end{code}
+where |shared_cover| is defined as
+\begin{code}
+  Definition shared_cover
+    `{Container concrete.State C} `{Container abstract.State D}
+      (cs: C) (ss: D): Prop :=
+        forall s: concrete.State, In s cs -> DN (exists r: abstract.State, In s r /\ In r ss).
+\end{code}
+
+
+\subsection{Avoiding Drift}
+
+A first observation is that since the concrete continuous transition relation is reflexive, |over_cont_trans| must be reflexive as well (meaning its result list must include the abstract state it received as an argument). By the sharing principle, this means that redundantly reachable regions (whose only reachable points lie within the source region) are accounted for, which in turn means the problem can be reduced to the overestimation of non-redundant transitions, characterized by the following relation:
+\begin{code}
+Definition substantial_cont_trans (l: Location): relation Region
+  := fun r r' => exists p p', p `elem` r /\ p' `elem` r' /\ ~ p' `elem` r /\ can_flow l p q.
+\end{code}
+Hence, we seek to build an |overestimator substantial_cont_trans|. Note that even though redundantly reachable regions are ``accounted for'' specification-wise, we still need a mechanism enabling us to notice their redundancy, so that our overestimator may return |false|. Unfortunately, detecting whether a particular abstract continuous transition would be redundant is undecidable in general. For now, let us simply assume existence of a redundance underestimator, and worry about its implementation later:
+
+% 
+% 
+% not notice their redundancy.
+% 
+% In section \ref{trouble}, we illustrated how drift would cause problems if we gave the |over_cont_trans| member in |abstract.System| the type
+% \begin{code}
+% overestimator abstract.cont_trans.
+% \end{code}
+% While appealing in its simplicity---such overestimators only ever consider two regions at a time---this specification would force inclusion of redundant transitions like the one from |[1,2]| to |[0,1]| in the example. To counteract this outcome, we reformulated the specification for abstract continuous transitions as a predicate |cont_respect| on functions that, given an abstract state, yield a list of regions representing abstract continuous transitions. This permitted such functions to exploit the sharing principle and omit redundant transitions.
+
+\begin{code}
+Variable under_redundant: underestimator redundant_cont_trans.
+\end{code}
+The idea now is to build a drift-oblivious |overestimator| for the simplistic |abstract.cont_trans| relation, which \emph{will} emit redundant transitions, but to only run it if the redundancy underestimator does not indicate redundance. That is, supposing we have
+\begin{code}
+Variable simple_over_cont_trans: overestimator abstract.cont_trans,
+\end{code}
+we can define
+
+%format r_src
+%format r_dst
+%format p_src
+%format p_dst
+%format negb (x) = ~ x
+\begin{code}
+  Program Definition over_subst_cont_trans (l: Location) (r_src r_dst: Region)
+    : overestimation (substantial_cont_trans l r_src r_dst)
+    := negb (under_redundant l r r') && simple_over_cont_trans l r_src r_dst.
+\end{code}
+
+Thus, the problem is reduced to construction of |under_redundant| and |simple_over_cont_trans|. We discuss the latter in the next section. For the former, we observe that the redundant transitions we worry about appear as transitions from a region to a region adjacent to it in the opposite direction of the flow corresponding to the current location. This means that if we know which regions are adjacent, and further know when (e.g. in which locations) individual flow components are monotonic (and in which direction), we can underestimate redundancy quite well. Since in our development abstract regions are formed by explicitly enumerating interval bounds, we have a-priori knowledge of which regions will be adjacent. Hence, the only additional work we have to do is to provide as many proofs of flow monotonicity (in the different locations and for the different flow components) as possible, with which some generic utilities can construct a proper redundancy underestimator.
+
+Having taken care of drift, all we need now (to complete the definition of |over_cont_trans|) is an implementation of |simple_over_cont_trans|, which we present in the next section.
+
+\subsection{Simple Transition Overestimation}
+
+Recall that |abstract.cont_trans| is defined as
+\begin{code}
+Definition abstract.cont_trans: relation abstract.State
+  := fun s s' => exists (c `elem` s) (c' `elem` s'), concrete.cont_trans c c'.
+\end{code}
+Since location does not change in continuous transitions, and location equality is decidable (since locations are just names), we can easily reduce the problem down to overestimation of
+\begin{code}
+Definition region_cont_trans (l: Location): relation Region
+  := fun r_src r_dst => exists (p_src `elem` r_src) (p_dst `elem` r_dst'), can_flow l p_src p_dst,
+\end{code}
+where |can_flow| is still
+\begin{code}
+Definition can_flow (l: Location): relation Point
+  := fun p_src p_dst => exists d: Duration, flow l p_src d = p_dst /\
+    forall t, 0 <= t <= d -> invariant (l, flow l p_src t).
+\end{code}
+So given a location |l| and regions |r_src| and |r_dst|, we are looking to establish absence of concrete transitions from points in |r_src| to points in |r_dst|.
+
+\todo{story about how Alur does it, and why we don't just do the same}
+
+%\subsection{Ruling out Transitions by Invariant Absence}
+
+\noindent Let us first consider whether we can rule out transitions by looking at the invariant, which |can_flow| demands must hold at every point along the way. Clearly, if we are able to determine that there do not exists paths from points in |r_src| to points in |r_dst| with the invariant holding at each point along the way, then there need be no continuous transition between |r_src| and |r_dst|. Unfortunately, \emph{deciding} this property is too hard. However, suppose we can at least overestimate whether the invariant holds somewhere in an abstract region:
+\begin{code}
+  Variable invariant_overestimator: overestimator abstract.invariant.
+\end{code}
+With |invariant_overestimator|, we can start defining |simple_over_cont_trans| as follows:
+\begin{code}
+  Definition simple_over_cont_trans: overestimator abstract.cont_trans
+    := fun r_src r_dst =>
+      invariant_overestimator r_src &&
+      invariant_overestimator r_dst && (*{-"\text{ .. further tests, to be discussed. }"-}*).
+\end{code}
+That is, if either |~ invariant_overestimator r_src| or |~ invariant_overestimator r_dst|, then we conclude that there can be no concrete transition from a point in |r_src| to a point in |r_dst|. To keep matters simple, we will not bother to check the invariant anywhere else. This does mean that we might generate a spurious abstract transition from |r_src| to |r_dst| if the only reason for lack of concrete transitions between |r_src| and |r_dst| is that the invariant be broken somewhere in the middle of the flow path. Fortunately, this turns out not to cause problems for the thermostat hybrid system. \todo{Can anything be said about to what extent this simplification is justifiable or even necessary for hybrid systems in general?} In our development, the definition of |invariant_overestimator| is almost automatic, requiring only that the thermostat's invariant be reformulated in terms of (possibly unbounded) squares in the continuous state space, whose intersection with abstract regions can be automatically overestimated.
+
+
+Next, let us consider }
+
+Given two regions |r_src| and |r_dst|, we have to think how we can
+rule out the existence of concrete continuous transitions from points
+in |r_src| to points |r_dst|. Clearly, if we can determine that there
+are no points in |r_src| which the flow function maps to points in
+|r_dst|, then there need be no continuous transition between |r_src|
+and |r_dst|. Equally clearly, this is utterly impossible to
+meaningfully overestimate for a general flow function and general
+regions. However, the thermostat posesses three key properties that
+we can exploit:
+\begin{enumerate}
+\item its continuous space is of the form $\IR^n$;
+\item abstract regions correspond to multiplied $\IR$ intervals;
+\item its flow functions are both {\em separable\/} and {\em range invertible}.
+\end{enumerate}
+
+% Finally, we get to the real ``meat'' of our overestimation: overestimating whether there is a point in |r_src| that the flow function maps to a point in |r_dst| in the first place. 
+
+The notion of {\em separability\/} has already been discussed in
+Section \ref{sec:hybsys}.
+%: a flow function on a product space is
+%\emph{separable} if it can be written as the product of flow function
+%on the respective component spaces. In $\IR^2$, a flow function is
+%separable if future values of the first component only depend on past
+%values of that same component, and the similarly for the second
+%component. Being defined as the product of two flow functions on |CR|
+%(|temp_flow| and |temp_flow|), 
+The thermostat's flow function (in any
+location) is separable by construction.
+
+A flow function |f| on |CR| is {\em range invertible\/} if
+\begin{code}
+  exists (range_inverse: OpenRange -> OpenRange -> OpenRange),
+    forall (a: OpenRange) (p: CR), p `elem` a ->
+    forall (b: OpenRange) (d: Duration), f p d `elem` b -> d `elem` range_inverse a b
+\end{code}
+Here, |OpenRange| represents potentially unbounded intervals in $\IR$
+(with bounds closed if present. In other words, if $\phi : \IR^2
+\rightarrow \IR$ is a flow function with range inverse $F$ and $a,b$
+are intervals in $\IR$, then $F(a,b)$ is an interval that contains all
+$t$ for which $\phi(x,t)\in b$ for some $x\in a$. So $F(a,b)$ should
+contain all durations $t$ that take some elements of $a$ to some
+element of $b$ via flow $\phi$.
+
+Range invertibility is a less demanding alternative to point invertibility: $\phi^{-1}$ is the {\em point inverse\/} of $\phi$ if $\forall x,y\in \IR (\phi (x, \phi^-1(x,y)) =y)$. So a point inverse $\phi^{-1}(x,y)$ computes the exact time it takes to go from $x$ to $y$ via flow $\phi$.
+\weg{
+\begin{code}
+  exists (point_inverse: CR -> CR -> CR), forall p q: CR, f p (point_inverse p q) = q
+\end{code}
+}
+We need range invertibility because the exponential flow functions are
+not point invertible.
+
+In the formalization we use a modest library
+of flow functions when defining the thermostat's flow. Included in
+that library are range-inverses, which consequently automatically
+apply to the thermostat's flow. Hence, no ad-hoc work is needed to
+show that the thermostat's flow functions are range-invertible.
+
+%format r_src_temp = r_src _temp
+%format r_dst_temp = r_dst _temp
+%format r_src_clock = r_src _clock
+%format r_dst_clock = r_dst _clock
+
+
+Having defined the class of separable range-invertible flow functions,
+and having argued that the thermostat's flow is in this class, we now
+show how to proceed with our overestimation of existence of points in
+|r_src| which the flow function map to points in |r_dst|. 
+%As discussed
+%in section \ref{abs.space.constr}, the abstract space for our
+%thermostat was constructed as the product of two abstract spaces based
+%on temperature and clock intervals, respectively. 
+Regions in the abstract space for our thermostat are basically pairs
+of regions in the composite spaces, so |r_src| and |r_dst| can be
+written as |(r_src_temp, r_src_clock)| and |(r_dst_temp,
+r_dst_clock)|, respectively, where each of these four components are
+intervals.
+
+We now simply use an |OpenRange| overlap overestimator of type
+\begin{code}
+Qpos -> forall a b: OpenRange, overestimation (overlap a b)
+\end{code}
+(defined in terms of things like |overestimate_CRle| shown in section \ref{estimation}) to overestimate whether the following three intervals overlap:
+\begin{enumerate}
+\item |[0, inf]|
+\item |range_inverse temp_flow r_src_temp r_dst_temp|
+\item |range_inverse clock_flow r_src_clock r_dst_clock|
+\end{enumerate}
+For a visual explanation, one may consult the left drawing in Figure
+\ref{fig:abstraction} and view |r_src_clock| as $[a_1,b_1]$,
+|r_dst_clock| as $[c_1,d_1]$ etc.  Overlap of 2 and 3 is equivalent to
+existence of a point in |r_src| from which one can flow to a point in
+|r_dst|. After all, if these two range inverses overlap, then there is
+a duration |d| that takes a certain temperature value in |r_src_temp|
+to a value in |r_dst_temp| and also takes a certain clock value in
+|r_src_clock| to a value in |r_dst_clock|. If 2 and 3 do \emph{not}
+overlap, then either it takes so long for the temperature to flow from
+|r_src_temp| to |r_dst_temp| that any clock value in |r_src_clock|
+would ``overshoot'' |r_dst_clock|, or vice versa. Finally, if 1 does
+not overlap with 2 and 3, then apparently one could only flow backward
+in time, which is not permitted. Hence, overlap of these three ranges
+is a necessary condition for existence of concrete flow from points in
+|r_src| to points in |r_dst|, and so our |abstract.cont_trans|
+overestimator may justifiably return ``false'' when the overlap
+overestimator manages to prove absence of overlap.
+
+% todo: these paragraphs make it seem as though this algorithm was hard coded for temperature/clock, while it just works because the thermostat has product flow/space.
+%format halfrange (a) (b) = [a, b)
+
+\weg{
+Having shown at last the ``real'' flow test condition used in the overestimation, we can show more precisely how drift would arise if we avoided region overlap (thereby eliminating drift problems at the specification level) but did not bother to employ a redundancy underestimator. Suppose there were clock intervals [0, 1) and [1, 2), and a temperature interval [5, 6). Let us consider what our simple |abstract.cont_trans| overestimator would return given the abstract states |(Heat, (half_range 5 6, halfrange 1 2)| and |(Heat, (halfrange 5 6, halfrange 0 1)|. After determining that the locations are equal as required, and that the invariant holds in both regions, our overestimator would proceed to overestimate overlap of the ranges mentioned above. In this particular case, with |clock_flow| simply being linear, it would compute that
+\begin{code}range_inverse clock_flow r_src_clock r_dst_clock = halfrange (-2) 0\end{code} Unfortunately, the overestimator would not be able to determine that [0, inf) does not overlap with [-2, 0), because given only two approximations of 0, it cannot determine that |0 <= 0|. Thus, it would have no choice but to bless the transition.
+
+
+\subsection{Overestimating Discrete Abstract Transitions}
+\label{over_disc_trans}
+
+We now turn our attention to the implementation of the |over_disc_trans| component in |abstract.System|. Recall (from section \ref{conc.disc_trans}) the definition of concrete discrete transitions:
+\begin{code}
+  Definition concrete.disc_trans: relation concrete.State := fun s s' =>
+    guard s (location s') /\
+     reset (location s) (location s') (point s) = point s' /\
+      invariant s /\ invariant s'.
+\end{code}
+
+To overestimate whether there exists a concrete discrete transition from a concrete state in one abstract state to a concrete state in another abstract state, we first have |over_disc_trans| simply check whether the invariant holds at both ends (exactly as in the continuous case), and (in the same way) whether the guard holds at the origin. The interesting part is the overestimation of whether there is a point in the source region that the reset function maps to a point in the destination region. This problem sounds rather similar to that of flow overestimation discussed in section \ref{over_cont_trans}, but the similarity is superficial for two reasons: reset functions are much simpler as they don't have a time parameter, and discrete transitions suffer from a substantially different variety of drift.
+
+Suppose one's continuous state space is |CRge0|, and one's abstract regions are intervals of the form |[n, n+1]| with |n `elem` nat|. Further suppose that there is a discrete transition from location |l| to location |l'| with guard |g = const True| and reset function |r = id|. And suppose we are overestimating whether there needs to be an abstract discrete transition from |(l, [0, 1])| to |(l', [1, 2])|. Including this transition seems wasteful, because the only point in |[1, 2]| that the reset function maps a point in |[0, 1]| to is 1, but that point is still in |[0, 1]|.
+
+For continuous transitions, we avoided drift by explicitly filtering out transitions found to be redundant by a redundance underestimator that relied on reflexivity of the continuous transition relation, knowledge of adjacent regions, and knowledge of where the flow function was monotonic. However, the discrete transition relation is not necessarily reflexive, so we use a slightly different mechanism. Basically, we simply take as an argument an underestimation of whether a particular reset function is the identity function, and if the underestimator says that it is, then we only make abstract discrete transition to abstract states with the same region as the source state. If on the other hand the underestimator does \emph{not} indicate that the reset function in question is the identity function, then we simply take the bounds of the source region, map them with the reset function, and overestimate whether the resulting region overlaps with the candidate destination (for this to be valid, the reset function must be nondecreasing\fotonote{When we say that a \emph{flow} function is ``nondecreasing'', we mean that it does not decrease over time, and so this is really a statement about flow direction. But when we say that a \emph{reset} function (which does not take a time argument) is ``nondecreasing'', we simply mean that it does not flip ranges around, which is a rather mundane property.}
+
+\todo{In the code, this is actually done in a more roundabout way, including an extra case for constant reset functions, but I really think this should not be necessary. Preliminary experiments with removing the third case mysteriously made the safety proof fail though, so deeper investigation is needed.}
+
+For all this to work for a system with a continuous state space in |pow CR n|, the reset function must additionally be separable. Our thermostat's reset functions are trivially separable.
+
+% todo: mention that we don't discuss boring things like over_initial and the abstract safety list, even though they're all treated uniformly: the user must specify these as lists of opensquares when setting up the abstraction.
+}
+\section{Related work}
+
+\emph{Verification} of hybrid systems is an active field of research and
+there is a number of tools developed with this goal in mind;
+see \cite{HST} for a comprehensive list.
+Most of them are based on abstract refinement methods, either
+using box representations \cite{Kow96,Kow98}
+or with polyhedra approximations \cite{alur,Chu99,Cla03}.
+
+Many of those tools are implemented in MATLAB \cite{MATLAB}
+and those using some general programming language of choice
+most often rely on standard floating point arithmetic, that
+comes with its rounding errors. Few tools that address 
+this problem include 
+PHAVer \cite{PhaVER}, that relies on the Parma Polyhedra Library \cite{Parma} 
+for exact computations with non-convex polyhedra 
+and 
+HSolver \cite{HSolver}, that is based on the constraint solver 
+RSolver \cite{RSolver}.
+
+\emph{Formal verification} becomes more and more important, especially in the
+field of hybrid systems, which are used to model safety critical systems 
+of growing complexity. There has been previous work on using general purpose 
+theorem provers for verification of hybrid systems: see \cite{Mum01,Hen98} 
+and \cite{Man98,Man01} for works using, respectively, PVS and STeP. 
+KeYmaera \cite{KeYmaera} is a dedicated interactive theorem prover for 
+specification and verification logic for hybrid systems. It combines
+deductive, real algebraic, and computer algebraic prover technologies
+and allows users to model hybrid systems, specify their properties
+and prove them in a semi-automated way.
+
+However, to the best of our knowledge, none of the previous work nor tools 
+relies on a precise model of real number computations completely verified 
+in a theorem prover; such as the model of CoRN used in this work.
+
+\section{Conclusions and further research}
+\label{conclusions}
+The presented verification of hybrid systems in Coq gives a nice
+showcase of proof-by-computation-on-computable-reals. The computable
+reals in CoRN do really complicated things for us, by approximating
+values for various real number exprseeions at great precision. The
+development also contains some nice layers of abstraction, involving
+the sophisticated use of type classes, e.g.\ the systematic use of
+estimators to make tactic-like optional-deciders, at each level in the
+stack and the use of the double negation monad.
+
+It is to be seen how far this automated verification approach can be
+taken, given the fact that we have limited ourselves to hybrid systems
+with separable reset and flow functions that are monotone, and with a
+stable invariants. There is still a lot of room for more clever
+heuristics with less restrictive preconditions. The heuristic in
+\cite{alur} for bound selection doesn't work out of the box, but
+manual tweaking is obviously not ideal, so some more experimentation
+is required here. Finally, in case safety cannot be proved, one would
+like the system to also generate an ``offending trace'' automatically,
+which can the be inspected by the user.
+
+\bibliographystyle{splncs}
+\addcontentsline{toc}{chapter}{Bibliography}
+\bibliography{paper}
+
+\end{document}
