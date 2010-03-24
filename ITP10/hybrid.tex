@@ -150,24 +150,40 @@ The prototype implementation described in \cite{alur} was developed in
 a conventional programming language, only has an informal correctness argument,
 and uses ordinary floating point numbers to approximate the real numbers that are used in said argument. These factors limit the confidence one can justifiably have in safety judgements computed by this implementation, because (1) it is easy for bugs to creep into uncertified programs; (2) it is easy to make mistakes in informal correctness arguments; and (3) floating point computations are subject to rounding errors and representation artifacts.
 
-The primary goal of our work is to increase this degree of confidence by developing a \emph{certified} reimplementation of the abstraction technique in Coq, a proof assistant based on a rich type theory that also functions as a (purely functional) programming language. The Coq system lets us develop the algorithms and their formal correctness proofs in tandem in a unified environment, addressing (1) and (2) above.
+Our goal is to increase this degree of confidence by developing a \emph{certified} reimplementation of the abstraction technique in Coq, a proof assistant based on a rich type theory that also functions as a (purely functional) programming language. The Coq system lets us develop the algorithms and their formal correctness proofs in tandem in a unified environment, addressing (1) and (2) above.
 
 To address (3), we replace the floating point numbers with exact computable reals instead of floating point computation, using the certified exact real arithmetic library developed by O'Connor \cite{oconnor} for CoRN, our Coq repository of formalised constructive mathematics. \cite{corn} This change is much more than a simple change of representation, however; because computable reals only permit observation of arbitrarily close approximations, certain key operations on them (namely naive comparisons) are not decidable. The consequences of this manifest themselves in our development in several ways, which we discuss in some detail. Hence, our development also serves to showcase O'Connor's certified exact real arithmetic library applied to a concrete and practical problem.
 
-On a separate note, we argue that the use of computable reals is not just a pragmatic choice necessitated by the need to actually compute, but is actually fundamentally appropriate considering their role in hybrid systems, where they represent physical quantities acted upon by a device with sensors and actuators. And in the real world, too, measurements are approximate.
+On a separate note, we argue that the use of computable reals is not just a pragmatic choice necessitated by the need to compute, but is actually fundamentally appropriate considering their role in hybrid systems, where they represent physical quantities acted upon by a device with sensors and actuators. And in the real world, too, measurements are approximate.
 
 The end result of our work is a framework with which one can specify (inside Coq) a concrete hybrid system, set some abstraction parameters, derive an abstract system, and use it to compute (either inside Coq itself or via extraction to OCaml) a safety proof for the concrete system.
 
 \section{Hybrid Systems and the Abstraction method}
 \label{sec:hybsys}
-We briefly introduce the notion of a {\em linear hybrid system}, as
-used by \cite{alur}, and we show how the abstraction method is used in
-that paper in order to verify safety. There are various notions
-(formal definitions) of hybrid systems
-\cite{henziger,lynchvaandrager}. To illustrate the definition, we give
-the example of a thermostat, which is the same as \cite{alur} uses as
-a running example to illustrate the abstraction method. We will use
-the same example to illustrate our formal verification in Coq.
+There are many varieties of hybrid systems \cite{henziger,lynchvaandrager}. We follow \cite{alur} in considering so-called \emph{linear hybrid systems} (to be defined momentarily). To illustrate the definition as well as the abstraction process, we use as an example a hybrid system expressing the operation of a thermostat (this is the same example used in \cite{alur}), shown in Figure \ref{fig:thermostat}.
+
+In general, a hybrid system is a model of how a software system (running on a device with sensors and actuators), described as a finite set of \emph{locations}
+%\footnote{We reserve the term ``state'' for something else.}
+with (discrete) transitions between them, acts
+on and responds to a set of continuous variables (called the
+\emph{continuous state space}), typically representing physical
+properties of some environment (such as temperature and pressure).
+
+%format IR = "\mathbb{R}"
+%format pow x y = x "^{" y "}"
+
+%In \cite{alur}, Alur requires that the continuous state space be a
+%convex polyhedron in |pow IR n|.
+%In our definition of a hybrid system,
+%we initially let the continuous state space be an arbitrary
+%(constructive) setoid, called |Point|. We also explicitly require
+%decidability of location equality.
+
+
+The thermostat has three locations: $\Heat$, $\Cool$, and $\Chec$. The first two represent states in which the thermostat heats and cools the environment it operates in, respectively. $\Chec$ represents a self-diagnostic state in which the thermostat does not heat or cool. The continuous state space of the thermostat consists of two continuous variables denoting an internally resettable clock ($c$) and the temperature ($T$) in the environment in which the thermostat operates.
+
+With each location is associated an \emph{invariant} predicate defining the set of
+permitted values for the continuous variables while in that location.
 
 \begin{center}
 \begin{figure}[htb!]
@@ -181,48 +197,12 @@ the same example to illustrate our formal verification in Coq.
 \end{figure}
 \end{center}
 
-A hybrid system is a model of how a software system, described as a
-finite set of \emph{locations}, $\Loc$ 
-%\footnote{We reserve the term ``state''
-%  for something else.} 
-with (discrete) transitions between them, acts
-on and responds to a set of continuous variables (called the
-\emph{continuous state space}), typically representing physical
-properties of some environment (such as temperature and pressure).
+As shown in Figure \ref{fig:thermostat}, the invariants for the thermostat are as follows: $$\Inv_{\Heat} := c\leq 3 \wedge T\leq 10,\quad \Inv_{\Cool} := 5 \leq T,\quad \Inv_{\Chec} := c\leq 1.$$
 
-In \cite{alur}, Alur requires that the continuous state space be a
-convex polyhedron in $\IR^ n$. 
-%In our definition of a hybrid system,
-%we initially let the continuous state space be an arbitrary
-%(constructive) setoid, called |Point|. We also explicitly require
-%decidability of location equality.
-In the running example of Figure \ref{fig:thermostat},
-the discrete component consists of three locations (called $\Heat$, $\Cool$,
-and $\Chec$), whose continuous state space is $\IR^2$,
-where $\IR$ are the \emph{computable} reals as defined in CoRN. 
-The $\Heat$ and $\Cool$ locations represent states in which the
-thermostat heats and cools the environment it operates in,
-respectively. The $\Chec$ state is a self-diagnostic state in which
-the thermostat does not heat or cool. The first $\IR$ component in the
-continuous state space represents an internally resettable clock,
-while the second represents the temperature in the environment in
-which the thermostat operates.
-
-A \emph{State} in a hybrid system is a pair $(l, p)$ consisting of a
-location $l$ and a point $p$ in the continuous state space
-(representing the value of the continuous variables). We use $\State$
-for the set of states of a hybrid system.
-
-The {\em invariant\/} predicate defines, for each location, a set of
-permitted values for the continuous variables. 
-For the thermostat, the invariant is as follows: $$\Inv_{\Heat}(c,T) := T\leq 10\wedge c\leq 3,\quad \Inv_{\Cool}(C,t) := 5 \leq T,\quad \Inv_{\Chec} := c\leq 1.$$
-
-A hybrid system also has a set of \emph{initial states}, for which we
-will use the predicate $\Init(s)$.  For the thermostat example,
+A hybrid system has a set of \emph{initial states}, determined by a predicate $\Init$. For the thermostat example,
 $\Init(l,c,T) := l= \Heat \wedge c= 0 \wedge 5 \leq T \leq 10.$
-There is the obvious requirement that the invariant holds at each
-initial state.
 
+%There is the obvious requirement that the invariant holds at each initial state.
 
 The remaining parts of a hybrid system (i.e.\ {\em flow}, {\em guard}
 and {\em reset}) describe transitions between states, which, together
@@ -231,10 +211,8 @@ states, representing the possible behaviours exhibited by a
 hypothetical real-world implementation of the hybrid system (as
 software running on a device with sensors and actuators).
 
-Each location in a concrete system has an accompanying \emph{flow
-  function} which describes how the continuous variables change over
-time while the system is in that location. The idea is that then
-different locations correspond to different uses of actuators
+Each location in a hybrid system has an accompanying \emph{flow function} which describes how the continuous variables change over
+time while the system is in that location. The idea is that different locations correspond to different uses of actuators
 available to the software system, the effects of which are described
 by the flow function. For instance, in the thermostat, the flow
 function corresponding to the $\Heat$ location will have the
@@ -246,7 +224,7 @@ specified as solutions to differential equations describing the
 dynamics of the continuous variables. We follow \cite{alur} in
 abstracting from these, taking instead the solutions of these
 differential equations, which are flow functions $\Phi$ which satisfy:
-$$\Phi( p, 0) = p \quad \mbox{and} \quad \Phi (p, t + t') = \Phi (\Phi( p, t), t')$$
+$$\Phi(p, 0) = p \quad \mbox{and} \quad \Phi (p, d + d') = \Phi (\Phi(p, d), d')$$
 We now say that there is a (concrete) \emph{continuous transition}
 from a state $(l, p)$ to a state $(l', p')$ if $l = l'$ and there is a
 non-negative duration $d$ such that $p' = \Phi_l( p,d)$ with the
@@ -255,27 +233,25 @@ $$ (l,p) \contrans (l',p') := l=l' \wedge \Exists{d\in
 \Dur}{\Phi_l(p, d) = p' \wedge \Forall{t}{0 \leq t\leq d \rightarrow
 \Inv_l(\Phi_l (p, t))}}.$$
 
-In case we are in $\IR ^2$, the flow function can be expressed as the
-product of two flow functions: $\Phi_l(c,T,t) = (\phi_{l,1}(c,T,t),
-\phi_{l,2}(c,T,t))$. In the thermostat example, as in many other
-examples of hybrid systems, $\phi_{l,1}(c,T,t)$ does not depend on $T$
-and $\phi_{l,2}(c,T)$ does not depend on $c$. We call this feature
-{\em separability\/} of the flow function; our development currently
+A flow function on |pow IR 2| can be expressed as the
+product of two flow functions: $\Phi_l((c,T),d) = (\phi_{l,c}((c,T),d),
+\phi_{l,T}((c,T),d))$. In the thermostat example, as in many other
+examples of hybrid systems, $\phi_{l,c}((c,T),d)$ does not actually depend on $T$
+and $\phi_{l,T}((c,T),d)$ does not actually depend on $c$. We call this feature
+{\em separability\/} of the flow function. Our development currently
 relies heavily on this property. Separability makes the form of the
 flow functions simpler:
-$$\Phi_l(c,T,t) = (\phi_{l,1}(c,t), \phi_{l,2}(T,t))$$
+$$\Phi_l((c,T),t) = (\phi_{l,1}(c,t), \phi_{l,2}(T,t))$$
 
-In the thermostat, for all locations, $\phi_{l,1}(c,d) = c + d$ (for
-the clock) and $\phi_{\Heat,2}(T,d)= T + 2 * d$,
-$\phi_{\\Cool,2}(T,d)= T * e^{-d}$, $\phi_{\Chec,2}(T,d)= T * e^{-
-  \frac{1}{2}d}$.
+In the thermostat, $\phi_{l,c}(c,d) = c + d$ for all locations $l$, $\phi_{\Heat,T}(T,d)= T + 2 * d$,
+$\phi_{\\Cool,T}(T,d)= T * e^{-d}$, $\phi_{\Chec,T}(T,d)= T * e^{- \frac{1}{2}d}$.
 
 Where continuous transitions describe the flow of continuous
 variables, \emph{discrete} transitions between locations describe the
 logic of the software system. Each such transition is comprised of two
-components: a \emph{guard} predicate, and a \emph{reset} function. The
-former defines a subset of the continuous state space in which the
-transition is enabled (permitted), while the latter describes an
+components: a \emph{guard} predicate defining a subset of the continuous state
+space in which the transition is enabled (permitted), and a \emph{reset} function
+describing an
 instantaneous change applied as a side effect of the transition, as
 seen in the following definition of the discrete transition relation:
 $$ (l,p) \distrans (l',p') := \guard_{l,l'}(p) \wedge \reset_{l,l'}(p)= p' \wedge \Inv_l(p) \wedge \Inv_{l'}(p')$$
@@ -305,8 +281,7 @@ The idea now is that the purpose of a hybrid system is typically to
 keep the continuous variables within certain limits. In other words,
 to limit the set of reachable states to some ``safe'' subset of the
 complete state space. For the thermostat example, the intent is to
-keep the temperature above $4.5$ degrees at all times, and so the safe
-states are defined to be those in which we have $T > 4.5$: $\Safe(l,c,T) := T >4.5$ and $\Unsafe(l,c,T) := T\leq 4.5.$
+keep the temperature above $4.5$ degrees at all times, and so we define $\Safe(c,T) := T > 4.5$ (and $\Unsafe(c,T)$ as its complement).
 The goal, then, is to verify that the reachable states are all safe.
 
 \subsection{The Abstraction Method}
@@ -408,11 +383,9 @@ fact that there is no transition from any point in $[0.5,1)
 Using this method, \cite{alur} proves the correctness of the thermostat. 
 
 \section{Formalisation}
-We now describe the formalisation in Coq and the design choices
-made. Some of the design choices were due to specifics in Coq or its
-type theory CiC, while other are due to our choice to work with exact
-real arithmetic and a constructive logic. We will mostly discuss the
-latter design choices, because we feel they are most relevant. Technical details, including a tar file with the formalization can be found at {\tt http://www.xs4all.nl/~weegen/eelis/research/hybrid/} or \cite{hybrid-techreport}.
+We now describe the Coq formalisation and the design choices made, which fall into two categories: those concerning the specifics of Coq and its type theory CiC (which we will not pay much attention to), and those addressing concerns relating to the use of computable reals and  constructive logic.
+
+The complete sources of the development, as well as a technical report describing the formalization in more detail \cite{hybrid-techreport}, can be found at \newline {\tt http://www.eelis.net/research/hybrid/}.
 
 \subsection{(Concrete) Hybrid Systems}
 \label{concrete}
@@ -450,7 +423,7 @@ location $l$.
 \subsection{Stability and Double Negation}
 \label{dn}
 
-A property $P$ ({\tt P: Prop}) is {\em stable\/} if $\neg \neg P \rightarrow P$ holds. 
+A property |P| is {\em stable\/} if $\neg \neg P$ implies |P|.
 Classically, this is trivially true, but constructively
 not. 
 %Especially when we work with real numbers, we don't have $\leltdec: \forall
@@ -459,13 +432,11 @@ not.
 %converges to $0$ we will not be able to decide $x\leq 0 \vee 0<x$ in a
 %finite amount of time.
 
-In constructive logic, a proof of a
-disjunction $A\vee B$ (where $A$ and $B$ are arbitrary propositions) is
-either a proof of $A$ or a proof of $B$. Similarly, to have a
-proof of $X \rightarrow A \vee B$ is to have a function that, given an $X$,
-either returns a proof of $A$, or a proof of $B$. With this in mind,
-suppose we try to implement $\leltdec: \forall
-%x, y \in \IR (x\leq y \vee y<x)$. Then given $x$ and $y$ in
+Constructively, a proof of a disjunction |A \/ B| is
+either a proof of $A$ or a proof of $B$. Similarly, to have a constructive
+proof of |X -> A \/ B| is to have a function that, given an $X$,
+returns either a proof of $A$, or a proof of $B$. With this in mind,
+suppose we try to implement |le_lt_dec: forall (x, y: CR), (x <= y \/ y < x)|, where |CR| are the constructive reals. Then given $x$ and $y$ in
 $\IR$, we are to produce a proof either of $x \leq y$ or of $y <
 x$. Unfortunately, the nature of computable reals only lets us observe
 arbitrarily close approximations of $x$ and $y$. Now suppose $x =
@@ -476,8 +447,8 @@ definitively conclude that $x \leq y$.
 
 Computable reals do admit two variations of the proposition:
 \begin{enumerate}
-\item $\leltdecoverlap: \forall x y: \IR. ( x < y \rightarrow \forall z. (z \leq y \vee x \leq z))$
-\item $\leltdecDN: \forall x y: \IR. \neg  \neg  (x \leq y \vee y < x)$
+\item |leltdec_overlap: forall (x y: CR), ( x < y -> forall z, (z <= y \/ x <= z))|
+\item |leltdecDN: forall (x y: CR), ~ ~ (x <= y \/ y < x)|
 \end{enumerate}
 
 Both are weaker than the original, and are less straightforward to
@@ -530,7 +501,7 @@ operations that make $\DN$ a monad:
 The first expresses that any previously obtained result can always be
 inserted ``into'' the monad. The second expresses that results inside
 the monad may be used freely in proofs of additional properties in the
-monad. For instance, one may $bind_{\DN}$ a proof of $\DN (x \leq y \vee y < x)$ 
+monad. For instance, one may |bind_DN| a proof of $\DN (x \leq y \vee y < x)$
 (obtained from $\leltdecDN$ above) with a proof of $(x \leq y \vee y < x) \rightarrow \DN P$, yielding a proof of $\DN P$.
  
 Thus, $\DN$ establishes a ``proving context'' in which one may make
@@ -683,7 +654,7 @@ nontrivial overlap, which as we will see later is undesireable.
 
 Fortunately, the double negation is also \emph{sufficient}, because we
 will ultimately only use |regions_cover| in a proof of of |... -> ~
-concrete.reachable s| (for some universally quantified variable s),
+concrete.reachable s| (for some universally quantified variable $s$),
 which, due to its head type being a negation, is stable, and can
 therefore be proved in and then extracted from |DN|. Hence, we only
 need |regions_cover|'s result in |DN|.
@@ -731,6 +702,7 @@ actually manages to returns |true|/|Just P| for the hybrid system we
 are interested in (e.g.\ the thermostat). It is for this reason that
 we primarily think of the development as a program rather than a
 proof, even though the program's purpose is to produce proofs.
+
 The opposite of an underestimation is an overestimation:
 \begin{code}
 Definition overestimation (P: Prop): Set := { b: bool | b = false -> ~ P }.
@@ -775,7 +747,7 @@ they will fail to capture the subtleties of the hybrid system that
 allow to prove it safe (if indeed it is safe at all).  Furthermore,
 careless use of region overlap can result in undesireable abstract
 transitions (and therefore traces), adversely affecting the abstract
-system's utility
+system's utility.
 %(as we will discuss in detail in section \ref{trouble}).
 
 In \cite{alur}, a heuristic for interval bound selection is described,
@@ -800,11 +772,12 @@ an overestimatable notion of abstract reachability implied by concrete
 reachability, so that concrete unreachability results may be obtained
 simply by executing the abstract reachability overestimator. We first overestimate the continuous transitions; we need the following definition for that.
 
+%format PowerSet = "\mathcal{P}"
+%format `In` = "\in "
 \begin{code}
   Definition shared_cover
-    `{Container concrete.State C} `{Container abstract.State D}
-      (cs: C) (ss: D): Prop :=
-        forall s: concrete.State, In s cs -> DN (exists r: abstract.State, In s r /\ In r ss).
+    (cs: PowerSet(concrete.State)) (ss: PowerSet(abstract.State)): Prop :=
+        forall s: concrete.State, s `In` cs -> DN (exists r: abstract.State, s `In` r /\ r `In` ss).
 \end{code}
 
 The details of the |Container| type class are of no interest to us
@@ -819,10 +792,12 @@ terms of |Container|s so that the definition applies to any types
 which have a reasonable notion of containment.
 
 We now specify what the type of $\overcontrans$ should be.
+%format `compose` = "\circ "
+%format `inter` = "\cap "
 \begin{code}
 over_cont_trans: forall s: abstract.State,
   { p: list abstract.State | NoDup p /\ shared_cover
-    (concrete.invariant `inter` (overlap s `compose` utilflip (concrete.cont_trans))) p }
+    (concrete.invariant `inter` (overlap s `compose` flip concrete.cont_trans)) p }
 \end{code}
 So, |over_cont_trans s| should produce a list of abstract states |p|
 without duplicates,
@@ -875,12 +850,14 @@ Definition reachable_respect: Prop :=
 \subsection{Underestimating Safety}
 \label{underestimatingsafety}
 
+%format `subsetof` = "\subseteq "
+
 In the next section we show that thanks to decidability of our
 transition and initiality overstimators, |abstract.reachable| is
 decidable. But first we show how a
 decision procedure for |abstract.reachable| lets us underestimate
 hybrid system safety, and in particular, lets us obtain a proof of
-thermostat safety. So suppose we have |reachable_dec: decider abstract.reachable|
+thermostat safety. So suppose we have |reachable_dec: decider abstract.reachable|.
 \weg{
 And suppose we are given the following specification of unsafe concrete states, covered by a finite list of abstract states:
 \begin{code}
