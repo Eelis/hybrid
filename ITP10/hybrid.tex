@@ -124,136 +124,39 @@ MLState, Paris
 We have developed a hybrid system safety prover, implemented in Coq
 using the abstraction method introduced by Alur, Dang and Ivan\v ci\'c
 (2006).  The development includes: a formalisation of the structure of
-hybrid systems; a set of utilities for the construction of an abstract
+hybrid systems; a framework for the construction of an abstract
 system (consisting of decidable ``overestimators'' of abstract
 transitions and initiality) faithfully representing a (concrete)
-hybrid system; a translation of abstract systems to graphs enabling
+hybrid system; a translation of abstract systems to graphs, enabling
 the decision of abstract state reachability using a certified graph
 reachability algorithm; a proof of the safety of an example hybrid
-system generated using this tool stack.  The development critically
-relies on the computable real number implementation part of the CoRN
-library of formalised constructive mathematics in Coq.  The obtained
-safety proofs are fully certified and do not use floating point real
-numbers, but arbitrary precise approximations of computable real
-numbers. It also uses a nice interplay between constructive and
+system generated using this tool stack. 
+To produce fully certified safety proofs without relying on floating point computations, the development critically relies on the computable real number implementation part of the CoRN library of constructive mathematics formalised in Coq.
+The development also features a nice interplay between constructive and 
 classical logic via the double negation monad.
 
 
 \end{abstract}
-
-%\setcounter{tocdepth}{2}
-
-%\tableofcontents
-%\todo{How do I get rid of that silly author index at the top of the TOC?!}
 
 %\nocite{*}
 
 \section{Introduction}
 
 In \cite{alur}, Alur et al.\ present an automated method for hybrid system
-safety verification based on the construction of an \emph{abstract}
-hybrid system (essentially a finite automaton) corresponding to the
-hybrid system of interest. The abstract system is constructed such
-that traces in the original system are represented in the abstract
-system. Consequently, one can draw conclusions about reachability of
-states in the concrete system from analysis of state reachability in
-the abstract system. Since the abstract system is an entirely finite
-discrete object (unlike the concrete system), reachability can simply
-be computed using any graph reachability algorithm. Thus, the
-abstraction method brings the safety verification problem from a
-continuous and infinite domain into a discrete and finite domain,
-where the problem can be dealt with using standard graph algorithms.
-%where it is amenable to what amounts to brute force.
+safety verification in which one derives from the hybrid system of interest an \emph{abstract}
+hybrid system, which is essentially a finite automaton whose traces are sufficiently representative of traces in the original system that unreachability in the abstract system (which can be decided using a standard graph algorithm) implies unreachability in the concrete system (which, being governed by continuous behaviors, cannot be decided so readily). Thus, the abstraction method brings the safety verification problem from a continuous and infinite domain into a discrete and finite domain, where it can be dealt with using standard graph algorithms.
 
 The prototype implementation described in \cite{alur} was developed in
-a conventional programming language using libraries that use ordinary
-floating point arithmetic. The potential for bugs and floating point
-artifacts inherent in this approach limits the confidence one can
-justifiably have in safety judgements made by such an
-implementation. In this paper, we describe a re-implementation of the
-basic technique of Alur et al.\ in Coq, a proof assistant based on a
-rich type theory that also functions as a programming language,
-letting one develop ``certified'' programs: programs whose correctness
-is proved formally within the system. In our case, the program will be
-one that produces machine-checked proofs of hybrid system safety,
-obtained using the abstraction method.
+a conventional programming language, only has an informal correctness argument,
+and uses ordinary floating point numbers to approximate the real numbers that are used in said argument. These factors limit the confidence one can justifiably have in safety judgements computed by this implementation, because (1) it is easy for bugs to creep into uncertified programs; (2) it is easy to make mistakes in informal correctness arguments; and (3) floating point computations are subject to rounding errors and representation artifacts.
 
-Our development relies crucially on computations involving real
-numbers, for which we use the computable real number implementation
-developed by Russell O'Connor \cite{oconnor}, and part of the CoRN
-library of formalised constructive mathematics \cite{corn}. Indeed,
-this development showcases its use in a concrete and practical
-application. Subtleties regarding the nature of these computable reals
-are reflected in this development in several ways, which we will
-discuss in some detail.
+The primary goal of our work is to increase this degree of confidence by developing a \emph{certified} reimplementation of the abstraction technique in Coq, a proof assistant based on a rich type theory that also functions as a (purely functional) programming language. The Coq system lets us develop the algorithms and their formal correctness proofs in tandem in a unified environment, addressing (1) and (2) above.
 
-\section{Motivation}
-The motivation for this work is threefold. 
-First, we want to avoid the use of floating point number computation,
-because rounding errors may affect the correctness of the safety
-verification that has been performed. Instead, we want to use exact
-real arithmetic, which deals with infinitely precise real numbers and
-more importantly, infinitely precise algorithms for computing with
-real numbers. This means that, e.g.\ an algorithm for the function
-$f(x) = e^x$ can produce arbitrary many output precision (``digits'')
-by asking for more input precision. So, using exact real number
-algorithms, we can decide $\cos(\sin(e^2))<\cos(\sin(\frac{1}{e^2}))$
-by computing better and better approximations of the value of both
-expressions and observing at a certain point that the inequality
-holds. (Note that with this method we will never be able to determine
-in finite time that two such expressions denote the same number; for
-that we need a symbolic proof.) In Nijmegen we have developed a
-verified library of exact real arithmetic, formalised in the proof
-assistant Coq, as part of CoRN \cite{corn,oconnor}, our Constructive
-Coq Repository at Nijmegen. The algorithms (for $e^x$, $\cos$, $\sin$
-etc.) have been written in the programming language of Coq and have
-been proved correct using its logic. Coq is sufficiently fast that the
-algorithms can also be executed in reasonable time within the system,
-as can be witnessed by our online certified calculator
-\url{http://prover.cs.ru.nl/calc.html}. So, from this perspective,
-this work can also be seen as a case study in the use of this formal
-repository of exact real arithmetic: Can we use its computational
-capacities to verify safety of hybrid systems? Can we use exact real
-arithmetic to model the environment and verify the correctness of the
-controller?
+To address (3), we replace the floating point numbers with exact computable reals instead of floating point computation, using the certified exact real arithmetic library developed by O'Connor \cite{oconnor} for CoRN, our Coq repository of formalised constructive mathematics. \cite{corn} This change is much more than a simple change of representation, however; because computable reals only permit observation of arbitrarily close approximations, certain key operations on them (namely naive comparisons) are not decidable. The consequences of this manifest themselves in our development in several ways, which we discuss in some detail. Hence, our development also serves to showcase O'Connor's certified exact real arithmetic library applied to a concrete and practical problem.
 
-A second related point is that hybrid systems include continuous
-values. Some of these are controlled by the system itself, like a
-clock that can be reset, a valve that can be opened or a gas handle
-that can be opened. Others represent characteristics of the
-environment and can only be observed, like speed, pressure and
-temperature. Due to the fact that we deal with physical systems,
-measurements are always imprecise, and setting a valve in a certain
-position %may on a continuous scale 
-is also imprecise. 
-%Of course, we don't know exactly how imprecise, and we may assume
-%that better measuring instruments may arise
-This implies that when a controller makes a case distinction on the
-basis of $T>20$ or $T\leq 20$ -- e.g.\ if the temperature is larger
-that $20$, turn the heater off, if it is $20$ or below, keep it on --
-is always only ``approximately'' effective: The actual heater may
-remain on until just above $20$ degrees, because of a measuring
-imprecision. In a verification, one should actually take these things
-into account and we believe that constructive analysis provides the
-right way to model and verify hybrid systems. In constructive
-analysis, we do not have (for $x,y\in\IR$) $x>y \vee x\leq y$, so we
-cannot define an algorithm on the reals by making such a case
-distinction. On the other hand, we {\em do\/} have, for all
-$\epsilon>0$, $x+\epsilon>y \vee x-\epsilon< y$, which means that we
-can get an $\epsilon$-close enough approximation to a decision between
-$x>y$ and $x\leq y$.  So, the present work can also be seen as a
-confirmation of our belief that constructive analysis is the
-proper setting to model and verify hybrid systems.
+On a separate note, we argue that the use of computable reals is not just a pragmatic choice necessitated by the need to actually compute, but is actually fundamentally appropriate considering their role in hybrid systems, where they represent physical quantities acted upon by a device with sensors and actuators. And in the real world, too, measurements are approximate.
 
-As a third point, the method to verify safety of hybrid systems of
-\cite{alur} uses so called ``predicate abstraction''. We will detail
-this approach in the next section; for now it suffices to say that it
-involves mapping the hybrid system to another, finite transition
-system, which is then verified. However, this abstraction itself is
-not verified. In this formalisation we want to also verify the
-abstraction itself: show that the abstract system models the concrete
-one.
-
+The end result of our work is a framework with which one can specify (inside Coq) a concrete hybrid system, set some abstraction parameters, derive an abstract system, and use it to compute (either inside Coq itself or via extraction to OCaml) a safety proof for the concrete system.
 
 \section{Hybrid Systems and the Abstraction method}
 \label{sec:hybsys}
