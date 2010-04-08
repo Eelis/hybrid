@@ -9,7 +9,7 @@
 %\usepackage{rotating}
 \usepackage{graphicx}
 \input{diagrams}
-\newcommand{\thetitle}{Automated Machine-Checked Hybrid System Safety Proofs}
+\newcommand{\thetitle}{Automated Machine-Checked Hybrid System Safety Proofs\footnote{This research was supported by the BRICKS/FOCUS project 642.000.501, Advancing the Real use of Proof Assistants}}
 \newcommand{\eelis}{Eelis van der Weegen$^{\dagger}$}
 \newcommand{\herman}{Herman Geuvers$^{\dagger\ddagger}$}
 \newcommand{\dan}{Dan Synek$^{\dagger}$}
@@ -27,13 +27,14 @@
 
 \def\phi{\varphi}
 \newcommand{\weg}[1]{}
-
 \newcommand{\DN}{{\sf DN}\,}
 \newcommand{\IR}{{\mathbf R}}
+\newcommand{\ST}{{\sf T}}
+\newcommand{\Sc}{{\sf c}}
 \newcommand{\Heat}{{\sf Heat}}
 \newcommand{\Cool}{{\sf Cool}}
 \newcommand{\Chec}{{\sf Check}}
-\newcommand{\Off}{{\rm Off}} 
+\newcommand{\Off}{{\sf Off}} 
 \newcommand{\Loc}{{\rm Loc}}
 \newcommand{\AState}{{\rm AState}}
 \newcommand{\State}{{\rm State}}
@@ -125,7 +126,7 @@ We have developed a hybrid system safety prover, implemented in Coq
 using the abstraction method introduced by Alur, Dang and Ivan\v ci\'c
 (2006).  The development includes: a formalisation of the structure of
 hybrid systems; a framework for the construction of an abstract
-system (consisting of decidable ``overestimators'' of abstract
+system (consisting of decidable ``over-estimators'' of abstract
 transitions and initiality) faithfully representing a (concrete)
 hybrid system; a translation of abstract systems to graphs, enabling
 the decision of abstract state reachability using a certified graph
@@ -144,7 +145,7 @@ classical logic via the double negation monad.
 
 In \cite{alur}, Alur et al.\ present an automated method for hybrid system
 safety verification in which one derives from the hybrid system of interest an \emph{abstract}
-hybrid system, which is essentially a finite automaton whose traces are sufficiently representative of traces in the original system that unreachability in the abstract system (which can be decided using a standard graph algorithm) implies unreachability in the concrete system (which, being governed by continuous behaviors, cannot be decided so readily). Thus, the abstraction method brings the safety verification problem from a continuous and infinite domain into a discrete and finite domain, where it can be dealt with using standard graph algorithms.
+hybrid system, which is essentially a finite automaton whose traces are sufficiently representative of traces in the original system that unreachability in the abstract system (which can be decided using a standard graph algorithm) implies unreachability in the concrete system (which, being governed by continuous behaviours, cannot be decided so readily). Thus, the abstraction method brings the safety verification problem from a continuous and infinite domain into a discrete and finite domain, where it can be dealt with using standard graph algorithms.
 
 The prototype implementation described in \cite{alur} was developed in
 a conventional programming language, only has an informal correctness argument,
@@ -152,7 +153,18 @@ and uses ordinary floating point numbers to approximate the real numbers that ar
 
 Our goal is to increase this degree of confidence by developing a \emph{certified} reimplementation of the abstraction technique in Coq, a proof assistant based on a rich type theory that also functions as a (purely functional) programming language. The Coq system lets us develop the algorithms and their formal correctness proofs in tandem in a unified environment, addressing (1) and (2) above.
 
-To address (3), we replace the floating point numbers with exact computable reals instead of floating point computation, using the certified exact real arithmetic library developed by O'Connor \cite{oconnor} for CoRN, our Coq repository of formalised constructive mathematics. \cite{corn} This change is much more than a simple change of representation, however; because computable reals only permit observation of arbitrarily close approximations, certain key operations on them (namely naive comparisons) are not decidable. The consequences of this manifest themselves in our development in several ways, which we discuss in some detail. Hence, our development also serves to showcase O'Connor's certified exact real arithmetic library applied to a concrete and practical problem.
+To address (3), we replace the floating point numbers with exact
+computable reals instead of floating point computation, using the
+certified exact real arithmetic library developed by O'Connor
+\cite{oconnor} for CoRN, our Coq repository of formalised constructive
+mathematics. \cite{corn} This change is much more than a simple change
+of representation, however; because computable reals only permit
+observation of arbitrarily close approximations, certain key
+operations on them (namely naive comparisons) are not decidable. The
+consequences of this manifest themselves in our development in several
+ways, which we discuss in some detail. Hence, our development also
+serves to showcase O'Connor's certified exact real arithmetic library
+applied to a concrete and practical problem.
 
 On a separate note, we argue that the use of computable reals is not just a pragmatic choice necessitated by the need to compute, but is actually fundamentally appropriate considering their role in hybrid systems, where they represent physical quantities acted upon by a device with sensors and actuators. In the real world, too, measurements are approximate.
 
@@ -160,14 +172,21 @@ The end result of our work is a framework with which one can specify (inside Coq
 
 \section{Hybrid Systems and the Abstraction method}
 \label{sec:hybsys}
-In general, a hybrid system is a model of how a software system (running on a device with sensors and actuators), described as a finite set of \emph{locations}
+A hybrid system is a model of how a software system (running on a device with sensors and actuators), described as a finite set of \emph{locations}
 %\footnote{We reserve the term ``state'' for something else.}
 with (discrete) transitions between them, acts
 on and responds to a set of continuous variables (called the
 \emph{continuous state space}), typically representing physical
 properties of some environment (such as temperature and pressure).
 
-There are many varieties of hybrid systems \cite{henziger,lynchvaandrager}. We follow \cite{alur} in considering so-called \emph{linear hybrid systems}\weg{ (to be defined momentarily)}. To illustrate the definition and the abstraction process, we use as an example a hybrid system expressing the operation of a thermostat (this is the same example used in \cite{alur}), shown in Figure \ref{fig:thermostat}.
+There are many varieties of hybrid systems
+\cite{henziger,lynchvaandrager}. We follow \cite{alur} in considering
+so-called \emph{linear hybrid systems}\weg{ (to be defined
+  momentarily)}. To illustrate the definition and the abstraction
+process, we use the example of a hybrid system describing
+a thermostat (this is the same example used in \cite{alur}), shown
+in Figure \ref{fig:thermostat}. (The linearity in \cite{alur} refers
+to invariants, guards etc.; our development doesn't use that.)
 
 
 %format IR = "\mathbb{R}"
@@ -185,7 +204,7 @@ There are many varieties of hybrid systems \cite{henziger,lynchvaandrager}. We f
 The thermostat has three locations. The first two, $\Heat$ and $\Cool$, represent states in which the thermostat heats and cools the environment it operates in, respectively. The third, $\Chec$, represents a self-diagnostic state in which the thermostat does not heat or cool. The continuous state space of the thermostat consists of two continuous variables denoting an internally resettable clock $c$ and the temperature $T$ in the environment in which the thermostat operates.
 
 With each location is associated an \emph{invariant} predicate defining the set of
-permitted values for the continuous variables while in that location. The invariants for the thermostat are: $$\Inv_{\Heat} := c\leq 3 \wedge T\leq 10,\quad \Inv_{\Cool} := 5 \leq T,\quad \Inv_{\Chec} := c\leq 1.$$
+permitted values for the continuous variables while in that location. The invariants for the thermostat are: $$\Inv_{\Heat}(c,T) :=  T\leq 10 \wedge c\leq 3,\quad \Inv_{\Cool}(c,T) := T \geq 5,\quad \Inv_{\Chec}(c,T) := c\leq 1.$$
 
 \begin{center}
 \begin{figure}[htb!]
@@ -201,60 +220,76 @@ permitted values for the continuous variables while in that location. The invari
 
 
 The \emph{initial states} of a hybrid system are determined by a predicate $\Init$. For the thermostat,
-$\Init(l,c,T) := l= \Heat \wedge c= 0 \wedge 5 \leq T \leq 10.$
+$\Init(l,c,T)$ is defined as $l= \Heat \wedge c= 0 \wedge 5 \leq T \leq 10.$
 
 %There is the obvious requirement that the invariant holds at each initial state.
 
-The remaining parts of a hybrid system (described below) describe transitions between states, which, together
-with the set of initial states, determine the set of \emph{reachable}
-states, representing the possible behaviours exhibited by a
-hypothetical real-world implementation of the hybrid system (as
-software running on a device with sensors and actuators).
-
-Each location in a hybrid system has an accompanying \emph{flow function} which describes how the continuous variables change over
-time while the system is in that location. The idea is that different locations correspond to different uses of actuators
-available to the software system, the effects of which are reflected in the flow function. For instance, in the thermostat, the flow
-function corresponding to the $\Heat$ location will have the
-temperature increase over time, modelling the effect of the heater
-component in the imagined thermostat device.
-
-In the canonical definition of hybrid systems, flow functions are
-specified as solutions to differential equations describing the
-dynamics of the continuous variables. We follow \cite{alur} in
-abstracting from these, taking instead the solutions of these
-differential equations, which are flow functions $\Phi$ which satisfy:
-$$\Phi(p, 0) = p \quad \mbox{and} \quad \Phi (p, d + d') = \Phi (\Phi(p, d), d')$$
-We now say that there is a (concrete) \emph{continuous transition}
-from a state $(l, p)$ to a state $(l, p')$ if there is a
-non-negative duration $d$ such that $p' = \Phi_l(p,d)$ with the
-invariant for $l$ holding at every point along the way:
-$$ (l,p) \contrans (l',p') := l = l' \wedge \Exists{d\in
-\Dur}{\Phi_l(p, d) = p' \wedge \Forall{0 \leq t\leq d}{\Inv_l(\Phi_l (p, t))}}.$$
-
-A flow function on |pow IR 2| can be expressed as the
-product of two flow functions: $\Phi_l((c,T),d) = (\phi_{l,c}((c,T),d),
-\phi_{l,T}((c,T),d))$. In the thermostat example, as in many other
-examples of hybrid systems, $\phi_{l,c}((c,T),d)$ does not actually depend on $T$
-and $\phi_{l,T}((c,T),d)$ does not actually depend on $c$. We call this feature
-{\em separability\/} of the flow function. Our development currently
-relies heavily on this property. Separability makes the form of the
-flow functions simpler:
-$$\Phi_l((c,T),t) = (\phi_{l,c}(c,t), \phi_{l,T}(T,t))$$
-
-In the thermostat, $\phi_{l,c}(c,d) = c + d$ for all locations $l$, $\phi_{\Heat,T}(T,d)= T + 2 d$,
-$\phi_{\\Cool,T}(T,d)= T * e^{-d}$, $\phi_{\Chec,T}(T,d)= T * e^{- \frac{1}{2}d}$.
-
-Where continuous transitions describe the flow of continuous
-variables, \emph{discrete} transitions between locations describe the
+%The remaining parts of a hybrid system (described below) describe
+%transitions between states, which, together with the set of initial
+%states, determine the set of \emph{reachable} states, representing the
+%possible behaviours exhibited by a hypothetical real-world
+%implementation of the hybrid system (as software running on a device
+%with sensors and actuators).
+The \emph{discrete} transitions between locations describe the
 logic of the software system. Each such transition is comprised of two
 components: a \emph{guard} predicate defining a subset of the continuous state
 space in which the transition is enabled (permitted), and a \emph{reset} function
 describing an
 instantaneous change applied as a side effect of the transition, as
 seen in the following definition of the discrete transition relation:
-$$ (l,p) \distrans (l',p') := \guard_{l,l'}(p) \wedge \reset_{l,l'}(p)= p' \wedge \Inv_l(p) \wedge \Inv_{l'}(p')$$
-It will be obvious from Figure \ref{fig:thermostat} what the guards
-and reset functions are.
+$$ (l,p) \distrans (l',p') := \guard_{l,l'}(p) \wedge
+\reset_{l,l'}(p)= p' \wedge \Inv_l(p) \wedge \Inv_{l'}(p')$$ It will
+be clear from Figure \ref{fig:thermostat} what the guards and reset
+functions are. Note the inherent non-determinism in a Hybrid Systems
+specification: when in $\Cool$, the system can jump to $\Heat$
+whenever the temperature $T$ is in the interval $[5,6]$.
+
+
+Each location in a hybrid system has an accompanying \emph{flow function} which describes how the continuous variables change over
+time while the system is in that location. The idea is that different locations correspond to different uses of actuators
+available to the software system, the effects of which are reflected in the flow function. In the thermostat example, the flow
+function corresponding to the $\Cool$ location has the
+temperature decrease over time. 
+%modelling the effect of the heater
+%component in the imagined thermostat device.
+This is expressed via the differential equation $\dot{T} = - T$,
+which is the usual short hand for $T'(t) = - T(t)$, where $T'(t)$
+denotes the derivative of the temperature function over time $t$.
+
+In the canonical definition of hybrid systems, flow functions are
+specified as solutions to differential equations (or differential
+inclusions) describing the dynamics of the continuous variables. We
+follow \cite{alur} in abstracting from these, taking instead the
+solutions of these differential equations, which are flow functions
+$\Phi$ which satisfy:
+$$\Phi(p, 0) = p \quad \mbox{and} \quad \Phi (p, d + d') = \Phi
+(\Phi(p, d), d')$$ 
+The idea is that $\Phi(p,d)$ denotes the value of the
+continuous variable after duration $d$, starting from the value
+$p$. We say that there is a (concrete) \emph{continuous
+  transition} from a state $(l, p)$ to a state $(l, p')$ if there is a
+non-negative duration $d$ such that $p' = \Phi_l(p,d)$ with the
+invariant for $l$ holding at every point along the way:
+$$ (l,p) \contrans (l,p') := \Exists{d\in
+\Dur}{\Phi_l(p, d) = p' \wedge \Forall{0 \leq t\leq d}{\Inv_l(\Phi_l (p, t))}}.$$
+
+A flow function on |pow IR 2| can be expressed as the
+product of two flow functions: $\Phi_l((c_0,T_0),t) = (\phi_{l,\Sc}((c_0,T_0),t),
+\phi_{l,\ST}((c_0,T_0),t))$. In the thermostat example, as in many other
+examples of hybrid systems, $\phi_{l,\Sc}((c_0,T_0),t)$ does not actually depend on $T_0$
+and $\phi_{l,\ST}((c_0,T_0),t)$ does not actually depend on $c_0$. We call this feature
+{\em separability\/} of the flow function. Our development currently
+relies heavily on this property. Separability makes the form of the
+flow functions simpler:
+$$\Phi_l((c_0,T_0),t) = (\phi_{l,\Sc}(c_0,t), \phi_{l,\ST}(T_0,t))$$
+
+In the thermostat, $\phi_{l,\Sc}(c_0,t) = c_0 + t$ for all locations
+$l$, $\phi_{\Heat,\ST}(T_0,t)= T_0 + 2 t$, $\phi_{\Chec,\ST}(T_0,t)=
+T_0 * e^{- \frac{1}{2}t}$ and $\phi_{\Cool,\ST}(T_0,t)= T_0 *
+e^{-t}$. So $\phi'_{\Cool,\ST}(T_0,t)= - \phi_{\Cool,\ST}(T_0,t)$,
+solving the differential equation $\dot{T} = - T$ for the $\Cool$
+location.
+
 
 \weg{
 The reset function resets the clock for all
@@ -269,16 +304,23 @@ temperature as a variable of the former kind and resetting its
 value. However, this would simply make the system unimplementable.
 }
 
-A transition is either continuous or discrete: $\trans:= \distrans \cup \contrans$. We now say that a state $s$ is \emph{reachable} if there is an initial state $i$ from which one can, by a finite number of transitions, end up in $s$ ($\ttrans$ is the transitive reflexive closure of $\trans$):
+A transition is either continuous or discrete: $\trans:= \distrans
+\cup \contrans$. A finite sequence of transitions constitutes a {\em trace}. We now say that a state $s$ is \emph{reachable} if
+there is an initial state $i$ from which there is a trace to $s$.
+% one can, by a finite number
+%of transitions, end up in $s$ (
+If we denote by $\ttrans$ the transitive reflexive
+closure of $\trans$, that is:
 $$\Reach(s):=
     \Exists{i\in \State}{\Init(i) \wedge i \ttrans s}.$$
+
 \weg{As mentioned before, the set of reachable states represents the
 possible behaviours exhibited by a hypothetical real-world
 implementation of the hybrid system (as software running on a device
 with sensors and actuators).
 }
 
-The object of hybrid system safety verification is to show that the set of reachable states is a subset of a predefined set of ``safe'' states. For the thermostat, the intent is to
+The objective of hybrid system safety verification is to show that the set of reachable states is a subset of a predefined set of ``safe'' states. For the thermostat, the intent is to
 keep the temperature above $4.5$ degrees at all times, and so we define $\Safe(c,T) := T > 4.5$ (and $\Unsafe(c,T)$ as its complement).
 
 \subsection{The Abstraction Method}
@@ -295,10 +337,10 @@ $A: \State \to \AState$ of concrete states into abstract states. On this
 abstract state space, one immediately defines {\em abstract continuous
   transitions\/} and {\em abstract discrete transitions\/} (both potentially undecidable) as follows.
 \begin{eqnarray*}
-(l,P) \acontrans (l',Q) &:=& l=l' \wedge \Exists{p\in P, q\in Q}{(l,p) \contrans (l,q)}\\
+(l,P) \acontrans (l,Q) &:=& \Exists{p\in P, q\in Q}{(l,p) \contrans (l,q)}\\
 (l,P) \adistrans (l',Q) &:=& \Exists{p\in P, q\in Q}{(l,p) \distrans (l,q)}.
 \end{eqnarray*}
-Now {\em abstract reachability\/} can be defined in the obvious way as
+Now {\em abstract reachability\/} can be defined as
 follows $\AReach(a) := \Exists{s_0\in\State}{\Init(s_0) \wedge A(s_0)
 \attrans a}$, and also the predicates $\ASafe$ and $\AUnsafe$, stating
 when abstract states are safe / unsafe are defined as expected.
@@ -322,34 +364,36 @@ The interest and power of the abstraction method lies in two
 facts. First, we do not need the {\em exact\/} definitions of
 $\acontrans$ and $\adistrans$ to conclude safety of the concrete
 system from safety of the abstract system. We only need the property
-of diagram \ref{diag:abstraction}, so we can {\em overestimate\/}
+of Figure \ref{diag:abstraction}, so we can {\em over-estimate\/}
 $\acontrans$ and $\adistrans$ (i.e. replace it with a transition
 relation that allows more transitions). Second, there are good
 heuristics for how to divide the continuous
 state space into regions, and how to decide whether there should be an
 abstract transition from one abstract state to another.
 
-This is indicated in figure \ref{fig:abstraction}. The left side illustrates
-the challenge: given abstract regions $A$ and $B$, we are to determine
-whether nonnegative flow durations might permit flow from points in $A$ to points in $B$.
-Following the overestimation property just mentioned, we introduce an abstract transition from $A$ to $B$ whenever we cannot positively rule out such paths.
+This is indicated in figure \ref{fig:abstraction}. The left hand side
+illustrates the challenge: given abstract regions $A$ and $B$, we are
+to determine whether some flow duration permits flow from points in
+$A$ to points in $B$.  Following the over-estimation property just
+mentioned, we introduce an abstract transition from $A$ to $B$
+whenever we cannot positively rule this out.
 
-On the right side we see the abstract state space indicated for the
+On the right hand side we see the abstract state space indicated for the
 location $\Heat$. The abstract state space consists of rectangles,
 possibly degenerate (extending to $-\infty$ or $+\infty$). For the
 bounds of these rectangles one takes the values that occur in the
 specification of the hybrid system (see Figure
 \ref{fig:thermostat}). According to \cite{alur}, this is a good
-choice. (In case one cannot prove safety in this, there is of course
-the opportunity for the user to refine it.)  The gray area indicates
+choice. (In case one cannot prove safety, there is of course
+the opportunity for the user to refine the bounds.)  The grey area indicates
 that from these states also abstract discrete transitions are
 possible. The dashed area is unreachable, because of the invariant for
 the $\Heat$ location. %prevents these states from being reachable.  
 All the abstract
 transitions from the rectangle $[0.5,1) \times[5,6)$ are shown: as the
-    temperature flow function for $\Heat$ is $\phi_{\Heat,2}(T,d)= T +
-    2 * d$, and the clock flow function is $\phi_{\Heat,1}(c,d) = c +
-    d$, these are all the possible abstract transitions.
+    temperature flow function for $\Heat$ is $\phi_{\Heat,\ST}(T_0,t)= T_0 +
+    2 * t$, and the clock flow function is $\phi_{\Heat,\Sc}(c_0,t) = c_0 +
+    t$, these are all the possible abstract transitions.
 
 Using the abstraction method, \cite{alur} proves the correctness of the thermostat.
 
@@ -377,10 +421,14 @@ fact that there is no transition from any point in $[0.5,1)
 }
 % \ADAM{I will try to add some more explanation}
 \section{Formalisation}
-We now describe the Coq formalisation and the design choices made.
-We will not pay much attention to the specifics of Coq and its type theory CiC, and will instead focus on concerns relating to the use of computable reals and constructive logic.
-
-The complete sources of the development, as well as a technical report describing the formalization in more detail \cite{hybrid-techreport}, can be found at \newline {\tt http://www.eelis.net/research/hybrid/}.
+We now describe the Coq formalisation and the design choices made.  We
+will not pay much attention to the specifics of Coq and its type
+theory CiC, and will instead focus on concerns relating to the use of
+computable reals and constructive logic.  The complete sources of the
+development are available on the web, as well as a technical report
+describing the formalisation in more detail \cite{hybrid-techreport}.
+%, can be found
+%at \newline {\tt http://www.eelis.net/research/hybrid/}.
 
 \subsection{(Concrete) Hybrid Systems}
 \label{concrete}
@@ -548,7 +596,7 @@ choice of one's abstraction parameters.
 \label{abshybsys}
 \label{abstraction}
 We now want to define an abstract system and an abstraction function
-satisfying the properties indicated in diagram
+satisfying the properties indicated in Figure
 \ref{diag:abstraction}. However, this is not possible, because we
 cannot make a case distinction like $x\leq 0 \vee 0< x$ and therefore
 we can't define a function that sends a point $(c,T)$ to the rectangle $R$
@@ -564,7 +612,7 @@ sent to different rectangles,
 a point that is less than $\epsilon$ outside the rectangle $R$ may still be sent to $R$.
 \end{itemize}
 The second is very problematic, because it means the property for the
-abstraction function $A$ depicted in diagram
+abstraction function $A$ depicted in Figure
 \ref{diag:abstraction} no longer holds.
 
 We argue that these problems are not merely annoying byproducts
@@ -586,7 +634,7 @@ $c\geq 2$, $T\geq 9$. However, when we get close to $c=2$, any small
 mistake in the measurement of $T$ may send the system to $\Off$,
 making the whole hybrid system very unreliable.
 
-The good thing is that we don't really need the property in Diagram
+The good thing is that we don't really need the property in Figure
 \ref{diag:abstraction}, because we can do something better. 
 \begin{itemize}
 \item
@@ -594,16 +642,16 @@ We let regions in the abstract hybrid systems overlap (ideally as
 little as possible, e.g.\ only at the edges).
 
 \item
-We replace the abstract transition relations $\acontrans$ and $\distrans$ by functions $\overcontrans$ and $\overdistrans$ that take a region $R_0$
+We replace the abstract relations $\acontrans$ and $\adistrans$ by functions $\overcontrans$ and $\overdistrans$ that take a region $R_0$
 as input and output a {\em list of regions\/} including $R_0$: $(R_o,
 R_1, \ldots, R_n)$ in such a way that $\cup_{0\leq i\leq n}R_i$ is an
-overapproximation of the set of states reachable by a continuous (resp. discrete) step
+over-approximation of the set of states reachable by a continuous (resp. discrete) step
 from a state in $R_0$.\\
 \item
 We loosen the requirement on the abstraction function $A$; for $s \in \State$, we only require $\Varid{DN}(\Exists {r\in \Region}{s\in r})$.
 \end{itemize}
 
-To summarize, if $s\contrans s'$, then we don't require
+To summarise, if $s\contrans s'$, then we don't require
 $A(s')$ to be in the list $\overcontrans(A(s))$, but we only require
 $s'$ to be in the $\bigcup \overcontrans(A(s))$. 
 %(Basically it should
@@ -611,7 +659,7 @@ $s'$ to be in the $\bigcup \overcontrans(A(s))$.
 This simple change relieves us from having to determine the exact
 regions that points are in: they just should be covered. The functions
 $\overcontrans$ and $\overdistrans$ yield a notion of {\em trace\/} in
-the abstract hybrid system in the obvious way: starting from $R_0$,
+the abstract hybrid system in the straightforward way: starting from $R_0$,
 take an $R_1$ in $\overcontrans( R_0)$, then an $R_2$ in
 $\overdistrans(R_1)$, and so forth.
 
@@ -650,7 +698,9 @@ abstract region containing that point. This means that it must be able
 to decide on which side of a border between two regions the given
 point lies. As we saw in section \ref{dn}, that kind of decidability
 is only available inside |DN| unless all region borders have
-nontrivial overlap, which as we will see later is undesireable.
+nontrivial overlap, which 
+%as we will see later 
+is undesirable.
 
 Fortunately, the double negation is also \emph{sufficient}, because we
 will ultimately only use |regions_cover| in a proof of of |... -> ~
@@ -659,10 +709,10 @@ which, due to its head type being a negation, is stable, and can
 therefore be proved in and then extracted from |DN|. Hence, we only
 need |regions_cover|'s result in |DN|.
 
-\subsection{Underestimation and Overestimation}
+\subsection{Under-Estimation and Over-Estimation}
 \label{estimation}
 
-% It \emph{will} always terminate, so we are not writing a semidecision procedure either.
+% It \emph{will} always terminate, so we are not writing a semi-decision procedure either.
 Ultimately, in our development we are writing a program that
 \emph{attempts} to produce hybrid system safety proofs. Importantly,
 we are \emph{not} writing a complete hybrid system safety decision
@@ -678,42 +728,44 @@ of Ltac.
 % Eelis: discussion of |option P| variant removed in what follows
 We define |underestimation P| to be either a proof of |P|, or not:
 \begin{code}
-Definition underestimation (P: Prop): Set := { b: bool | b = true -> P }.
+Definition under-estimation (P: Prop): Set := { b: bool | b = true -> P }.
 \end{code}
-Using the |Program| family of commands
-\cite{sozeau}, an underestimation may be
-provisionally defined strictly as a bool, and then separately proved
-to be a valid underestimation in a proof obligation generated by
-|Program|. The |bool| in the definition nicely illustrates why we call this an
-``underestimation'': it may be |false| even when |P| holds. We can now
+%Using the |Program| family of commands
+%\cite{sozeau}, an underestimation may be
+%provisionally defined strictly as a bool, and then separately proved
+%to be a valid underestimation in a proof obligation generated by
+%|Program|. 
+The |bool| in the definition nicely illustrates why we call this an
+``under-estimation'': it may be |false| even when |P| holds. We can now
 describe the functionality of our program by saying that it
-underestimates hybrid system safety, yielding a term of type
+under-estimates hybrid system safety, yielding a term of type
 |underestimation Safe|, where |Safe| is a proposition expressing
 safety of a hybrid system.
 
-Considered as theorems, underestimations are not very interesting,
+Considered as theorems, under-estimations are not very interesting,
 because they can be trivially ``proved'' by taking
 |false|. Hence, the value of our program is not witnessed by
 the mere fact that it manages to produce terms of type
 |underestimation Safe|, but rather by the fact that when run, it
-actually manages to returns |true| for the hybrid system we
+actually manages to return |true| for the hybrid system we
 are interested in (e.g.\ the thermostat). It is for this reason that
 we primarily think of the development as a program rather than a
 proof, even though the program's purpose is to produce proofs.
 
-The opposite of an underestimation is an overestimation:
+The opposite of an under-estimation is an over-estimation:
 \begin{code}
 Definition overestimation (P: Prop): Set := { b: bool | b = false -> ~ P }.
 \end{code}
 
 Since hybrid system safety is defined as unreachability of unsafe
 states, we may equivalently express the functionality of our
-development by saying that it overestimates unsafe state
+development by saying that it over-estimates unsafe state
 reachability. Indeed, most subroutines in our programs will be
-overestimators rather than underestimators. Notions of overestimation
-and underestimation trickle down through all layers of our
+over-estimators rather than under-estimators. Notions of over-estimation
+and under-estimation trickle down through all layers of our
 development, down to basic arithmetic. For instance, we employ
-functions such as:
+functions such as (recall that |CR| denotes the type of constructive
+reals):
 
 %format CRle_unapplied = <= "_{" CR "}"
 %format CRle a b = a <= "_{" CR "}" b
@@ -743,7 +795,7 @@ to cover the continuous state space of the concrete system, resulting
 in poor performance. On the other hand, if the regions are too coarse,
 they will fail to capture the subtleties of the hybrid system that
 allow to prove it safe (if indeed it is safe at all).  Furthermore,
-careless use of region overlap can result in undesireable abstract
+careless use of region overlap can result in undesirable abstract
 transitions (and therefore traces), adversely affecting the abstract
 system's utility.
 %(as we will discuss in detail in section \ref{trouble}).
@@ -755,20 +807,21 @@ initially attempted to follow this heuristic and use the same bounds,
 but found that due to our use of computable reals, we had to tweak the
 bounds somewhat to let the system successfully produce a safety
 proof. 
-Having to do this ``tweaking'' manually is obviously not ideal. One may want to develop heuristics for this.
+Having to do this ``tweaking'' manually is clearly not ideal. One may want to develop heuristics for this.
 
 
 Another way in which our thermostat regions differ from \cite{alur}
 lies in the fact that our bounds are always inclusive, which means
-adjacent regions overlap in lines. We will discuss this in more detail
-later.
+adjacent regions overlap in lines. 
+%We will discuss this in more detail
+%later.
 
 \subsection{Abstract Transitions and Reachability}
 \label{abs.reach}
 Once we have a satisfactory abstract |Space|, our goal is to construct
-an overestimatable notion of abstract reachability implied by concrete
+an over-estimatable notion of abstract reachability implied by concrete
 reachability, so that concrete unreachability results may be obtained
-simply by executing the abstract reachability overestimator. We first overestimate the continuous transitions; we need the following definition for that.
+simply by executing the abstract reachability over-estimator. We first over-estimate the continuous transitions; we need the following definition for that.
 
 %format PowerSet = "\mathcal{P}"
 %format `In` = "\in "
@@ -802,8 +855,8 @@ of concrete states |c| that satisfy the invariant and whose set of
 origins under |concrete.cont_trans| have an overlap with |s|. In more
 mathematical terms: |p| should form a shared cover of $\{ c \in \State
 \mid \Inv(c) \wedge s\cap \{c' \mid c' \contrans c\} \neq \emptyset\}$.
-We similarly specify |over_disc_trans| as an overestimator for
-|concrete_disc_trans| and |over_initial| as an overestimator of
+We similarly specify |over_disc_trans| as an over-estimator for
+|concrete_disc_trans| and |over_initial| as an over-estimator of
 |concrete.initial|. 
 
 We now consider the properties we require for |abstract.reachable|. An obvious candidate is:
@@ -811,18 +864,21 @@ We now consider the properties we require for |abstract.reachable|. An obvious c
   forall (s: concrete.State), concrete.reachable s ->
     forall (s': abstract.State), s `elem` s' -> abstract.reachable s'.
 \end{code}
-Which would nicely imply:
+because it implies
+%Which would nicely imply:
 \begin{code}
 forall (s: concrete.State)
   (exists s': abstract.State, s `elem` s' /\ ~ abstract.reachable s') ->
     ~ concrete.reachable s,
 \end{code}
-This would expresses that to conclude unreachability of a concrete state,
-one need only establish unreachability of \emph{any} abstract state
+This expresses that to conclude unreachability of a concrete state,
+one only needs to establish unreachability of \emph{one} abstract state
 that contains it. However, this definition neglects to facilitate {\em
-  sharing}: remember that a concrete state may be in more then one
-abstract state. When abstract states ``share'' the burden of
-reachability, one should establish unreachability of \emph{all}
+  sharing}: a concrete state may be in more than one
+abstract state. So, if a concrete state is in one abstract state which is unreachable, it may still be in another abstract state which {\em is\/} reachable.
+% When abstract states ``share'' the burden of
+%reachability, 
+One should establish unreachability of \emph{all}
 abstract states containing the concrete state. Hence, what we really
 want is an |abstract.reachable| satisfying:
 \begin{code}
@@ -838,19 +894,22 @@ Definition reachable_respect: Prop :=
 \end{code}
 }
 
-\subsection{Underestimating Safety}
+\subsection{Under-Estimating Safety}
 \label{underestimatingsafety}
 
 %format `subsetof` = "\subseteq "
 
-In the next section we show that thanks to decidability of our
-transition and initiality overstimators, |abstract.reachable| is
-decidable. But first we show how a
-decision procedure for |abstract.reachable| lets us underestimate
-hybrid system safety, and in particular, lets us obtain a proof of
-thermostat safety. So suppose we have |reachable_dec: decider abstract.reachable|.
-\weg{
-And suppose we are given the following specification of unsafe concrete states, covered by a finite list of abstract states:
+%In the next section we show that thanks to decidability of our
+%transition and initiality overestimators, |abstract.reachable| is
+%decidable. But first 
+We now show how a decision procedure for |abstract.reachable| lets us
+under-estimate hybrid system safety, and in particular, lets us obtain
+a proof of thermostat safety. (The construction of the decision
+procedure itself is detailed in the next section.) So suppose we have
+|reachable_dec: decider abstract.reachable|.
+\weg{ And suppose we are
+  given the following specification of unsafe concrete states, covered
+  by a finite list of abstract states:
 \begin{code}
   Variables
     (unsafe: concrete.State -> Prop)
@@ -868,11 +927,14 @@ Taking |unsafe := thermo_unsafe| and a suitable abstract cover, we obtain
     overestimation (overlap thermo_unsafe concrete.reachable).
 \end{code}
 }
-Recall that |ThermoSafe| was defined as |thermo_unsafe `subsetof` concrete.unreachable| in section \ref{concrete}. Since we trivially have |~ overlap unsafe concrete.reachable -> ThermoSafe|, we also have:
+%Recall that 
+|ThermoSafe| is defined as |thermo_unsafe `subsetof` concrete.unreachable|.
+% in section \ref{concrete}. 
+Since we trivially have |~ overlap unsafe concrete.reachable -> ThermoSafe|, we also have:
 \begin{code}
 Definition under_thermo_unsafe_unreachable: underestimation ThermoSafe.
 \end{code}
-Using a tiny utility |underestimation_true| of type |forall P (o: underestimation P), o = true -> P|, we can now \emph{run} this underestimator to obtain a proof of the thermostat system's safety:
+Using a tiny utility |underestimation_true| of type |forall P (o: underestimation P), o = true -> P|, we can now \emph{run} this under-estimator to obtain a proof of the thermostat system's safety:
 \begin{code}
 Theorem: ThermoSafe.
 Proof.
@@ -881,32 +943,32 @@ Proof.
 Qed.
 \end{code}
 The first |apply| reduces the goal to
-\begin{code}under_thermo_unsafe_unreachable = true.\end{code} The |vm_compute| tactic invocation then forces evaluation of the left hand side, which will in turn evaluate |over_thermo_unsafe_reachable|, which will evaluate |reachable_dec|, which will evaluate the overestimators of the continuous and discrete transitions. This process, which takes about 35 seconds on a modern desktop machine, eventually reduces |under_thermo_unsafe_unreachable| to |true|, leaving |true = true|, proved by |reflexivity|.
+\begin{code}under_thermo_unsafe_unreachable = true.\end{code} The |vm_compute| tactic invocation then forces evaluation of the left hand side, which will in turn evaluate |over_thermo_unsafe_reachable|, which will evaluate |reachable_dec|, which will evaluate the over-estimators of the continuous and discrete transitions. This process, which takes about 35 seconds on a modern desktop machine, eventually reduces |under_thermo_unsafe_unreachable| to |true|, leaving |true = true|, proved by |reflexivity|.
 
-We can now also clearly see what happens when the abstraction method ``fails'' due to poor region selection, overly simplistic transition/initiality overestimators, or plain unsafety of the system. In all these cases, |vm_compute| reduces |under_thermo_unsafe_unreachable| to |false|, and the subsequent |reflexivity| invocation will fail.
+We can now also clearly see what happens when the abstraction method ``fails'' due to poor region selection, overly simplistic transition/initiality over-estimators, or plain unsafety of the system. In all these cases, |vm_compute| reduces |under_thermo_unsafe_unreachable| to |false|, and the subsequent |reflexivity| invocation will fail.
 
 This concludes the high level story of our development. What remains
 are the implementation of |reachable_dec| in terms of the decidable
-overestimators for abstract initiality and continuous and discrete
-transitions, and the implementation of those overestimators
+over-estimators for abstract initiality and continuous and discrete
+transitions, and the implementation of those over-estimators
 themselves. The former is a formally verified graph reachability
-algorithm, that we don't detail here. The overestimator for continuous
+algorithm, that we don't detail here. The over-estimator for continuous
 transitions, |over_cont_trans| will be detailed in the next section
 for the thermostat case.
 
-\subsection{Overestimating Continuous Abstract Transitions}
+\subsection{Over-Estimating Continuous Abstract Transitions}
 \label{over_cont_trans}
 
-We now discuss the implementation of  |over_cont_trans|:
+We now discuss the implementation of  |over_cont_trans|.
 Given two regions |r_src| and |r_dst|, 
 %we want to
 %rule out the existence of concrete continuous transitions from points
 %in |r_src| to points |r_dst|. Clearly, 
 if we can determine that there
 are no points in |r_src| which the flow function maps to points in
-|r_dst|, then there need be no abstract continuous transition between |r_src|
+|r_dst|, then we don't put an abstract continuous transition between |r_src|
 and |r_dst|. Clearly, this is impossible to
-meaningfully overestimate for a general flow function and general
+meaningfully over-estimate for a general flow function and general
 regions. However, the thermostat posesses three key properties that
 we can exploit:
 \begin{enumerate}
@@ -934,18 +996,23 @@ $t$ for which $\phi(x,t)\in b$ for some $x\in a$.
 %So $F(a,b)$ should
 %contain all durations $t$ that take some elements of $a$ to some
 %element of $b$ via flow $\phi$.
-Range invertibility is a less demanding alternative to point invertibility: $\phi^{-1}$ is the {\em point inverse\/} of $\phi$ if $\forall x,y\in \IR (\phi (x, \phi^-1(x,y)) =y)$. So a point inverse $\phi^{-1}(x,y)$ computes the exact time it takes to go from $x$ to $y$ via flow $\phi$.
+Range invertibility is a less demanding alternative to point
+invertibility: $\phi^{-1}$ is the {\em point inverse\/} of $\phi$ if
+$\forall x,y\in \IR (\phi (x, \phi^-1(x,y)) =y)$. So a point inverse
+$\phi^{-1}(x,y)$ computes the exact time $t$ it takes to go from $x$
+to $y$ via flow $\phi$. A range inverse computes an interval that
+contains this $t$.
 %We need range invertibility because the exponential flow functions are
 %not point invertible.
 
-In the formalization we use a modest library
+In the formalisation we use a modest library
 of flow functions when defining the thermostat's flow. Included in
 that library are range-inverses, which consequently automatically
 apply to the thermostat's flow. Hence, no ad-hoc work is needed to
 show that the thermostat's flow functions are range-invertible.
 Having defined the class of separable range-invertible flow functions,
 and having argued that the thermostat's flow is in this class, we now
-show how to proceed with our overestimation of existence of points in
+show how to proceed with our over-estimation of existence of points in
 |r_src| which the flow function map to points in |r_dst|. 
 Regions in the abstract space for our thermostat are basically pairs
 of regions in the composite spaces, so |r_src| and |r_dst| can be
@@ -953,11 +1020,11 @@ written as |(r_src_temp, r_src_clock)| and |(r_dst_temp,
 r_dst_clock)|, respectively, where each of these four components are
 intervals.
 
-We now simply use an |OpenRange| overlap overestimator of type
+We now simply use an |OpenRange| overlap over-estimator of type
 \begin{code}
 Qpos -> forall a b: OpenRange, overestimation (overlap a b)
 \end{code}
-(defined in terms of things like |overestimate_CRle| shown in section \ref{estimation}) to overestimate whether the following three intervals overlap:
+(defined in terms of things like |overestimate_CRle| shown in section \ref{estimation}) to over-estimate whether the following three intervals overlap:
 \begin{enumerate}
 \item |[0, inf]|
 \item |range_inverse temp_flow r_src_temp r_dst_temp|
@@ -978,8 +1045,8 @@ not overlap with 2 and 3, then apparently one could only flow backward
 in time, which is not permitted. Hence, overlap of these three ranges
 is a necessary condition for existence of concrete flow from points in
 |r_src| to points in |r_dst|, and so our |abstract.cont_trans|
-overestimator may justifiably return ``false'' when the overlap
-overestimator manages to prove absence of overlap.
+over-estimator may justifiably return ``false'' when the overlap
+over-estimator manages to prove absence of overlap.
 
 
 \section{Related work}
@@ -994,7 +1061,7 @@ or with polyhedra approximations \cite{alur,Chu99,Cla03}.
 Many of those tools are implemented in MATLAB \cite{MATLAB}
 and those using some general programming language of choice
 most often rely on standard floating point arithmetic, that
-comes with its rounding errors. Few tools that address 
+comes with its rounding errors. Some tools that address 
 this problem include 
 PHAVer \cite{PhaVER}, that relies on the Parma Polyhedra Library \cite{Parma} 
 for exact computations with non-convex polyhedra 
@@ -1013,9 +1080,10 @@ deductive, real algebraic, and computer algebraic prover technologies
 and allows users to model hybrid systems, specify their properties
 and prove them in a semi-automated way.
 
-However, to the best of our knowledge, none of the previous work nor tools 
-relies on a precise model of real number computations completely verified 
-in a theorem prover; such as the model of CoRN used in this work.
+However, to the best of our knowledge, none of the work or tools
+discussed above rely on a precise model of real number computations
+completely verified in a theorem prover; such as the model of CoRN
+used in this work.
 
 \section{Conclusions and further research}
 The presented verification of hybrid systems in Coq gives a nice
@@ -1027,16 +1095,31 @@ the sophisticated use of type classes, e.g.\ the systematic use of
 estimators to make tactic-like optional-deciders, at each level in the
 stack and the use of the double negation monad.
 
-It remains to be seen how far this automated verification approach can be
-taken, given the fact that we have limited ourselves to hybrid systems
-with separable reset and flow functions that are monotone, and with a
-stable invariants. There is still a lot of room for more clever
-heuristics with less restrictive preconditions. The heuristic in
+It remains to be seen how far this automated verification approach can
+be taken, given the fact that we have limited ourselves to hybrid
+systems where we have a {\em solution\/} to the differential equation
+as a flow function, this flow function is {\em separable} (Section
+\ref{sec:hybsys}) and {\em range invertible} (Section
+\ref{over_cont_trans}) and the invariants are {\em stable} (Section
+\ref{concrete}). Finally, the reset functions should not be too
+strange, see \cite{hybrid-techreport} for details. If the flow
+functions are given, the largest part of the work is in producing {\em
+  useful\/} range inverse functions. Note that we always have the
+trivial range inverse function, that just returns $\IR$, but that is
+not useful.  We want a function that actually helps to exclude certain
+abstract continuous transitions.
+
+There is still a lot of room for more clever
+heuristics, possibly with less restrictive preconditions. The heuristic in
 \cite{alur} for bound selection doesn't work out of the box, but
 manual tweaking is obviously not ideal, so some more experimentation
 is required here. Finally, in case safety cannot be proved, one would
 like the system to generate an ``offending trace'' automatically,
-which can the be inspected by the user.
+which can then be inspected by the user.
+
+\paragraph{Acknowledgements} 
+We thank the referees for their useful suggestions; due
+to space limitations we have not been able to incorporate all of them.
 
 %\bibliographystyle{splncs}
 \bibliographystyle{plain}
