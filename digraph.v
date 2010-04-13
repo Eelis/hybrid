@@ -4,7 +4,7 @@ Require EquivDec.
 Set Implicit Arguments.
 
 Record DiGraph: Type := Build
-  { Vertex: Set
+  { Vertex: Type
   ; Vertex_eq_dec: EquivDec.EqDec Vertex eq
   ; vertices: ExhaustiveList Vertex
   ; edges: Vertex -> list Vertex
@@ -29,7 +29,7 @@ Section reachability.
   Definition edge: relation (Vertex g) := fun v w => In w (edges v).
   Let ved := Vertex_eq_dec g.
 
-  Definition Edge: Set := (Vertex g * Vertex g)%type.
+  Definition Edge := (Vertex g * Vertex g)%type.
   Definition Edge_eq_dec: forall (e e': Edge), decision (e=e')
     := pair_eq_dec ved ved.
 
