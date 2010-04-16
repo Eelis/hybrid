@@ -27,6 +27,8 @@ Definition range_flow_inv_spec (f: Flow CRasCSetoid)
   (i: OpenRange -> OpenRange -> OpenRange): Prop :=
     forall a p, in_orange a p -> forall b t, in_orange b (f p t) -> in_orange (i a b) t.
 
+Hint Unfold range_flow_inv_spec.
+
 Obligation Tactic := idtac.
 
 Program Definition product_flow (X Y: CSetoid) (fx: Flow X) (fy: Flow Y):
@@ -147,7 +149,7 @@ Section contents.
 End contents.
 End scale.
 
-Hint Resolve scale.inc.
+Hint Resolve scale.inc scale.inv_correct.
 
 Module positive_linear.
 Section contents.

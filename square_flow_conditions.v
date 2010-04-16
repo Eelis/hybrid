@@ -107,6 +107,8 @@ Section contents.
 End contents.
 End one_axis.
 
+Hint Resolve one_axis.flow_range_covers.
+
 Section contents.
 
   Variables
@@ -181,3 +183,4 @@ Section contents.
   Qed.
 
 End contents.
+

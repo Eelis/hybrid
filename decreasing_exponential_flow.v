@@ -474,3 +474,5 @@ Section contents.
   Qed.
 
 End contents.
+
+Hint Resolve inv_correct.
