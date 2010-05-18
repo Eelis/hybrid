@@ -2,6 +2,7 @@ Require Export Arith.
 Require Export Peano_dec.
 Require Import util.
 Require Import EqdepFacts.
+Require Import stability.
 Require Import tactics.
 
 Set Implicit Arguments.
@@ -90,6 +91,14 @@ Section Check_n.
     induction i; crunch.
   Qed.
 
+  Variable P_stable : forall i (ip: i < n), Stable (P ip).
+
+  Lemma check_n_Stable_aux :
+    forall i (ip : i < n), Stable (check_n_aux ip).
+  Proof.
+    induction i; crunch.
+  Qed.
+
 End Check_n.
 
 Lemma check_n_holds n (P : forall i, i < n -> Prop) : 
@@ -97,6 +106,13 @@ Lemma check_n_holds n (P : forall i, i < n -> Prop) :
 Proof.
   destruct n; crunch.
   apply check_n_holds_aux; crunch.
+Qed.
+
+Lemma check_n_Stable n (P : forall i, i < n -> Prop) : 
+  (forall i (ip: i < n), Stable (P i ip)) -> Stable (check_n P).
+Proof.
+  destruct n; crunch.
+  apply check_n_Stable_aux; crunch.
 Qed.
 
 Section Check_n_equiv.
