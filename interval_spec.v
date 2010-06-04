@@ -1,5 +1,6 @@
 Require geometry abstract.
 Require Import bnat util c_util stability.
+Require Import Morphisms.
 
 Set Implicit Arguments.
 

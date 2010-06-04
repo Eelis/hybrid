@@ -1,5 +1,6 @@
 Require Import util c_util stability.
 Require geometry abstract abstract_cont_trans_over.
+Require Import Morphisms.
 
 Set Implicit Arguments.
 
@@ -53,7 +54,7 @@ Section contents.
     apply Some.
     intros p [H0 H4] t [H1 H5].
     apply (strongly_increasing_inv_mild (X p)).
-    unfold compose.
+    unfold Basics.compose.
     rewrite flow.flow_zero.
     apply CRle_trans with ('q)...
     rewrite A...

@@ -4,6 +4,8 @@ Require Import List.
 Require Import Bool.
 Require Export Program.
 Require Import EquivDec.
+Require Import Relation_Definitions.
+Require Import Morphisms.
 
 Set Implicit Arguments.
 Open Local Scope R_scope.
@@ -153,14 +155,14 @@ Qed.
 Instance option_eq_dec `(Bdec: EquivDec.EqDec B eq): EquivDec.EqDec (option B) eq.
 Proof with auto.
   intros B e Bdec o o'.
-  unfold equiv.
+  unfold Equivalence.equiv.
   destruct o; destruct o'...
-      destruct (Bdec b b0).
-        unfold equiv in *.
-        subst...
-      right. intro. inversion H...
-    right. intro. discriminate.
-  right. intro. discriminate.
+    destruct (Bdec b b0).
+     unfold Equivalence.equiv in *.
+     subst...
+    right. intro. inversion H...
+   right. discriminate.
+  right. discriminate.
 Defined.
 
 Coercion opt_to_bool A (o: option A): bool :=
@@ -275,8 +277,6 @@ End doers.
 Program Coercion decision_overestimation (P: Prop) (d: decision P): overestimation P := d: bool.
 Next Obligation. destruct d; firstorder. Qed.
   (* todo: rename, because we can do the same for underestimation *)
-
-Coercion decision_overestimation: decision >-> overestimation.
 
 Definition decider_to_overestimator `{ipt: IsPredicateType T} (P: T): decider P -> overestimator P.
   unfold decider, overestimator.

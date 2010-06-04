@@ -90,8 +90,8 @@ Section contents.
 
     Context `{Container (c.State chs) C} `{Container (State ap) D} (cs: C) (ss: D).
 
-    Definition CompleteCover: Prop := forall s, s ∈ cs -> forall r, s ∈ r -> r ∈ ss.
-    Definition SharedCover: Prop := forall s, s ∈ cs -> DN (exists r, s ∈ r /\ r ∈ ss).
+    Definition CompleteCover: Prop := forall s: c.State chs, s ∈ cs -> forall r: State ap, s ∈ r -> r ∈ ss.
+    Definition SharedCover: Prop := forall s: c.State chs, s ∈ cs -> DN (exists r: State ap, s ∈ r /\ r ∈ ss).
 
   End CoverRelandsuch.
 

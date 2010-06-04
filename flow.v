@@ -3,6 +3,7 @@ Require Import geometry.
 Require Import CRreal.
 Require Import CRexp.
 Require Import CRln.
+Require Import Morphisms.
 Set Implicit Arguments.
 Open Local Scope CR_scope.
 
