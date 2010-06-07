@@ -3,6 +3,7 @@ Require Import geometry.
 Require Import monotonic_flow.
 Require Import hs_solver.
 Require Import interval_spec.
+Require Import tactics.
 Require decreasing_exponential_flow.
 Require abstract square_abstraction.
 Require EquivDec.
@@ -32,22 +33,16 @@ Definition temp_flow_inv (l: Location): OpenRange -> OpenRange -> OpenRange :=
   | Check => flow.scale.inv half_pos (dec_exp_flow.inv milli)
   end.
 
+Hint Resolve square_flow_conditions.one_axis.flow_range_covers.
+
 Lemma clock_rfis l: range_flow_inv_spec (clock_flow l) (clock_flow_inv l).
-Proof with auto.
-  intro.
-  unfold range_flow_inv_spec. intros.
-  apply square_flow_conditions.one_axis.flow_range_covers with p...
+Proof.
+  unfold clock_flow_inv; crunch.
 Qed.
 
 Lemma temp_rfis l: range_flow_inv_spec (temp_flow l) (temp_flow_inv l).
-Proof with auto.
-  destruct l; simpl temp_flow.
-      unfold temp_flow_inv.
-      apply flow.scale.inv_correct.
-      unfold range_flow_inv_spec. intros.
-      apply square_flow_conditions.one_axis.flow_range_covers with p...
-    apply dec_exp_flow.inv_correct.
-  apply flow.scale.inv_correct, dec_exp_flow.inv_correct.
+Proof. 
+  destruct l; crunch.
 Qed.
 
 (* Abstract regions: *)

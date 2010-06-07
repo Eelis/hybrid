@@ -5,6 +5,10 @@ Require Import Morphisms.
 Set Implicit Arguments.
 Require Import EquivDec.
 Require concrete.
+Require Import CoLoR.Util.Vector.VecUtil.
+Require Import hybrid.vector_setoid.
+Require hybrid.nat_util.
+Require Import hybrid.hlist_aux.
 
 Module c := concrete.
 
@@ -13,7 +17,7 @@ Section contents.
   Variable chs: concrete.System.
 
   Record Space: Type :=
-    { Region: Set
+    { Region: Type
     ; Region_eq_dec: EquivDec.EqDec Region eq
     ; regions: ExhaustiveList Region
     ; NoDup_regions: NoDup regions
@@ -62,22 +66,69 @@ Section contents.
     Let in_region_mor: Morphism (@cs_eq _ ==> eq ==> iff) in_region.
     Proof. unfold in_region. intros x x' e r r' e'. rewrite e, e'. split; auto. Qed.
 
-    Let regions_cover: forall (l : concrete.Location chs) (p : concrete.Point chs),
-      concrete.invariant (l, p) -> DN (sig (in_region p)).
-    Proof.
-      intros.
-      apply (DN_bind (regions_cover ap _ _ H)). intros [x i].
-      apply (DN_bind (regions_cover ap' _ _ H)). intros [x0 i0].
-      apply DN_return.
-      exists (x, x0).
-      split; assumption.
-    Qed. (* written with Program and monad notation, this should be much clearer *)
+    Program Definition regions_cover_prod l p : concrete.invariant (l, p) -> DN (sig (in_region p)) :=
+      fun H => 
+        C1 <- contents.regions_cover ap l p H;
+        C2 <- contents.regions_cover ap' l p H;
+        return [=(`C1, `C2)=].
+    Next Obligation.
+      split; crunch.
+    Qed.
 
     Definition prod_space: Space := Build_Space _ _
       (NoDup_ExhaustivePairList (NoDup_regions ap) (NoDup_regions ap'))
-      in_region_mor regions_cover.
+      in_region_mor regions_cover_prod.
 
   End prod_space.
+
+  (* We generalize the product space above from 2 to arbitrary 'n' dimensions,
+     hence generalizing abstraction by squares in 2 dimensional space to 
+     abstraction by hyper-cubes in n-dimensional space *)
+
+  Section hyper_space.
+
+    Variable n : nat.
+    Variable aps : list Space.
+
+    (* [Regions] is formed by an n-product of [Region]s of respective [Space]s,
+       epxressed with heterogenous list *)
+    Notation Regions aps := (@hlist _ Region aps).
+
+    Fixpoint in_region_aux (aps : list Space) (p : concrete.Point chs) : Regions aps -> Prop :=
+      match aps as aps return Regions aps -> Prop with
+      | [] => fun _ => True
+      | s::ss => fun rs =>
+          in_region s p (hhd rs) /\ @in_region_aux ss p (htl rs)
+      end.
+
+    Obligation Tactic := crunch.
+
+    Program Fixpoint regions_cover_aux (aps : list Space) l p : 
+      concrete.invariant (l, p) -> DN (sig (@in_region_aux aps p)) :=
+      match aps with
+      | [] => fun H => return [= HNil (H:=_) =]
+      | s::ss => fun H =>
+          C1 <- contents.regions_cover s l p H;
+          C2 <- @regions_cover_aux ss l p H;
+          return [= `C1:::`C2 =]
+      end.
+
+    Lemma in_region_aux_morph : Morphism (@st_eq _ ==> eq ==> iff) (@in_region_aux aps).
+    Proof.
+      repeat intro; split; induction aps; crunch.
+    Qed.
+
+    Obligation Tactic := program_simpl; auto with typeclass_instances.
+
+    Hint Resolve NoDup_regions.
+
+    Program Definition hyper_space : Space := @Build_Space (Regions aps) _ _ _ 
+      (@in_region_aux aps) in_region_aux_morph (@regions_cover_aux aps).
+    Next Obligation.
+      set (w := NoDup_ExhaustiveHList); simpl in w; apply w; auto.
+    Qed.
+
+  End hyper_space.
 
   Variable ap: Space.
 
@@ -95,7 +146,7 @@ Section contents.
 
   End CoverRelandsuch.
 
-  Definition CompleteCoverList (cs: c.State chs -> Prop): Set :=
+  Definition CompleteCoverList (cs: c.State chs -> Prop): Type :=
     sig (LazyProp ∘ (CompleteCover cs: list (State ap) -> Prop)).
 
   Section safe.
@@ -145,7 +196,7 @@ Section contents.
   Definition cont_trans (l: c.Location chs): relation (Region ap)
     := fun r r' => exists p q, p ∈ r /\ q ∈ r' /\ c.can_flow chs l p q.
 
-  Definition sharing_transition_overestimator (R: relation (concrete.State chs)): Set :=
+  Definition sharing_transition_overestimator (R: relation (concrete.State chs)): Type :=
     forall s: State ap, sig (fun l: list (State ap) => LazyProp (NoDup l /\
       SharedCover (concrete.invariant ∩ (overlap s ∘ util.flip R)) l)).
         (* the invariant part is important because it means the overestimators can use

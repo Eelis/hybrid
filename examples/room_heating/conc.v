@@ -3,6 +3,7 @@ Require  Coq.Program.Program.
 Require Import CoRN.reals.fast.CRln.
 
 Require Export hybrid.examples.room_heating.params.
+Require Import hybrid.tactics.
 Require Import hybrid.util.
 Require Import hybrid.c_util.
 Require Import hybrid.nat_util.
@@ -64,7 +65,7 @@ Module RoomHeatingConcrete (Import RHS : RoomHeatingSpec).
   Lemma exhaustiveRS_correct x : In x (exhaustiveRS n).
   Proof with auto.
     induction x.
-    left. ref.
+    crunch.
     simpl. destruct a; in_or_app_proof.
   Qed.
 
@@ -207,7 +208,10 @@ Module RoomHeatingConcrete (Import RHS : RoomHeatingSpec).
   Definition flow (l : DS) := vector_flow (Vmap room_flow l).
 
   Lemma invariant_stable s: Stable (invariant s).
-  Admitted.
+  Proof.
+    intros. apply check_n_Stable.
+    intros. destruct (ds s) [@ip]; crunch.
+  Qed.
 
   Definition concrete_system: concrete.System :=
     concrete.Build_System _ _ NoDup_locations

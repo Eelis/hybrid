@@ -14,7 +14,7 @@ Section using_duplication.
     (ap: abstract.Space chs)
     (ahs: abstract.System ap).
 
-  Let Vertex := bool * abstract.State ap.
+  Let Vertex : Type := bool * abstract.State ap.
 
   Definition nexts (v: Vertex): list (abstract.State ap) :=
     let (k, s) := v in

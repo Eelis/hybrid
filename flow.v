@@ -22,12 +22,13 @@ Record Flow (X: CSetoid): Type :=
   }.
 
 Definition mono (f: Flow CRasCSetoid): Type :=
-  sum (forall x, strongly_increasing (f x))
-    (forall x, strongly_decreasing (f x)).
+  ((forall x, strongly_increasing (f x)) + (forall x, strongly_decreasing (f x)))%type.
 
 Definition range_flow_inv_spec (f: Flow CRasCSetoid)
   (i: OpenRange -> OpenRange -> OpenRange): Prop :=
     forall a p, in_orange a p -> forall b t, in_orange b (f p t) -> in_orange (i a b) t.
+
+Hint Unfold range_flow_inv_spec.
 
 Obligation Tactic := idtac.
 
@@ -149,7 +150,7 @@ Section contents.
 End contents.
 End scale.
 
-Hint Resolve scale.inc.
+Hint Resolve scale.inc scale.inv_correct.
 
 Module positive_linear.
 Section contents.
