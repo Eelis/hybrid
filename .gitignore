@@ -1,3 +1,4 @@
 *.vo
 *.pdf
 .sconsign.dblite
+*.glob
