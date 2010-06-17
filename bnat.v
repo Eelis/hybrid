@@ -4,6 +4,12 @@ Inductive bnat: nat -> Set :=
   | bO n: bnat (S n)
   | bS n: bnat n -> bnat (S n).
 
+Fixpoint to_nat n (b: bnat n): nat :=
+  match b with
+  | bO _ => 0
+  | bS _ x => S (to_nat x)
+  end.
+
 Section alt_rect.
 
   Variables
