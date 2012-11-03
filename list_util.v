@@ -86,6 +86,7 @@ Proof. intros. rewrite remove_eq_filter. apply incl_filter. Qed.
 
 Lemma In_subtr a b x: In x (subtr a b) -> (In x a /\ ~ In x b).
 Proof with auto.
+  revert a b x.
   induction b...
   simpl.
   rewrite remove_eq_filter.
@@ -207,7 +208,6 @@ Proof with auto.
     apply H. left...
   apply IHl...
   destruct (p a)...
-  intro. apply H. right...
 Qed.
 
 Lemma not_In_filter' (x: X) p l: ~ In x (filter p l) ->
@@ -238,9 +238,7 @@ Proof with auto.
     intro.
     destruct (in_app_or _ _ _ H)...
     apply (H1 a)...
-    left...
   apply IHa...
-  intros. apply H1. right...
 Qed.
 
 Lemma NoDup_subtr a b: NoDup a -> NoDup (subtr a b).
@@ -361,7 +359,7 @@ Section ExhaustivePairList.
 
 End ExhaustivePairList.
 
-Instance decide_exists_in `{forall x: T, decision (P x)} l: decision (exists x, In x l /\ P x).
+Instance decide_exists_in {T} {P} `{forall x: T, decision (P x)} l: decision (exists x, In x l /\ P x).
 Proof.
   repeat intro.
   case_eq (existsb H l); intro.
@@ -376,13 +374,13 @@ Proof.
   exact (decision_false _ (existsb_forall l H x H0 H1) H2).
 Defined.
 
-Instance decide_exists `{ExhaustiveList T} `{forall x: T, decision (P x)}: decision (exists x, P x).
+Instance decide_exists {T} {P} `{ExhaustiveList T} `{forall x: T, decision (P x)}: decision (exists x, P x).
 Proof.
   intros. destruct (decide_exists_in H); [left | right]; firstorder.
 Defined.
 
 Program Instance overestimate_exists_in
-   `{H: forall x: T, overestimation (P x)} l: overestimation (exists x, In x l /\ P x) := existsb H l.
+   {T} {P} `{H: forall x: T, overestimation (P x)} l: overestimation (exists x, In x l /\ P x) := existsb H l.
 Next Obligation.
   intros [x [A B]].
   rewrite (snd (existsb_exists H l)) in H0.
@@ -390,7 +388,7 @@ Next Obligation.
   eauto 20 using overestimation_true.
 Defined.
 
-Instance overestimate_exists `{ExhaustiveList T} `{forall x: T, overestimation (P x)}: overestimation (exists x, P x).
+Instance overestimate_exists {T} {P} `{ExhaustiveList T} `{forall x: T, overestimation (P x)}: overestimation (exists x, P x).
 Proof.
   intros.
   exists (overestimate_exists_in H).
@@ -399,7 +397,7 @@ Proof.
   firstorder.
 Defined.
 
-Instance In_decision `{EquivDec.EqDec T eq} (x: T) y: decision (In x y) := In_dec EquivDec.equiv_dec x y.
+Instance In_decision {T} `{EquivDec.EqDec T eq} (x: T) y: decision (In x y) := In_dec EquivDec.equiv_dec x y.
 
 Section carts.
 

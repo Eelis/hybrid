@@ -72,7 +72,7 @@ Definition ap: abstract.Space conc.system :=
 (* Abstracted initial: *)
 
 Obligation Tactic := CRle_constants.
-Program Definition initial_square: OpenSquare := (('0, '0), ('5, '10)): Square.
+Program Definition initial_square: OpenSquare := ((0, 0), ('5, '10)): Square.
 Definition initial_location := Heat.
 
 Lemma initial_representative: forall s: concrete.State system,
@@ -99,9 +99,9 @@ Program Definition invariant_squares (l: concrete.Location system):
   sig (fun s: OpenSquare => forall p, concrete.invariant (l, p) ->
     in_osquare (square_abstraction.pxy system px py p) s) :=
   match l with
-  | Cool => (above ('0), above ('5))
-  | Heat => (('0, '3): Range, below ('10)): OpenSquare
-  | Check => (('0, '1): Range, unbounded_range): OpenSquare
+  | Cool => (above 0, above ('5))
+  | Heat => ((0, '3): Range, below ('10)): OpenSquare
+  | Check => ((0, 1): Range, unbounded_range): OpenSquare
   end.
 
 Solve Obligations using
@@ -134,6 +134,7 @@ Program Definition guard_square (l l': concrete.Location system):
 
 Solve Obligations using
   intros; subst; repeat split; simpl; auto; intros [[A B] [C D]]; auto.
+  (* todo: this takes ridiculously long *)
 
 Let guard_dec: Qpos -> overestimator (abstract.guard ap)
  := square_abstraction.guard_dec guard_square.
@@ -141,8 +142,8 @@ Let guard_dec: Qpos -> overestimator (abstract.guard ap)
 (* Hints: *)
 
 Lemma invariant_implies_lower_clock_bound l (p: concrete.Point system):
-   concrete.invariant (l, p) -> ' 0 <= fst_mor p.
-Proof. intros l p [H _]. assumption. Defined.
+   concrete.invariant (l, p) -> 0 <= fst_mor p.
+Proof. intros [H _]. assumption. Defined.
 
 Definition clock_hints (l: Location) (r r': abstract.Region ap) (E: r <> r'):
   option (abstract_cont_trans_over.strong_redundant ap l E).
@@ -160,7 +161,8 @@ Proof with auto.
    (interval_spec.select_interval' system fst_mor clock_spec
      invariant_implies_lower_clock_bound)
    l (fst r) (fst r') c X)).
-  intuition. apply H with p...
+  intuition. (* todo: takes too long *)
+  apply H with p...
 Defined.
 
 Definition temp_hints (l: Location) (r r': abstract.Region ap) (E: r <> r'): option
@@ -189,7 +191,7 @@ Definition hints (l: Location) (r r': abstract.Region ap) (E: r <> r') :=
 
 Definition clock_reset (l l': Location): square_abstraction.Reset :=
   match l, l' with
-  | Cool, Heat | Heat, Check | Check, Heat => square_abstraction.Reset_const ('0)
+  | Cool, Heat | Heat, Check | Check, Heat => square_abstraction.Reset_const 0
   | _, _ => square_abstraction.Reset_id (* dummy *)
   end.
 

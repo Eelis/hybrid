@@ -25,6 +25,7 @@ Section using_duplication.
 
   Lemma NoDup_edges v: NoDup (edges v).
   Proof with auto; try congruence.
+    revert v.
     intros [k [l r]].
     apply NoDup_map...
     unfold nexts.
@@ -38,7 +39,8 @@ Section using_duplication.
 
   Lemma edges_match_transitions y b x: In y (nexts (b, x)) <-> abstract.trans ahs b x y.
   Proof with auto.
-    intros [l' r'] b [l r]. simpl.
+    destruct y as [l' r'].
+    destruct x as [l r]. simpl.
     split; destruct b...
   Qed.
 
@@ -127,28 +129,38 @@ Section using_duplication.
   Program Let reachable_verts := digraph.reachables g NoDup_init_verts.
     (* Having this as a separate definition is critical for efficiency. *)
 
-  Program Let state_reachable: decider (abstract.reachable ahs) :=
-    fun s => @equivalent_decision (exists b, In (b, s) (`reachable_verts)) _ _ decide.
-
   Hint Resolve in_filter.
 
-  Next Obligation. Proof with eauto.
+  Definition state_reachable: decider (abstract.reachable ahs).
+  Proof with auto.
+   intro s.
+   simpl.
+   apply (@equivalent_decision (exists b, In (b, s) (`reachable_verts))).
     split.
-      intros [x H].
-      destruct reachable_verts.
-      apply <- respect.
-      exists x.
-      apply -> i...
+     intros [x H].
+     destruct reachable_verts.
+     apply <- respect.
+     exists x.
+     apply -> i...
     intro.
     apply respect in H.
     destruct H.
     destruct H.
     exists x.
-    destruct reachable_verts.
+    destruct @reachable_verts.
     simpl proj1_sig.
     apply <- i.
     unfold digraph.reachable...
-  Qed.
+    eauto.
+   apply (@decide_exists bool _ _).
+   intros.
+   apply (@In_decision _ _ _).
+   (* todo: this last goal is just instance resolution but it appears to diverge *)
+  Defined.
+
+(*  Program Let state_reachable: decider (abstract.reachable ahs) :=
+    fun s => @equivalent_decision (exists b, In (b, s) (`reachable_verts)) _ _ decide.
+*)
 
   Definition some_reachable := abstract.some_reachable_2 (decider_to_overestimator _ state_reachable).
 

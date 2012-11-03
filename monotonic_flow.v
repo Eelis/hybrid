@@ -92,9 +92,9 @@ Section single_inverses.
     reflexivity.
   Qed.
 
-  Lemma inv_refl x: inv x x == '0.
+  Lemma inv_refl x: inv x x == 0.
   Proof with auto.
-    intros. destruct (f_eq x (inv x x) ('0)).
+    intros. destruct (f_eq x (inv x x) 0).
     clear H0. apply H.
     repeat rewrite inv_correct...
     rewrite flow_zero...
@@ -130,7 +130,7 @@ Section single_inverses.
   Lemma inv_very_correct t x: inv (f x t) x == -t.
   Proof with auto with real.
     intros.
-    assert (inv x x == '0).
+    assert (inv x x == 0).
       apply inv_refl.
     rewrite (inv_plus x (f x t) x) in H.
     rewrite inv_correct' in H.
@@ -151,11 +151,11 @@ Section single_inverses.
     rewrite inv_correct...
   Qed.
 
-  Lemma inv_uniq_0 x x': inv x x' == - inv ('0) x + inv ('0) x'.
+  Lemma inv_uniq_0 x x': inv x x' == - inv 0 x + inv 0 x'.
   Proof with auto.
     intros.
-    rewrite (inv_plus x ('0) x').
-    rewrite (inv_inv x ('0))...
+    rewrite (inv_plus x 0 x').
+    rewrite (inv_inv x 0)...
   Qed.
     (* hm, this shows that inv is uniquely determined by the values it
       takes with 0 as first argument. perhaps the reason we don't
@@ -171,7 +171,7 @@ Section single_inverses.
     destruct fmono; do 2 rewrite inv_correct...
   Qed.
 
-  Lemma inv_nonneg x x': '0 <= inv x x' <-> mle x x'.
+  Lemma inv_nonneg x x': 0 <= inv x x' <-> mle x x'.
   Proof with auto.
     unfold mle.
     split; intros.
@@ -188,7 +188,7 @@ Section single_inverses.
     apply inv_le...
   Qed.
 
-  Lemma inv_zero x x': inv x x' == '0 <-> x == x'.
+  Lemma inv_zero x x': inv x x' == 0 <-> x == x'.
   Proof with auto.
     split; intros.
       rewrite <- (inv_correct x x').
@@ -225,9 +225,9 @@ Section single_inverses.
     rewrite <- (Radd_0_l CR_ring_theory t) at 2.
     apply t9.
       rewrite inv_inv.
-      assert ('0 == -'0).
+      assert (0 == -0).
         rewrite CRopp_Qopp.
-        apply inject_Q_wd.
+        apply inject_Q_CR_wd.
         reflexivity.
       rewrite H0.
       apply t8.
@@ -242,10 +242,10 @@ Section single_inverses.
     apply t8. apply inv_le...
   Qed.
 
-  Lemma mle_flow t x: '0 <= t -> mle x (f x t).
+  Lemma mle_flow t x: 0 <= t -> mle x (f x t).
   Proof with auto.
     intros.
-    apply mle_trans with (f x ('0)).
+    apply mle_trans with (f x 0).
       unfold mle.
       destruct fmono; rewrite flow_zero; apply CRle_refl.
     apply mono_opp...

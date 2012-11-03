@@ -32,7 +32,7 @@ Section contents.
   Defined.
 
   Definition bounds b n: IntervalSpec b n -> bnat (S (S n)) -> geometry.OpenQRange.
-    intros b n s i.
+    intros s i.
     destruct (bnat_cases i) as [[p A] | B].
       exact (spec_bounds s p).
     exact (geometry.qbelow b).
@@ -41,6 +41,7 @@ Section contents.
   Definition spec_interval b n (s: IntervalSpec b n) (p: concrete.Point chs):
     DN (sig (fun i => geometry.in_orange (spec_bounds s i) (component p)) + (component p < 'b)).
   Proof with simpl; auto.
+    revert s p.
     induction s; intro p'.
       simpl spec_bounds.
       generalize (component p').

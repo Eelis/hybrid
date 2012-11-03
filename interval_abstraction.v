@@ -1,3 +1,5 @@
+Set Automatic Coercions Import.
+
 Require Import util c_util stability.
 Require geometry abstract abstract_cont_trans_over.
 Require Import Morphisms.
@@ -24,7 +26,7 @@ Section contents.
   Definition in_region (p: concrete.Point chs) (r: Region): Prop :=
     geometry.in_orange (bounds r) (component p).
 
-  Instance in_region_mor: Morphism (@cs_eq _ ==> eq ==> iff) in_region.
+  Instance in_region_mor: Proper (@cs_eq _ ==> eq ==> iff) in_region.
   Proof with auto.
     unfold in_region. repeat intro.
     apply geometry.in_orange_mor.

@@ -1,3 +1,5 @@
+Set Automatic Coercions Import.
+
 Require Import util c_util flow stability containers Morphisms.
 Require EquivDec.
 Set Implicit Arguments.
@@ -23,7 +25,7 @@ Record System: Type :=
 
   ; invariant: Location * Point -> Prop
   ; invariant_initial: initial ⊆ invariant
-  ; invariant_mor: Morphism ((@eq _) ==> (@cs_eq _) ==> iff) (curry invariant)
+  ; invariant_mor: Proper ((@eq _) ==> (@cs_eq _) ==> iff) (curry invariant)
     (* hm, can't we just use a unary morphism with product setoid equality on State? *)
   ; invariant_stable: forall s, Stable (invariant s)
 
@@ -54,7 +56,7 @@ Section transitions_and_reachability.
 
   Definition can_flow l: relation (Point system) := fun p p' =>
     exists d: Duration,
-      (forall t, '0 <= t -> t <= `d -> invariant (l, flow system l p t))%CR
+      (forall t, 0 <= t -> t <= `d -> invariant (l, flow system l p t))%CR
       /\ flow system l p (`d) [=] p'.
 
   Definition cont_trans: relation State := fun s s' =>
@@ -75,12 +77,13 @@ Section transitions_and_reachability.
 
   Lemma cont_trans_refl s: invariant s -> s ->_C s.
   Proof with auto.
+    revert s.
     intros [l p] H.
     split...
     exists NonNegCR_zero.
     split. intros.
       rewrite (curry_eq (@invariant system)),
-       (snd (CRle_def t ('0)%CR)), flow_zero...
+        (snd (CRle_def t 0)), flow_zero...
     apply flow_zero.
   Qed.
 

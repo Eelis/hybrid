@@ -96,9 +96,9 @@ Proof with auto.
   intros.
   unfold raw.
   apply CRlt_wd with (exp (-x) * a) (exp (-x) * b).
-      apply (Rmul_comm CR_ring_theory).
+      apply CRmult_lt_pos_r...
     apply (Rmul_comm CR_ring_theory).
-  apply CRmult_lt_pos_r...
+  apply (Rmul_comm CR_ring_theory).
 Defined.
 
 Lemma raw_le_compat_l: forall x a b, a <= b -> raw a x <= raw b x.
@@ -120,7 +120,7 @@ Proof with auto.
   apply CRmult_le_inv with x...
 Qed.
 
-Lemma A x: x * exp (-'0) == x.
+Lemma A x: x * exp (-0) == x.
   intros.
   rewrite CRopp_0.
   rewrite exp_0.
@@ -343,6 +343,7 @@ Definition someAnd_noneOr (X: Type) (P: X -> Set) (r: option X): someAnd P r -> 
 Definition upper_pos_from_lower (r: OpenRange):
   someAnd CRpos (fst (`r)) -> optPos (snd (`r)).
 Proof.
+  revert r.
   intros [[[x|] y] le]; intros.
     apply optPos_le_trans with x; assumption.
   elimtype False. assumption.
@@ -351,6 +352,7 @@ Defined.
 Definition lower_neg_from_upper (r: OpenRange):
   someAnd CRneg (snd (`r)) -> optNeg (fst (`r)).
 Proof.
+  revert r.
   intros [[x [y|]] le]; intros.
     apply optNeg_le_trans with y; assumption.
   elimtype False. assumption.
@@ -387,7 +389,7 @@ Section contents.
     end end end end.
 
   Obligation Tactic := program_simpl.
-  Program Definition no_trans_result: OpenRange := (-'1, -'1): Range.
+  Program Definition no_trans_result: OpenRange := (- (1:CR), -(1:CR)): Range.
 
   Definition inv (src dst: OpenRange): OpenRange.
   Proof with auto.

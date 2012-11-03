@@ -35,6 +35,7 @@ Section alt_rect.
 End alt_rect.
 
 Lemma bnat_cases n (x: bnat (S n)): { p | x = bS p } + { x = bO n }.
+  revert n x.
   apply bnat_Srect; [right | left; exists b]; reflexivity.
 Defined.
 

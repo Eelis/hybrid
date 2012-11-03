@@ -120,7 +120,7 @@ Section contents.
 
   Definition ideal: Prop :=
     exists p: Point, in_osquare p oa /\
-    exists t: Time, '0 <= t /\ in_osquare (f p t) ob.
+    exists t: Time, 0 <= t /\ in_osquare (f p t) ob.
 
   Definition naive_ideal: Prop :=
     exists p: Point, in_osquare p oa /\

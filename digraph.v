@@ -42,102 +42,92 @@ Section reachability.
     (tovisit: { l | NoDup l /\ incl l unvisited 
       /\ (forall v, ~ In v unvisited -> forall w, In w unvisited -> edge v w -> In w l)
       /\ (forall v, ~ In v unvisited -> reachable v)
-      /\ (forall v, In v l -> reachable v)}) {measure length unvisited}:
+      /\ (forall v, In v l -> reachable v)}) {measure (length unvisited)}:
     { l | incl l (subtr ved unvisited tovisit)
       /\ (forall v, ~ In v l -> forall w, edge v w -> ~ In w l)
       /\ (forall v, ~ In v l -> reachable v) } :=
     match tovisit with
     | nil => unvisited
-    | h :: t => unreachables_worker (remove ved h unvisited)
-      (t ++ intersection ved unvisited (subtr ved (edges h) (h :: t)))
+    | h :: t => @unreachables_worker (remove ved h unvisited)
+      (t ++ intersection ved unvisited (subtr ved (edges h) (h :: t))) _
     end.
 
   Next Obligation. Proof with auto.
     (* the result in the nil case meets the result spec *)
     split. apply incl_refl.
-    destruct H. destruct H0. destruct H1. destruct H2.
     split...
     repeat intro.
-    destruct (H1 _ H4 _ H6 H5).
-  Qed.
-
-  Next Obligation. Proof with simpl; auto.
-    (* the length decreases in the recursive call *)
-    apply remove_length_lt. destruct H. destruct H0.
-    apply H0...
+    destruct (i0 v H w H1 H0).
   Qed.
 
   Next Obligation. Proof with simpl; auto.
     (* the invariant is maintained in the recursive call *)
     clear unreachables_worker.
-    destruct H. destruct H0. destruct H1. destruct H2.
-    inversion_clear H.
+    inversion_clear n.
     repeat split; intros.
             (* we don't introduce duplicates *)
             apply NoDup_app...
             repeat intro.
-            destruct (intersection_In ved x _ _ H6).
-            destruct (snd (In_remove ved (subtr ved (edges h) t) x h) H8).
-            destruct (In_subtr _ _ _ _ H9)...
+            destruct (intersection_In ved x _ _ H2).
+            destruct (snd (In_remove ved (subtr ved (edges h) t) x h) H4).
+            destruct (In_subtr _ _ _ _ H5)...
           (* the new tovisit is still included in the new unvisited *)
           apply incl_app.
             repeat intro.
             apply (fst (In_remove ved unvisited a h)).
             split... intro. subst...
           repeat intro.
-          destruct (intersection_In ved a _ _ H).
+          destruct (intersection_In ved a _ _ H1).
           apply (fst (In_remove ved unvisited a h)).
           split...
           destruct (In_remove ved (subtr ved (edges h) t) a h).
           firstorder.
         (* the new tovisit is still the border between visiteds and unvisiteds *)
-        destruct (snd (In_remove ved _ _ _) H6).
-        rewrite remove_eq_filter in H.
-        destruct (not_In_filter' ved _ _ unvisited H).
-          destruct (H1 _ H10 _ H8 H7)...
+        destruct (snd (In_remove ved _ _ _) H2).
+        rewrite remove_eq_filter in H1.
+        destruct (not_In_filter' ved _ _ unvisited H1).
+          destruct (i0 v H6 w H4 H3)...
           firstorder.
         destruct (ved h v); [idtac | discriminate].
-        clear H10. unfold Equivalence.equiv in e. subst v.
+        unfold Equivalence.equiv in e. subst v.
         destruct (In_dec ved w t)...
         apply in_or_app...
       (* things not in the new unvisited are still reachable *)
-      rewrite remove_eq_filter in H.
-      destruct (not_In_filter' ved v _ unvisited H)...
+      rewrite remove_eq_filter in H1.
+      destruct (not_In_filter' ved v _ unvisited H1)...
       destruct (ved h v); [idtac | discriminate].
       firstorder.
     (* things in the new tovisit are still reachable *)
-    destruct (in_app_or _ _ _ H). apply H3...
-    destruct (intersection_In _ _ _ _ H6). clear H H6.
-    destruct (snd (In_remove ved (subtr ved (edges h) t) v h) H8).
-    destruct (H3 h (in_eq _ _)). destruct H9.
+    destruct (in_app_or _ _ _ H1). apply r0...
+    destruct (intersection_In _ _ _ _ H2).
+    destruct (snd (In_remove ved (subtr ved (edges h) t) v h) H4).
+    destruct (r0 h (in_eq _ _)). destruct H7.
     exists x. split...
     apply trans_refl_closure.step with h...
     unfold edge.
-    destruct (In_subtr _ _ _ _ H)...
+    destruct (In_subtr _ _ _ _ H5)...
+  Qed.
+
+
+  Next Obligation. Proof with simpl; auto.
+    (* the length decreases in the recursive call *)
+    apply remove_length_lt, i...
   Qed.
 
   Next Obligation. Proof with auto.
     (* the result in the recursive case meets the result spec *)
-    set (exist (fun unvisited' : list (Vertex g) => length unvisited' < length unvisited)
-      (remove ved h unvisited) (unreachables_worker_obligation_2
-      unreachables_worker (exist _ tovisit H) Heq_tovisit)).
-    set (exist (fun l =>
-      NoDup l /\ incl l (remove ved h unvisited) /\
-      (forall v0, ~ In v0 (remove ved h unvisited) -> forall w, In w (remove ved h unvisited) -> edge v0 w -> In w l) /\
-      (forall v0, ~ In v0 (remove ved h unvisited) -> reachable v0) /\ (forall v0, In v0 l -> reachable v0))
-       (t ++ intersection ved unvisited (remove ved h (subtr ved (edges h) t)))
-       (unreachables_worker_obligation_3 unreachables_worker (exist _ tovisit H) Heq_tovisit)).
-          (* todo: the above is _awful_ *)
-    destruct (unreachables_worker s s0).
+    destruct_call unreachables_worker.
     simpl proj1_sig in *.
-    clear s s0 unreachables_worker.
-    destruct a. destruct H1.
+    clear unreachables_worker.
+    destruct a. destruct H0.
     split...
-    subst tovisit.
+    (*subst tovisit.*)
     simpl.
     repeat intro.
-    destruct (In_subtr _ _ _ _ (H0 a H3)). clear H0.
-    destruct (snd (In_remove ved unvisited a h) H4). clear H4. 
+    specialize (H a H2).
+    destruct (In_subtr _ _ _ _ H).
+    clear H.
+    destruct (snd (In_remove ved unvisited a h) H3).
     apply (In_remove ved (subtr ved unvisited t) a h)...
     split... apply subtr_In...
   Qed.
@@ -199,7 +189,7 @@ Section reachability.
       (* todo: is this soundness or completeness? i can't tell because
        of this complement stuff.. *)
   Proof with simpl; auto.
-    intros unvisited tovisit r P.
+    intros P.
     induction P...
     repeat intro.
     apply IHP; intros...
@@ -224,7 +214,7 @@ Section reachability.
       (forall v, ~ In v r -> forall w, edge v w -> ~ In w r)
       /\ incl r (subtr ved unvisited tovisit).
   Proof with simpl; auto.
-    intros unvisited tovisit r P.
+    intros P.
     induction P; intros.
       split.
         repeat intro.
@@ -251,10 +241,10 @@ Section reachability.
     split...
     apply subtr_In...
   Qed.
-
+(*
   Program Fixpoint result_rel_exists (unvisited: list (Vertex g))
     (tovisit: { l | NoDup l /\ incl l unvisited })
-     {measure length unvisited}:
+     {measure (length unvisited)}:
        { r | result_rel unvisited tovisit r } :=
     match tovisit with
     | nil => unvisited
@@ -337,7 +327,7 @@ Section reachability.
   Qed.
 
   (* This concludes James' approach. *)
-
+*)
 
   Program Definition reachables:
     { l: list (Vertex g) | forall w, In w l <-> reachable w }

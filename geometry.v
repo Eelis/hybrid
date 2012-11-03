@@ -102,7 +102,7 @@ Definition qabove (q: Q): OpenQRange := exist _ (Some q, None) I.
 Definition qbelow (q: Q): OpenQRange := exist _ (None, Some q) I.
 
 Program Definition unoqrange (r: OpenQRange): OpenRange
-  := (option_map inject_Q (fst r), option_map inject_Q (snd r)).
+  := (option_map inject_Q_CR (fst r), option_map inject_Q_CR (snd r)).
 
 Next Obligation.
   destruct r as [[[x|] [y|]] H]; auto.
@@ -148,7 +148,7 @@ Definition in_orange (r: OpenRange) (x: CR): Prop :=
   opt_prop (orange_left r) (flip CRle x) /\
   opt_prop (orange_right r) (CRle x).
 
-Instance in_orange_mor: Morphism (proj1_sig_relation (product_conj_relation (@st_eq _) (@st_eq _)) ==> @st_eq _ ==> iff) in_orange.
+Instance in_orange_mor: Proper (proj1_sig_relation (product_conj_relation (@st_eq _) (@st_eq _)) ==> @st_eq _ ==> iff) in_orange.
 Proof with auto.
   intros [[x y] a] [[x' y'] a'] [H H0] x0 y0 e.
   unfold in_orange, orange_left, orange_right.
@@ -159,8 +159,8 @@ Proof with auto.
     try rewrite H; try rewrite H0; try rewrite e; split...
 Qed.
 
-Instance in_orange_mor' r: Morphism (@st_eq _ ==> iff) (in_orange r).
-Proof with auto. intros [[a b] e] x y H. apply in_orange_mor... split... Qed.
+Instance in_orange_mor' r: Proper (@st_eq _ ==> iff) (in_orange r).
+Proof with auto. revert r. intros [[a b] e] x y H. apply in_orange_mor... split... Qed.
 
 Lemma in_unbounded_range x: in_orange unbounded_range x.
 Proof with auto. intros. split; simpl; auto. Qed.
@@ -234,6 +234,7 @@ Hint Resolve CRmax_lub.
 Lemma overlapping_oranges_share_point (a b: OpenRange):
   oranges_overlap a b -> exists p, in_orange a p /\ in_orange b p.
 Proof with auto.
+  revert a b.
   intros [[a b] e] [[c d] f] [H H0].
   unfold in_orange.
   unfold orange_left, orange_right in *.
@@ -248,7 +249,7 @@ Proof with auto.
     destruct d; [| eauto].
     exists (CRmin s s0)...
   destruct d. eauto.
-  exists ('0)...
+  exists 0...
 Qed.
 
 (* Because of the following Coq bug, we cannot use "overestimator" below:
@@ -284,12 +285,13 @@ Definition overestimate_squares_overlap eps (a b: Square): overestimation (squar
 Lemma ranges_share_point a b p: in_range a p -> in_range b p ->
   ranges_overlap a b.
 Proof.
-  intros a b p [c d] [e f]. split; eapply CRle_trans; eauto.
+  intros [c d] [e f]. split; eapply CRle_trans; eauto.
 Qed.
 
 Lemma oranges_share_point a b p: in_orange a p -> in_orange b p ->
   oranges_overlap a b.
 Proof with auto.
+  revert a b p.
   intros [[a b] c] [[d e] f] p [g h] [i j].
   unfold oranges_overlap, orange_left, orange_right in *.
   simpl @fst in *. simpl @snd in *.
@@ -306,6 +308,7 @@ Lemma squares_share_point a b p: in_square p a -> in_square p b ->
   squares_overlap a b.
     (* todo: this also holds in reverse *)
 Proof.
+  revert a b p.
   intros [a b] [c d] [e f] [g h] [i j].
   split; eapply ranges_share_point; eauto.
 Qed.
@@ -313,14 +316,13 @@ Qed.
 Lemma osquares_share_point a b p: in_osquare p a -> in_osquare p b ->
   osquares_overlap a b.
 Proof.
+  revert a b p.
   intros [a b] [c d] [e f] [g h] [i j].
   split; eapply oranges_share_point; eauto.
 Qed.
 
 Program Definition map_range (f: CR -> CR) (fi: increasing f) (r: Range): Range :=
   (f (fst (proj1_sig r)), f (snd (proj1_sig r))).
-
-Next Obligation. destruct r. intuition. Qed.
 
 Hint Unfold OCRle.
 
@@ -347,7 +349,7 @@ Qed.
 
 Section scaling.
 
-  Variables (s: CR) (H: '0 <= s).
+  Variables (s: CR) (H: 0 <= s).
 
   Hint Resolve CRle_mult.
 

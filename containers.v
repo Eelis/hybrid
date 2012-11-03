@@ -20,12 +20,12 @@ Implicit Arguments bool_pred_container [].
 
 Section ops_and_props.
 
-  Context `{Container A X}.
+  Context {A X} `{Container A X}.
 
   Definition is_empty (x: X): Prop := forall a, a ∉ x.
   Definition nonempty (x: X): Prop := exists a, a ∈ x.
 
-  Context `{Container A Y}.
+  Context {Y} `{Container A Y}.
 
   Definition intersection (c: X) (d: Y) (x: A): Prop := x ∈ c /\ x ∈ d.
   Definition incl (x: X) (y: Y) := forall a, a ∈ x -> a ∈ y.
@@ -35,6 +35,6 @@ End ops_and_props.
 Notation "x ∩ y" := (intersection x y) (at level 30).
 Notation "x ⊆ y" := (incl x y) (at level 40).
 
-Definition overlap `{Container A X} `{Container A Y} (c: X) (d: Y): Prop := nonempty (c ∩ d).
+Definition overlap {A X} `{Container A X} {Y} `{Container A Y} (c: X) (d: Y): Prop := nonempty (c ∩ d).
 
 Hint Unfold intersection incl.

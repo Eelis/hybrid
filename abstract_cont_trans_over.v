@@ -1,3 +1,5 @@
+Set Automatic Coercions Import.
+
 Require Import List.
 Require Import c_util util list_util stability containers.
 Require Import CSetoids CRreal.
@@ -61,7 +63,7 @@ Section contents.
 
   Definition redundant (l: c.Location chs) (r r': abstract.Region ap) (H: r <> r'): Prop :=
     forall p, p ∈ r ->
-      forall t, '0 <= t -> concrete.flow chs l p t ∈ r' ->
+      forall t, 0 <= t -> concrete.flow chs l p t ∈ r' ->
         concrete.flow chs l p t ∈ r.
 
   Variable under_redundant: underestimator redundant.
@@ -71,7 +73,7 @@ Section contents.
    inequality is integrated in the optionality: *)
 
   Definition hints (l: c.Location chs) (r r': abstract.Region ap):
-    option (forall p, p ∈ r -> forall t, '0 <= t -> concrete.flow chs l p t ∈ r' -> concrete.flow chs l p t ∈ r) :=
+    option (forall p, p ∈ r -> forall t, 0 <= t -> concrete.flow chs l p t ∈ r' -> concrete.flow chs l p t ∈ r) :=
     match r == r' with
     | left _ => None
     | right E => under_redundant l E
@@ -83,7 +85,7 @@ Section contents.
   Hint Unfold abstract.cont_trans.
 
   Next Obligation. Proof with eauto 20.
-    intros l r r' H [x [x0 [H0 [H1 [H2 H3]]]]].
+    intros [x [x0 [H0 [H1 [H2 H3]]]]].
     apply andb_false_elim in H.
     destruct H.
       apply overestimation_false in e...
@@ -125,7 +127,7 @@ Section contents.
 
   Definition strong_redundant l (r r': a.Region ap) (H: r <> r'): Prop :=
     forall p: c.Point chs, p ∈ r ->
-      forall t: Time, concrete.flow chs l p t ∈ r' -> t <= '0.
+      forall t: Time, concrete.flow chs l p t ∈ r' -> t <= 0.
 
   (* Whereas Hint merely says that the destination point lies in the source region,
    StrongHint says that the flow duration is nonpositive. Since flow durations
@@ -139,7 +141,7 @@ Section contents.
   Lemma weaken_hint l r r' (H: r <> r'): strong_redundant l H -> redundant l H.
   Proof with eauto.
     repeat intro.
-    assert (t [=] '0). apply (CRle_def t ('0))...
+    assert (t [=] 0). apply (CRle_def t 0)...
     rewrite H4, flow_zero...
   Qed.
 

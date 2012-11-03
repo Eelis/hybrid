@@ -1,3 +1,5 @@
+Set Automatic Coercions Import.
+
 Require interval_abstraction square_flow_conditions concrete EquivDec.
 Require Import List util list_util c_util geometry monotonic_flow stability.
 Require Import Morphisms.
@@ -221,7 +223,6 @@ Lemma increasing_const x: increasing (const x).
 Defined.
 
 Definition increasing_const' (x: CR): sigT increasing.
-  intro x.
   exists (@const CR CR x).
   apply increasing_const.
 Defined.

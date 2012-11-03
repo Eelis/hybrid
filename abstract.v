@@ -1,3 +1,5 @@
+Set Automatic Coercions Import.
+
 Require Import List Bool.
 Require Import util list_util stability containers.
 Require Import CSetoids.
@@ -22,7 +24,7 @@ Section contents.
     ; regions: ExhaustiveList Region
     ; NoDup_regions: NoDup regions
     ; in_region: Container (concrete.Point chs) Region
-    ; in_region_mor: Morphism (@cs_eq _ ==> eq ==> iff) in_region
+    ; in_region_mor: Proper (@cs_eq _ ==> eq ==> iff) in_region
     ; regions_cover: forall l p, c.invariant (l, p) -> DN (sig (in_region p))
     }.
 
@@ -63,7 +65,7 @@ Section contents.
 
     Let in_region p r := in_region ap p (fst r) /\ in_region ap' p (snd r).
 
-    Let in_region_mor: Morphism (@cs_eq _ ==> eq ==> iff) in_region.
+    Let in_region_mor: Proper (@cs_eq _ ==> eq ==> iff) in_region.
     Proof. unfold in_region. intros x x' e r r' e'. rewrite e, e'. split; auto. Qed.
 
     Program Definition regions_cover_prod l p : concrete.invariant (l, p) -> DN (sig (in_region p)) :=
@@ -113,9 +115,16 @@ Section contents.
           return [= `C1:::`C2 =]
       end.
 
-    Lemma in_region_aux_morph : Morphism (@st_eq _ ==> eq ==> iff) (@in_region_aux aps).
-    Proof.
-      repeat intro; split; induction aps; crunch.
+    Lemma in_region_aux_morph : Proper (@st_eq _ ==> eq ==> iff) (@in_region_aux aps).
+    Proof with auto.
+      repeat intro.
+      subst.
+      induction aps. firstorder.
+      split; intros [H0 H1]; split.
+            apply (in_region_mor a x y H (refl_equal _))...
+          apply IHl...
+        apply (in_region_mor a x y H (refl_equal _))...
+      apply IHl...
     Qed.
 
     Obligation Tactic := program_simpl; auto with typeclass_instances.
@@ -183,10 +192,11 @@ Section contents.
       @overestimate (exists u, In u (proj1_sig astates) /\ reachable u) overestimate.
 
     Next Obligation. Proof with eauto.
-      intros H0 [x [Px r]].
+      intros [x [Px r]].
       apply (@safe x)...
       repeat intro.
-      apply (overestimation_false _ H0)...
+      apply (@overestimation_false (exists u, In u (proj1_sig astates) /\ reachable u) _ H0)...
+        (* todo: ugly *)
       destruct astates.
       pose proof (c ())...
     Qed.
@@ -233,7 +243,7 @@ Section contents.
       DN (exists is, overestimation_bool (initial_dec ahs is) = true /\
         exists s', s ∈ s' /\ end_with trans (negb b) is s').
   Proof with eauto; auto 20.
-    intros i s H b H0.
+    intros H b H0.
     induction H0 as [| b i (l, p) H0 IH [l' p']].
       destruct s as [l cp].
       apply (DN_fmap (regions_cover ap l cp (concrete.invariant_initial chs _ H))).

@@ -43,10 +43,9 @@ Section predicate_reflection.
 
   Definition pred_rect (T: Type) (i: IsPredicateType T) (t: T): F t.
   Proof.
-    intros T d.
-    induction d.
-      exact A.
-    exact (fun t => B T t p (fun u => X0 u (t u))).
+    induction i.
+      apply A.
+    exact (B T t p (fun u => X0 u (t u))).
   Defined.
 
 End predicate_reflection.
@@ -56,17 +55,17 @@ Existing Instance PT_pred_instance.
 
 Class decision (P: Prop): Set := decide: { P } + { ~ P }.
 
-Program Instance decide_conjunction `{Pd: decision P} `{Qd: decision Q}: decision (P /\ Q) :=
+Program Instance decide_conjunction {P Q: Prop} `{Pd: decision P} `{Qd: decision Q}: decision (P /\ Q) :=
   match Pd, Qd with
   | right _, _ => right _
   | _, right _ => right _
   | left _, left _ => left _
   end.
 
-Instance decide_equality {A} {R: relation A} `{e: EqDec A R} x y: decision (R x y) := e x y.
+Next Obligation. firstorder. Qed.
+Next Obligation. firstorder. Qed.
 
-Next Obligation. firstorder. Qed.
-Next Obligation. firstorder. Qed.
+Instance decide_equality {A} {R: relation A} `{e: EqDec A R} x y: decision (R x y) := e x y.
 
 Definition decision_to_bool P (dec : decision P) : bool :=
   match dec with
@@ -123,7 +122,7 @@ Hint Unfold decision.
 
 Definition and_dec (P Q: Prop) (Pdec: decision P) (Qdec: decision Q):
   decision (P/\Q).
-Proof. unfold decision. tauto. Defined.
+Proof. unfold decision. destruct Pdec, Qdec; firstorder. Defined.
 
 Hint Resolve and_dec.
 
@@ -152,9 +151,9 @@ Proof with auto.
   intros. unfold Rmin. destruct (Rle_dec x y)...
 Qed.
 
-Instance option_eq_dec `(Bdec: EquivDec.EqDec B eq): EquivDec.EqDec (option B) eq.
+Instance option_eq_dec {B: Type} `(Bdec: EquivDec.EqDec B eq): EquivDec.EqDec (option B) eq.
 Proof with auto.
-  intros B e Bdec o o'.
+  intros o o'.
   unfold Equivalence.equiv.
   destruct o; destruct o'...
     destruct (Bdec b b0).
@@ -261,7 +260,7 @@ Proof. destruct o. destruct x. reflexivity. intros. absurd P; auto. Qed.
 
 Section doers.
 
-  Context `{ipt: IsPredicateType T}.
+  Context {T: Type} `{ipt: IsPredicateType T}.
 
   Definition overestimator: T -> Type :=
     pred_rect (fun _ _ => Type) overestimation (fun U R p i X => forall x, X x) ipt.
@@ -278,10 +277,9 @@ Program Coercion decision_overestimation (P: Prop) (d: decision P): overestimati
 Next Obligation. destruct d; firstorder. Qed.
   (* todo: rename, because we can do the same for underestimation *)
 
-Definition decider_to_overestimator `{ipt: IsPredicateType T} (P: T): decider P -> overestimator P.
+Definition decider_to_overestimator {T: Type} `{ipt: IsPredicateType T} (P: T): decider P -> overestimator P.
   unfold decider, overestimator.
-  intro.
-  unfold IsPredicateType.
+  unfold IsPredicateType in ipt.
   unfold pred_rect.
   induction ipt; simpl.
     apply decision_overestimation.
@@ -328,7 +326,7 @@ Definition proj1_sig_relation (T: Type) (P: T -> Prop) (R: relation T): relation
 Definition product_conj_relation (T T': Type) (R: relation T) (R': relation T'): relation (T * T') :=
   fun p p' => R (fst p) (fst p') /\ R' (snd p) (snd p').
 
-Definition morpher A B: relation (A -> B) -> Type := @sig _ ∘ Morphism.
+Definition morpher A B: relation (A -> B) -> Type := @sig _ ∘ Proper.
   (* A more general version would be:
     Definition morpher A: relation A -> Type := @sig _ ∘ Morphism.
   However, we need the hard-coded implication to be able to declare the
@@ -338,7 +336,7 @@ Let morpher_to_func A B (R: relation (A -> B)): morpher R -> (A -> B) := @proj1_
 Coercion morpher_to_func: morpher >-> Funclass.
 
 Instance morpher_morphism A B (R: relation (A -> B)) (f: morpher R):
-  Morphism R f := proj2_sig f.
+  Proper R f := proj2_sig f.
 
 Ltac prove_NoDup := simpl;
   match goal with
@@ -379,7 +377,7 @@ Section contents.
    (a b: T): R a b -> P a -> ~ P b ->
     exists c, exists d, P c /\ ~ P d /\ TR c d.
   Proof.
-    intros P Pdec a b r.
+    intros r.
     induction r. firstorder.
     destruct (Pdec b); eauto.
   Qed.
@@ -388,7 +386,7 @@ Section contents.
    (a b: T): R a b -> ~ P a -> P b ->
     exists c, exists d, ~ P c /\ P d /\ TR c d.
   Proof.
-    intros P Pdec a b r.
+    intros r.
     induction r. firstorder.
     destruct (Pdec b); eauto.
   Qed.

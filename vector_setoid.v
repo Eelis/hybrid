@@ -12,17 +12,16 @@ Set Implicit Arguments.
 Section VectorCSetoid.
 
   Variables A : CSetoid.
+
+  Fixpoint vec_ap (n: nat): vector A n -> vector A n -> CProp :=
+    match n with
+    | O => fun _ _ => False
+    | S m => fun v w => (Vhead v [#] Vhead w) or vec_ap (Vtail v) (Vtail w)
+    end.
+
   Variable n : nat.
 
   Notation vec := (vector A n).
-  
-  Definition vec_ap (x y : vec) : CProp.
-  Proof.
-    induction n; intros.
-    exact False.
-    inversion x. inversion y. 
-    exact ((a [#] a0) or (IHn0 X X0)).
-  Defined.
 
 (*
   Instance eqA : SetoidClass.Setoid A :=
@@ -31,7 +30,7 @@ Section VectorCSetoid.
 
   Let vec_eq := @eq_vec A (@cs_eq A) n.
 
-  Lemma is_vec_CSetoid : is_CSetoid vec vec_eq vec_ap.
+  Lemma is_vec_CSetoid : is_CSetoid vec vec_eq (@vec_ap n).
   Proof.
     constructor.
      (* irreflexivive *)
